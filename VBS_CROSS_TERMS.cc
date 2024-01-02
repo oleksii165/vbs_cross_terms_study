@@ -49,6 +49,7 @@ namespace Rivet {
       // Book histograms
       // specify custom binning
       book(_h["njet"], "njet", 10, 0.0, 10.0);
+      book(_h["pt_jet1"], "pt_jet1", 200, 0.0, 3000.0);
       book(_h["mjj"], "mjj", 200, 0.0, 3000.0);
       book(_h["dyjj"], "dyjj", 50, 0.0, 6.0);
       book(_h2["mjj_dyjj"], "mjj_dyjj", 200, 0.0, 3000.0, 50, 0.0, 6.0);
@@ -85,6 +86,7 @@ namespace Rivet {
       const double dyjj = fabs(jet_lead.rap() - jet_tag2.rap());
 
       _h["njet"]->fill(jets.size());
+      _h["pt_jet1"]->fill(jets[0].pt());
       _h["mjj"]->fill(mjj);
       _h["dyjj"]->fill(dyjj);
       _h2["mjj_dyjj"]->fill(mjj,dyjj);
@@ -97,12 +99,13 @@ namespace Rivet {
 
       double veto_survive_sumW = dbl(*_c["found_VBS_pair"]);
       double veto_survive_frac = veto_survive_sumW / sumW();
-      double scale_to = crossSection()/picobarn/veto_survive_sumW*veto_survive_frac; // norm to generated cross-section in pb (after cuts)
-      scale(_h["njet"], scale_to);
-      scale(_h["mjj"], scale_to); 
-      scale(_h["dyjj"], scale_to);
-      scale(_h2["mjj_dyjj"], scale_to);
-      std::cout << "integral mjj after scaling (one for syst variation)" << _h["mjj"]->integral() <<"\n";
+      double norm_to = veto_survive_frac*crossSection()/picobarn; // norm to generated cross-section in pb (after cuts)
+      normalize(_h["njet"], norm_to);
+      normalize(_h["pt_jet1"], norm_to);
+      normalize(_h["mjj"], norm_to); 
+      normalize(_h["dyjj"], norm_to);
+      normalize(_h2["mjj_dyjj"], norm_to);
+      std::cout << "xsec incoming in pb"<<  crossSection()/picobarn <<"frac of w surviving vetos " << veto_survive_frac  <<" integral mjj after scaling (one for syst variation) " << _h["mjj"]->integral() <<"\n";
 
     }
 
