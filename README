@@ -1,0 +1,3 @@
+rivet-build RivetVBS_CROSS_TERMS.so VBS_CROSS_TERMS.cc
+
+athena rivet_job.py -c 'conf="WmWm_FT0_FULL"'
