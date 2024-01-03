@@ -99,13 +99,13 @@ namespace Rivet {
 
       double veto_survive_sumW = dbl(*_c["found_VBS_pair"]);
       double veto_survive_frac = veto_survive_sumW / sumW();
+      std::cout << "survived veto, will norm to this: " << veto_survive_frac << "\n";
       double norm_to = veto_survive_frac*crossSection()/picobarn; // norm to generated cross-section in pb (after cuts)
       normalize(_h["njet"], norm_to);
       normalize(_h["pt_jet1"], norm_to);
       normalize(_h["mjj"], norm_to); 
       normalize(_h["dyjj"], norm_to);
       normalize(_h2["mjj_dyjj"], norm_to);
-      std::cout << "xsec incoming in pb"<<  crossSection()/picobarn <<"frac of w surviving vetos " << veto_survive_frac  <<" integral mjj after scaling (one for syst variation) " << _h["mjj"]->integral() <<"\n";
 
     }
 
