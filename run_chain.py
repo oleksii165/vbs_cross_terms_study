@@ -157,15 +157,15 @@ nbins = len(all_ops)
 
 ############# FULL and in comparsion with SM
 FULL_h = ROOT.TH2F("FULL_h","FULL_h", nbins,0,nbins,1,0,1)
-FULL_minus_SM_h = ROOT.TH2F("FULL_minus_SM_h","FULL_minus_SM_h", nbins,0,nbins,1,0,1)
+FULL_ratio_SM_h = ROOT.TH2F("FULL_ratio_SM_h","FULL_ratio_SM_h", nbins,0,nbins,1,0,1)
 for num_bin,i_op in enumerate(all_ops, start=1):
     FULL_h.GetXaxis().SetBinLabel(num_bin,i_op)
-    FULL_minus_SM_h.GetXaxis().SetBinLabel(num_bin,i_op)
+    FULL_ratio_SM_h.GetXaxis().SetBinLabel(num_bin,i_op)
     if i_op in xsec_dict["FULL"].keys(): 
         FULL_h.SetBinContent(num_bin, 1, xsec_dict["FULL"][i_op])
-        FULL_minus_SM_h.SetBinContent(num_bin, 1, xsec_dict["FULL"][i_op] - SM_ref)
+        FULL_ratio_SM_h.SetBinContent(num_bin, 1, xsec_dict["FULL"][i_op] / SM_ref)
 save_plot(FULL_h,plotdir + "FULL.pdf")
-save_plot(FULL_minus_SM_h,plotdir + "FULL_minus_SM_h.pdf")
+save_plot(FULL_ratio_SM_h,plotdir + "FULL_ratio_SM_h.pdf")
 ################ QUAD
 QUAD_h = ROOT.TH2F("QUAD_h","QUAD_h", nbins,0,nbins,1,0,1)
 QUAD_ratio_FULL_h = ROOT.TH2F("QUAD_ratio_FULL_h","QUAD_ratio_FULL_h", nbins,0,nbins,1,0,1)
