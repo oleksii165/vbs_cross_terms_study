@@ -5,6 +5,7 @@ import subprocess
 import os
 import glob
 import math
+from array import array
 import yoda
 import ROOT
 ROOT.gStyle.SetOptStat(0)
@@ -13,6 +14,7 @@ from optparse import OptionParser
 parser = OptionParser()
 parser.add_option("--conf", default = "")
 parser.add_option("--sumPlotsOnly", default = 0)
+parser.add_option("--doDownloadAndRivet", default = 0)
 opts, _ = parser.parse_args()
 top_files_dir = "../eft_files/"
 plotdir = "../plots/"
@@ -21,45 +23,46 @@ plotdir = "../plots/"
 ########
 # download files and logs(+untar) - from last succesfol try per config
 ############
-tasks = c.get_tasks(limit=1000, days=14, username="Oleksii Kurdysh", status="done") # get already last try since only retry if it failed
-task_names = [i_task['taskname'].replace("/","") for i_task in tasks if "MadGraph" in i_task['taskname']]
+if opts.doDownloadAndRivet:
+    tasks = c.get_tasks(limit=1000, days=14, username="Oleksii Kurdysh", status="done") # get already last try since only retry if it failed
+    task_names = [i_task['taskname'].replace("/","") for i_task in tasks if "MadGraph" in i_task['taskname']]
 
-conf_dirs_dict = {}
-for i_name in task_names:
-    print("downloading  and untaring for" ,i_name)
-    evnt_did = i_name + "_EXT0"
-    log_did = i_name + ".log"
-    if not os.path.exists(f"{top_files_dir}/{evnt_did}"):
-        subprocess.call(f"rucio download {evnt_did}", shell=True, cwd=top_files_dir)
-        subprocess.call(f"rucio download {log_did}", shell=True, cwd=f'{top_files_dir}/{evnt_did}')
-        tar_file = os.path.basename(glob.glob(f"{top_files_dir}/{evnt_did}/{log_did}/*log.tgz")[-1]) #-1 because sometimes there are several attemps and only last if succesflyy
-        subprocess.call(f"tar -xvf {tar_file}", shell=True, cwd=f'{top_files_dir}/{evnt_did}/{log_did}')
-        print("done")
-    else:
-        print("EXT0 folder for this exsits already, do nothing")
-    conf_dirs_dict[i_name] =  os.path.join(os.getcwd(),top_files_dir,evnt_did,'')
-print("left with dirs", conf_dirs_dict)
+    conf_dirs_dict = {}
+    for i_name in task_names:
+        print("downloading  and untaring for" ,i_name)
+        evnt_did = i_name + "_EXT0"
+        log_did = i_name + ".log"
+        if not os.path.exists(f"{top_files_dir}/{evnt_did}"):
+            subprocess.call(f"rucio download {evnt_did}", shell=True, cwd=top_files_dir)
+            subprocess.call(f"rucio download {log_did}", shell=True, cwd=f'{top_files_dir}/{evnt_did}')
+            tar_file = os.path.basename(glob.glob(f"{top_files_dir}/{evnt_did}/{log_did}/*log.tgz")[-1]) #-1 because sometimes there are several attemps and only last if succesflyy
+            subprocess.call(f"tar -xvf {tar_file}", shell=True, cwd=f'{top_files_dir}/{evnt_did}/{log_did}')
+            print("done")
+        else:
+            print("EXT0 folder for this exsits already, do nothing")
+        conf_dirs_dict[i_name] =  os.path.join(os.getcwd(),top_files_dir,evnt_did,'')
+    print("left with dirs", conf_dirs_dict)
 
-##########
-# run rivet and rivet-mkhtml
-###########
-def rivet_run_conf(conf):
-    run_com = "athena rivet_job.py -c 'conf=" + f'"{conf}"' + "'"
-    print("#### will run rivet with", run_com)
-    subprocess.call(run_com, shell=True)
+    ##########
+    # run rivet and rivet-mkhtml
+    ###########
+    def rivet_run_conf(conf):
+        run_com = "athena rivet_job.py -c 'conf=" + f'"{conf}"' + "'"
+        print("#### will run rivet with", run_com)
+        subprocess.call(run_com, shell=True)
 
-    conf_dir = glob.glob(top_files_dir+f"*{conf}*")[0]
-    print("#### will run mkhtml in dir", conf_dir)
-    subprocess.call("rivet-mkhtml MyOutput.yoda.gz", shell=True, cwd = conf_dir)
+        conf_dir = glob.glob(top_files_dir+f"*{conf}*")[0]
+        print("#### will run mkhtml in dir", conf_dir)
+        subprocess.call("rivet-mkhtml MyOutput.yoda.gz", shell=True, cwd = conf_dir)
 
-if not opts.sumPlotsOnly:
-    if len(opts.conf)==0: # run all
-        for num_conf,i_name in enumerate(conf_dirs_dict.keys()):
-            print("##############")
-            print("############# will do config num", num_conf, "out of", len(conf_dirs_dict.keys()), "this time it is", i_name)
-            rivet_run_conf(i_name)
-    else:
-        rivet_run_conf(opts.conf)
+    if not opts.sumPlotsOnly:
+        if len(opts.conf)==0: # run all
+            for num_conf,i_name in enumerate(conf_dirs_dict.keys()):
+                print("##############")
+                print("############# will do config num", num_conf, "out of", len(conf_dirs_dict.keys()), "this time it is", i_name)
+                rivet_run_conf(i_name)
+        else:
+            rivet_run_conf(opts.conf)
 
 ##########
 # summary table of all the xsec*filt
@@ -138,9 +141,10 @@ for i_key1 in xsec_dict["CROSS"].keys():
 #######
 #### convert dict into plot
 ############
-def save_plot(plot,path_to_save):
+def save_plot(plot,path_to_save, draw_option = "text", log_scale = False):
     c=ROOT.TCanvas()
-    plot.Draw("text")
+    plot.Draw(draw_option)
+    if log_scale: ROOT.gPad.SetLogy()
     c.Modified()
     c.Update()
     c.Show()
@@ -151,8 +155,6 @@ print("SM xsec in pb", SM_ref)
 
 all_ops =  sorted(list(xsec_dict["QUAD"].keys()))
 print("all ops", all_ops)
-print("pos of FM0", all_ops.index("FM0"))
-print("pos of FS02", all_ops.index("FS02"))
 nbins = len(all_ops)
 
 ############# FULL and in comparsion with SM
@@ -166,6 +168,59 @@ for num_bin,i_op in enumerate(all_ops, start=1):
         FULL_ratio_SM_h.SetBinContent(num_bin, 1, xsec_dict["FULL"][i_op] / SM_ref)
 save_plot(FULL_h,plotdir + "FULL.pdf")
 save_plot(FULL_ratio_SM_h,plotdir + "FULL_ratio_SM_h.pdf")
+
+# draw on one plot mjj for FULL and SM 
+def yoda_to_root_1d(h_yoda,root_h_name):
+    mjj_h_root = ROOT.TH1D(root_h_name, '', h_yoda.numBins(), array('d', h_yoda.xEdges()))
+    mjj_h_root.Sumw2()
+    rtErrs = mjj_h_root.GetSumw2()
+    for i in range(mjj_h_root.GetNbinsX()):
+        mjj_h_root.SetBinContent(i + 1, h_yoda.bin(i).sumW())
+        rtErrs.AddAt(h_yoda.bin(i).sumW2(), i+1)
+    mjj_h_root.SetDirectory(0)
+    return mjj_h_root
+
+FULL_arr = []
+SM_arr = []
+stop_num = 115
+counter_num = 0
+for op_dir in os.listdir(top_files_dir):
+    ops_arr, regime = get_op_from_dir(op_dir)
+    my_op = ops_arr[0]
+    yoda_path = os.path.join(top_files_dir,op_dir,"MyOutput.yoda.gz")
+    if regime in ["FULL","SM"]:
+        if counter_num > stop_num: break
+        print("for yoda use path", yoda_path)
+        yoda_f = yoda.read(yoda_path)
+        h_yoda = yoda_f["/VBS_CROSS_TERMS/pt_jet1"]
+        h_name = my_op + "_" + regime
+        h_root = yoda_to_root_1d(h_yoda,h_name)
+        if regime=="FULL":
+            counter_num +=1
+            FULL_arr.append(h_root)
+        elif regime=="SM":
+            SM_arr.append(h_root)
+        save_plot(h_root,plotdir +"/per_op/pt_jet1_" + h_name +".pdf", draw_option = "", log_scale = True)
+        # print("integrals yoda and root", mjj_h_yoda.integral(), mjj_h_root.Integral())        
+    
+stack = ROOT.THStack("pt_jet1", "pt_jet1")
+stack.Add(SM_arr[0])
+SM_arr[0].SetLineColor(1)
+SM_arr[0].SetMarkerColor(1)
+SM_arr[0].SetMarkerStyle(59)
+SM_arr[0].SetMarkerSize(1.0)
+for num_color,ih in enumerate(FULL_arr,start=2):
+    ih.SetLineColor(num_color); ih.SetMarkerColor(num_color)
+    stack.Add(ih)
+c = ROOT.TCanvas()
+stack.Draw("nostack")
+ROOT.gPad.SetLogy()
+c.BuildLegend()
+c.Modified()
+c.Update()
+c.Show()
+c.SaveAs(plotdir + "pt_jet1_hist_FULL_SM.pdf")
+
 ################ QUAD
 QUAD_h = ROOT.TH2F("QUAD_h","QUAD_h", nbins,0,nbins,1,0,1)
 QUAD_ratio_FULL_h = ROOT.TH2F("QUAD_ratio_FULL_h","QUAD_ratio_FULL_h", nbins,0,nbins,1,0,1)
