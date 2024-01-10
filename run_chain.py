@@ -5,7 +5,11 @@ import subprocess
 import os
 import glob
 import math
+import sympy
+from sympy import abc
+import spb
 from array import array
+import matplotlib
 import yoda
 import ROOT
 ROOT.gStyle.SetOptStat(0)
@@ -237,26 +241,55 @@ save_plot(QUAD_ratio_FULL_h,plotdir + "QUAD_ratio_FULL.pdf")
 ############## CROSS + geometric average
 CROSS_h = ROOT.TH2F("CROSS_h","CROSS_h", nbins,0,nbins,nbins,0,nbins)
 CROSS_geom_QUAD_h = ROOT.TH2F("CROSS_geom_QUAD_h","CROSS_geom_QUAD_h", nbins,0,nbins,nbins,0,nbins)
+CROSS_el_area_ratio_h = ROOT.TH2F("CROSS_el_area_ratio_h","CROSS_el_area_ratio_h", nbins,0,nbins,nbins,0,nbins)
 for i_op1 in all_ops:
     if i_op1 in xsec_dict["CROSS"].keys(): 
         bin_x = all_ops.index(i_op1) + 1
         CROSS_h.GetXaxis().SetBinLabel(bin_x,i_op1)
         CROSS_geom_QUAD_h.GetXaxis().SetBinLabel(bin_x,i_op1)
+        CROSS_el_area_ratio_h.GetXaxis().SetBinLabel(bin_x,i_op1)
         for i_op2 in xsec_dict["CROSS"][i_op1]:
             bin_y = all_ops.index(i_op2) + 1
             CROSS_h.GetYaxis().SetBinLabel(bin_y,i_op2)
             CROSS_geom_QUAD_h.GetYaxis().SetBinLabel(bin_y,i_op2)
-            xsec_fid = xsec_dict["CROSS"][i_op1][i_op2]
-            CROSS_h.SetBinContent(bin_x, bin_y, xsec_fid)
+            CROSS_el_area_ratio_h.GetYaxis().SetBinLabel(bin_y,i_op2)
+            cross = xsec_dict["CROSS"][i_op1][i_op2]
+            CROSS_h.SetBinContent(bin_x, bin_y, cross)
             # fill geometric average
             if i_op1 in xsec_dict["QUAD"].keys() and i_op2 in xsec_dict["QUAD"].keys():
                 quad1 = xsec_dict["QUAD"][i_op1]
                 quad2 = xsec_dict["QUAD"][i_op2]
-                geom_average = xsec_fid / math.sqrt(quad1*quad2)
+                geom_average = cross / math.sqrt(quad1*quad2)
                 # print("for i_op1 i_op2", i_op1, i_op2, "using quads", quad1, quad2, "and cross",xsec_fid ,"with geom ave", geom_average)
                 CROSS_geom_QUAD_h.SetBinContent(bin_x, bin_y, geom_average)
-save_plot(CROSS_h,plotdir + "CROSS.pdf")
-save_plot(CROSS_geom_QUAD_h,plotdir + "CROSS_geom_QUAD.pdf")
+                ##### ellipses
+                unit_c = 140 # lumi of run2 in 1/fb, expect xsec to be in fb
+                el_q1_c = unit_c * quad1 / 3 # dont square xsec since already squared from madgraph
+                el_q2_c = unit_c * quad2 / 3 # divide by 3 since formula for are expect factor to be 1
+                el_cross_c = unit_c * cross / 3
+                area_no_cross = 2 * math.pi / math.sqrt(4*el_q1_c*el_q2_c)
+                area_with_cross = 2 * math.pi / math.sqrt(4*el_q1_c*el_q2_c - el_cross_c**2)
+                print("for i_op1 i_op2", i_op1, i_op2,"got areas no cross ", area_no_cross, "with cross", area_with_cross, "used ellipse q1 q2 cross",el_q1_c,el_q2_c,el_cross_c)
+                CROSS_el_area_ratio_h.SetBinContent(bin_x, bin_y, area_with_cross/area_no_cross)
+                #plot
+                max_area = max([area_no_cross, area_with_cross])
+                plot_b = 5*max_area #0.15
+                eq_no_cross = sympy.Eq(el_q1_c*abc.x**2 + el_q2_c*abc.y**2, 1)
+                eq_with_cross = sympy.Eq(el_q1_c*abc.x**2 + el_q2_c*abc.y**2 + cross*abc.x*abc.y, 1)
+                plot_no_cross = sympy.plot_implicit(eq_no_cross,(abc.x,-1*plot_b,plot_b),(abc.y,-1*plot_b,plot_b),
+                                                show=False,line_color='blue')
+                plot_with_cross = sympy.plot_implicit(eq_with_cross,(abc.x,-1*plot_b,plot_b),(abc.y,-1*plot_b,plot_b),
+                                                show=False,line_color='red')
+                plot_no_cross.append(plot_with_cross[0])
+                plot_no_cross.save(plotdir + f"/ellipses/el_{i_op1}_{i_op2}.png")
+                print("done for this pair of ops")
+                # spb.backends.matplotlib.MatplotlibBackend.close(plot_no_cross)
+                matplotlib.pyplot.close()
+
+
+save_plot(CROSS_h, plotdir + "CROSS.pdf")
+save_plot(CROSS_geom_QUAD_h, plotdir + "CROSS_geom_QUAD.pdf")
+save_plot(CROSS_el_area_ratio_h, plotdir + "CROSS_el_area_ratio_h.pdf")
 
 
 
