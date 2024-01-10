@@ -12,9 +12,9 @@ ROOT.gStyle.SetOptStat(0)
 ROOT.gROOT.SetBatch(ROOT.kTRUE)
 from optparse import OptionParser
 parser = OptionParser()
-parser.add_option("--conf", default = "")
 parser.add_option("--sumPlotsOnly", default = 0)
 parser.add_option("--doDownloadAndRivet", default = 0)
+parser.add_option("--makeJetPt1Plot", default = 0)
 opts, _ = parser.parse_args()
 top_files_dir = "../eft_files/"
 plotdir = "../plots/"
@@ -118,8 +118,8 @@ for op_dir in os.listdir(top_files_dir):
     else:
         print("have xsec*frac for this file already")
     f = open(product_file, "r")
-    fid_xsec = f.read()
-    print("reading back fid_xsec",fid_xsec)
+    fid_xsec_fb = float(f.read()) * 1000
+    print("reading back fid_xsec and converting from pb to fb", fid_xsec_fb)
     ops_arr, regime = get_op_from_dir(op_dir)
     print("this is for ops", ops_arr, "in regime", regime)
     if regime=="CROSS":
@@ -127,10 +127,10 @@ for op_dir in os.listdir(top_files_dir):
         my_op2 = ops_arr[1]
         if my_op1 not in xsec_dict[regime].keys():
             xsec_dict[regime][my_op1] = {}
-        xsec_dict[regime][my_op1][my_op2] = float(fid_xsec) 
+        xsec_dict[regime][my_op1][my_op2] = fid_xsec_fb 
     else:
         my_op = ops_arr[0]
-        xsec_dict[regime][my_op] = float(fid_xsec)
+        xsec_dict[regime][my_op] = fid_xsec_fb
 
 print("SM", xsec_dict["SM"])
 print("FULL", xsec_dict["FULL"])
@@ -151,7 +151,7 @@ def save_plot(plot,path_to_save, draw_option = "text", log_scale = False):
     c.SaveAs(path_to_save)
 
 SM_ref =  xsec_dict["SM"][list(xsec_dict["SM"].keys())[0]] # anyway they are all the same as it should be
-print("SM xsec in pb", SM_ref)
+print("SM xsec in fb", SM_ref)
 
 all_ops =  sorted(list(xsec_dict["QUAD"].keys()))
 print("all ops", all_ops)
@@ -169,57 +169,58 @@ for num_bin,i_op in enumerate(all_ops, start=1):
 save_plot(FULL_h,plotdir + "FULL.pdf")
 save_plot(FULL_ratio_SM_h,plotdir + "FULL_ratio_SM_h.pdf")
 
-# draw on one plot mjj for FULL and SM 
-def yoda_to_root_1d(h_yoda,root_h_name):
-    mjj_h_root = ROOT.TH1D(root_h_name, '', h_yoda.numBins(), array('d', h_yoda.xEdges()))
-    mjj_h_root.Sumw2()
-    rtErrs = mjj_h_root.GetSumw2()
-    for i in range(mjj_h_root.GetNbinsX()):
-        mjj_h_root.SetBinContent(i + 1, h_yoda.bin(i).sumW())
-        rtErrs.AddAt(h_yoda.bin(i).sumW2(), i+1)
-    mjj_h_root.SetDirectory(0)
-    return mjj_h_root
+# draw on one plot jet_pt1 for FULL and SM 
+if opts.makeJetPt1Plot:
+    def yoda_to_root_1d(h_yoda,root_h_name):
+        mjj_h_root = ROOT.TH1D(root_h_name, '', h_yoda.numBins(), array('d', h_yoda.xEdges()))
+        mjj_h_root.Sumw2()
+        rtErrs = mjj_h_root.GetSumw2()
+        for i in range(mjj_h_root.GetNbinsX()):
+            mjj_h_root.SetBinContent(i + 1, h_yoda.bin(i).sumW())
+            rtErrs.AddAt(h_yoda.bin(i).sumW2(), i+1)
+        mjj_h_root.SetDirectory(0)
+        return mjj_h_root
 
-FULL_arr = []
-SM_arr = []
-stop_num = 115
-counter_num = 0
-for op_dir in os.listdir(top_files_dir):
-    ops_arr, regime = get_op_from_dir(op_dir)
-    my_op = ops_arr[0]
-    yoda_path = os.path.join(top_files_dir,op_dir,"MyOutput.yoda.gz")
-    if regime in ["FULL","SM"]:
-        if counter_num > stop_num: break
-        print("for yoda use path", yoda_path)
-        yoda_f = yoda.read(yoda_path)
-        h_yoda = yoda_f["/VBS_CROSS_TERMS/pt_jet1"]
-        h_name = my_op + "_" + regime
-        h_root = yoda_to_root_1d(h_yoda,h_name)
-        if regime=="FULL":
-            counter_num +=1
-            FULL_arr.append(h_root)
-        elif regime=="SM":
-            SM_arr.append(h_root)
-        save_plot(h_root,plotdir +"/per_op/pt_jet1_" + h_name +".pdf", draw_option = "", log_scale = True)
-        # print("integrals yoda and root", mjj_h_yoda.integral(), mjj_h_root.Integral())        
-    
-stack = ROOT.THStack("pt_jet1", "pt_jet1")
-stack.Add(SM_arr[0])
-SM_arr[0].SetLineColor(1)
-SM_arr[0].SetMarkerColor(1)
-SM_arr[0].SetMarkerStyle(59)
-SM_arr[0].SetMarkerSize(1.0)
-for num_color,ih in enumerate(FULL_arr,start=2):
-    ih.SetLineColor(num_color); ih.SetMarkerColor(num_color)
-    stack.Add(ih)
-c = ROOT.TCanvas()
-stack.Draw("nostack")
-ROOT.gPad.SetLogy()
-c.BuildLegend()
-c.Modified()
-c.Update()
-c.Show()
-c.SaveAs(plotdir + "pt_jet1_hist_FULL_SM.pdf")
+    FULL_arr = []
+    SM_arr = []
+    stop_num = 115
+    counter_num = 0
+    for op_dir in os.listdir(top_files_dir):
+        ops_arr, regime = get_op_from_dir(op_dir)
+        my_op = ops_arr[0]
+        yoda_path = os.path.join(top_files_dir,op_dir,"MyOutput.yoda.gz")
+        if regime in ["FULL","SM"]:
+            if counter_num > stop_num: break
+            print("for yoda use path", yoda_path)
+            yoda_f = yoda.read(yoda_path)
+            h_yoda = yoda_f["/VBS_CROSS_TERMS/pt_jet1"]
+            h_name = my_op + "_" + regime
+            h_root = yoda_to_root_1d(h_yoda,h_name)
+            if regime=="FULL":
+                counter_num +=1
+                FULL_arr.append(h_root)
+            elif regime=="SM":
+                SM_arr.append(h_root)
+            save_plot(h_root,plotdir +"/per_op/pt_jet1_" + h_name +".pdf", draw_option = "", log_scale = True)
+            # print("integrals yoda and root", mjj_h_yoda.integral(), mjj_h_root.Integral())        
+        
+    stack = ROOT.THStack("pt_jet1", "pt_jet1")
+    stack.Add(SM_arr[0])
+    SM_arr[0].SetLineColor(1)
+    SM_arr[0].SetMarkerColor(1)
+    SM_arr[0].SetMarkerStyle(59)
+    SM_arr[0].SetMarkerSize(1.0)
+    for num_color,ih in enumerate(FULL_arr,start=2):
+        ih.SetLineColor(num_color); ih.SetMarkerColor(num_color)
+        stack.Add(ih)
+    c = ROOT.TCanvas()
+    stack.Draw("nostack")
+    ROOT.gPad.SetLogy()
+    c.BuildLegend()
+    c.Modified()
+    c.Update()
+    c.Show()
+    c.SaveAs(plotdir + "pt_jet1_hist_FULL_SM.pdf")
 
 ################ QUAD
 QUAD_h = ROOT.TH2F("QUAD_h","QUAD_h", nbins,0,nbins,1,0,1)
