@@ -1,6 +1,9 @@
 # example of running:   athena rivet_example.py -c 'conf="WmWm_FT0_FULL"'
 theApp.EvtMax = -1
 print("#####received conf from cmd through -c 'conf=X':  ",conf)
+prod_temp = conf[conf.find("user.okurdysh.MadGraph_")+len("user.okurdysh.MadGraph_"):]
+prod = prod_temp[:prod_temp.find("_")]
+print("from conf found production ", prod)
 
 import glob
 def find_dir(search_com):
@@ -9,7 +12,7 @@ def find_dir(search_com):
     conf_dir = conf_dir_arr[0] if len(conf_dir_arr)>=1 else -1  
     if conf_dir == -1: raise ValueError("did not find folder for this config ",search_com)
     return conf_dir
-base_dir = "/exp/atlas/kurdysh/vbs_cross_terms_study/eft_files/"
+base_dir = f"/exp/atlas/kurdysh/vbs_cross_terms_study/eft_files/{prod}/"
 evnt_conf_dir = find_dir(base_dir + f"/*{conf}*EXT0")
 evnt_file = glob.glob(evnt_conf_dir + "/*EVNT.root")[0]
 
