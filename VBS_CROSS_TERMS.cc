@@ -68,22 +68,35 @@ namespace Rivet {
       // Remove all jets within dR < 0.2 of a dressed lepton
       idiscardIfAnyDeltaRLess(jets, leptons, 0.2);
 
-      if (jets.size() < 2)  vetoEvent;  
+      int njets = jets.size();
+      if (njets < 2)  vetoEvent;  
 
-      FourMomentum jet_lead = jets[0].mom(); // which assume to be 1st tagging jet
-      FourMomentum jet_tag2;
-      bool foundVBSJetPair = false; // look in opposite hemispheres
-      for (const Jet& jet : jets) {
-        if(jet.eta()*jets[0].eta() < 0.) {
-          jet_tag2 = jet.mom();
-          foundVBSJetPair = true;
-          break;
+      bool foundVBSJetPair = false; // look in opposite hemispheres and pair should have highest mjj
+      double max_mjj = 0;
+      int tag1_jet_index = -1 ,tag2_jet_index = -1;
+      for (int i = 0; i < njets; i++) {
+        const Jet& i_jet = jets[i];
+        for (int j = 0; j < njets; j++) {
+          if (i!=j){
+            const Jet& j_jet = jets[j];
+            const double mjj = (i_jet.mom() + j_jet.mom()).mass()/GeV;
+            const double eta_prod = i_jet.eta()*j_jet.eta();
+            if  (eta_prod < 0.0 && mjj>max_mjj){
+              max_mjj = mjj;
+              foundVBSJetPair = true;
+              tag1_jet_index = i;
+              tag2_jet_index = j;
+              }
+            }
         }
       }
+
       if (!foundVBSJetPair)  vetoEvent;
-     
-      const double mjj = (jet_lead + jet_tag2).mass()/GeV;
-      const double dyjj = fabs(jet_lead.rap() - jet_tag2.rap());
+
+      FourMomentum tag1_jet_4vec = jets[tag1_jet_index].mom();
+      FourMomentum tag2_jet_4vec = jets[tag2_jet_index].mom();
+      const double mjj = (tag1_jet_4vec + tag2_jet_4vec).mass()/GeV;
+      const double dyjj = fabs(tag1_jet_4vec.rap() - tag2_jet_4vec.rap());
 
       _h["njet"]->fill(jets.size());
       _h["pt_jet1"]->fill(jets[0].pt());
