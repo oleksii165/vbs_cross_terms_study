@@ -4,7 +4,7 @@ source ${ATLAS_LOCAL_ROOT_BASE}/user/atlasLocalSetup.sh
 asetup main,latest,AthGeneration
 source setupRivet
 
-lsetup "panda 1.5.46"
+lsetup "panda 1.5.68"
 lsetup "rucio -w"
 
 source /exp/atlas/kurdysh/vbs_cross_terms_study/python_packages/setup.sh # this is for sympy installed with pipInstall
