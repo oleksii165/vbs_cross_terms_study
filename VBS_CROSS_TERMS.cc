@@ -6,6 +6,7 @@
 #include "Rivet/Projections/DressedLeptons.hh"
 #include "Rivet/Projections/MissingMomentum.hh"
 #include "Rivet/Projections/DirectFinalState.hh"
+#include "Rivet/Projections/TauFinder.hh"
 
 namespace Rivet {
 
@@ -38,17 +39,22 @@ namespace Rivet {
       declare(jetfs, "jets");
       
       // FinalState of direct photons and bare muons and electrons in the event
-      DirectFinalState photons(Cuts::abspid == PID::PHOTON);
       DirectFinalState bare_leps(Cuts::abspid == PID::MUON || Cuts::abspid == PID::ELECTRON);
+      DirectFinalState photons(Cuts::abspid == PID::PHOTON);
       // Dress the bare direct leptons with direct photons within dR < 0.1,
       // and apply some fiducial cuts on the dressed leptons
-      Cut lepton_cuts = Cuts::abseta < 2.5 && Cuts::pT > 20*GeV;
+      Cut lepton_cuts = Cuts::abseta < 10 && Cuts::pT > 0.001*GeV;
       DressedLeptons dressed_leps(photons, bare_leps, 0.1, lepton_cuts);
-      declare(dressed_leps, "leptons");
+      declare(dressed_leps, "leptons_stable");
+
+      TauFinder taus(TauFinder::DecayMode::ANY);
+      declare(taus, "Taus");
 
       // Book histograms
       // specify custom binning
       book(_h["njet"], "njet", 10, 0.0, 10.0);
+      book(_h["nlepton_stable"], "nlepton_stable", 10, 0.0, 10.0);
+      book(_h["nlepton"], "nlepton", 10, 0.0, 10.0);
       book(_h["pt_jet1"], "pt_jet1", 200, 0.0, 3000.0);
       book(_h["mjj"], "mjj", 200, 0.0, 3000.0);
       book(_h["dyjj"], "dyjj", 50, 0.0, 6.0);
@@ -60,13 +66,17 @@ namespace Rivet {
     /// Perform the per-event analysis
     void analyze(const Event& event) {
 
+      const TauFinder& tau = apply<TauFinder>(event, "Taus");
+      int ntau = tau.taus().size();
+
       // Retrieve dressed leptons, sorted by pT
-      Particles leptons = apply<FinalState>(event, "leptons").particles();
+      Particles leptons_stable = apply<FinalState>(event, "leptons_stable").particles();
+      int nlep_stable = leptons_stable.size();
 
       // Retrieve clustered jets, sorted by pT, with a minimum pT cut
       Jets jets = apply<FastJets>(event, "jets").jetsByPt(Cuts::pT > 30*GeV);
       // Remove all jets within dR < 0.2 of a dressed lepton
-      idiscardIfAnyDeltaRLess(jets, leptons, 0.2);
+      idiscardIfAnyDeltaRLess(jets, leptons_stable, 0.2);
 
       int njets = jets.size();
       if (njets < 2)  vetoEvent;  
@@ -98,7 +108,9 @@ namespace Rivet {
       const double mjj = (tag1_jet_4vec + tag2_jet_4vec).mass()/GeV;
       const double dyjj = fabs(tag1_jet_4vec.rap() - tag2_jet_4vec.rap());
 
-      _h["njet"]->fill(jets.size());
+      _h["njet"]->fill(njets);
+      _h["nlepton_stable"]->fill(nlep_stable);
+      _h["nlepton"]->fill(ntau + nlep_stable);
       _h["pt_jet1"]->fill(jets[0].pt());
       _h["mjj"]->fill(mjj);
       _h["dyjj"]->fill(dyjj);
@@ -115,6 +127,7 @@ namespace Rivet {
       std::cout << "survived veto, will norm to this: " << veto_survive_frac << "\n";
       double norm_to = veto_survive_frac*crossSection()/picobarn; // norm to generated cross-section in pb (after cuts)
       normalize(_h["njet"], norm_to);
+      normalize(_h["nlepton_stable"], norm_to);
       normalize(_h["pt_jet1"], norm_to);
       normalize(_h["mjj"], norm_to); 
       normalize(_h["dyjj"], norm_to);
