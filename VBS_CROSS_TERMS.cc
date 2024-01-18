@@ -7,6 +7,8 @@
 #include "Rivet/Projections/MissingMomentum.hh"
 #include "Rivet/Projections/DirectFinalState.hh"
 #include "Rivet/Projections/TauFinder.hh"
+#include "Rivet/Projections/MissingMomentum.hh"
+#include "Rivet/Projections/WFinder.hh"
 
 namespace Rivet {
 
@@ -38,27 +40,57 @@ namespace Rivet {
       FastJets jetfs(fs, FastJets::ANTIKT, 0.4, JetAlg::Muons::NONE, JetAlg::Invisibles::NONE);
       declare(jetfs, "jets");
       
-      // FinalState of direct photons and bare muons and electrons in the event
+      // FinalState of direct photons and bare muons and electrons in the event - ignore taus but if want to include use TauFinder
       DirectFinalState bare_leps(Cuts::abspid == PID::MUON || Cuts::abspid == PID::ELECTRON);
       DirectFinalState photons(Cuts::abspid == PID::PHOTON);
       // Dress the bare direct leptons with direct photons within dR < 0.1,
       // and apply some fiducial cuts on the dressed leptons
-      Cut lepton_cuts = Cuts::abseta < 10 && Cuts::pT > 0.001*GeV;
+      Cut lepton_cuts = Cuts::abseta < 5.0 && Cuts::pT > 0.001*GeV; // not even a cut but need a placeholder for Wfinder
       DressedLeptons dressed_leps(photons, bare_leps, 0.1, lepton_cuts);
       declare(dressed_leps, "leptons_stable");
 
-      TauFinder taus(TauFinder::DecayMode::ANY);
-      declare(taus, "Taus");
+      declare(MissingMomentum(), "METFinder");
+
+      double min_MET = 5.0;
+      WFinder wfinder_e(fs, lepton_cuts, PID::ELECTRON, 60.0*GeV, 100.0*GeV, min_MET); //look for electron W-
+      declare(wfinder_e, "WFinder_e");
+      WFinder wfinder_mu(fs, lepton_cuts, PID::MUON, 60.0*GeV, 100.0*GeV, min_MET); //look for muon W-
+      declare(wfinder_mu, "WFinder_mu");
 
       // Book histograms
-      // specify custom binning
-      book(_h["njet"], "njet", 10, 0.0, 10.0);
-      book(_h["nlepton_stable"], "nlepton_stable", 10, 0.0, 10.0);
-      book(_h["nlepton"], "nlepton", 10, 0.0, 10.0);
-      book(_h["pt_jet1"], "pt_jet1", 200, 0.0, 3000.0);
-      book(_h["mjj"], "mjj", 200, 0.0, 3000.0);
-      book(_h["dyjj"], "dyjj", 50, 0.0, 6.0);
-      book(_h2["mjj_dyjj"], "mjj_dyjj", 200, 0.0, 3000.0, 50, 0.0, 6.0);
+      int n_nbins = 10;
+      int n_pt = 200;
+      double max_pt = 3000.0;
+      int n_rap = 60;
+      double max_rap = 6.0;
+      int n_pid = 15;
+      //jet plots
+      book(_h["n_jet"], "njet", n_nbins, 0.0, n_nbins);
+      book(_h["pt_tagjet1"], "pt_tagjet1", n_pt, 0.0, max_pt); 
+      book(_h["pt_tagjet2"], "pt_tagjet2", n_pt, 0.0, max_pt);
+      book(_h["m_tagjets"], "m_tagjets", n_pt, 0.0, max_pt);
+      book(_h["dy_tagjets"], "dy_tagjets", n_rap, 0, max_rap);
+      book(_h2["m_dy_tagjets"], "m_dy_tagjets", n_pt, 0.0, max_pt, n_rap, 0, max_rap);
+      book(_h["eta_tagjet1"], "eta_tagjet1", n_rap, -1*max_rap, max_rap); 
+      book(_h["eta_tagjet2"], "eta_tagjet2", n_rap, -1*max_rap, max_rap);
+      book(_h["deta_tagjets"], "deta_tagjets", n_rap, 0, max_rap);
+      book(_h["phi_tagjet1"], "phi_tagjet1", n_rap, 0, max_rap);
+      book(_h["phi_tagjet2"], "phi_tagjet2", n_rap, 0, max_rap);
+      book(_h["dphi_tagjets"], "dphi_tagjets", n_rap, 0, max_rap);
+      // //lepton plots
+      book(_h2["leptons_pids"], "leptons_pids", 2*n_pid, -1*n_pid, n_pid, 2*n_pid, -1*n_pid, n_pid);
+      book(_h["n_lepton_stable"], "nlepton_stable", n_nbins, 0.0, n_nbins);
+      book(_h["lepton_pt"], "lepton_pt", int(n_pt/10), 0.0, max_pt/10);
+      book(_h["lepton_eta"], "lepton_eta", n_rap, -1*max_rap, max_rap);
+      book(_h["m_ll"], "m_ll", int(n_pt/8), 0.0, max_pt/8);
+      book(_h["m_ee"], "m_ee", int(n_pt/8), 0.0, max_pt/8);
+      book(_h["m_mumu"], "m_mumu", int(n_pt/8), 0.0, max_pt/8);
+      book(_h["m_emu"], "m_emu", int(n_pt/8), 0.0, max_pt/8);
+      //other
+      book(_h["MET"], "MET", int(n_pt/10), 0.0, max_pt/10);
+      book(_h["n_w"], "n_w", n_nbins, 0.0, n_nbins);
+      book(_h["m_ww"], "m_ww", int(n_pt/10), 0.0, max_pt/10);
+      book(_h["m_T"], "mT", int(n_pt/10), 0.0, max_pt/10);
       book(_c["found_VBS_pair"],"found_VBS_pair");
     }
 
@@ -66,13 +98,22 @@ namespace Rivet {
     /// Perform the per-event analysis
     void analyze(const Event& event) {
 
-      const TauFinder& tau = apply<TauFinder>(event, "Taus");
-      int ntau = tau.taus().size();
-
       // Retrieve dressed leptons, sorted by pT
       Particles leptons_stable = apply<FinalState>(event, "leptons_stable").particles();
       int nlep_stable = leptons_stable.size();
+      if (nlep_stable!=2)  vetoEvent;
 
+      const Particle& lep1 = leptons_stable[0];
+      const Particle& lep2 = leptons_stable[1]; 
+      if (lep1.charge() * lep2.charge() < 0) vetoEvent; // want same charge leptons
+
+      const FourMomentum fourvec_ll = lep1.mom() + lep2.mom(); 
+      const double m_ll = fourvec_ll.mass()/GeV;
+      const double lep1_pid = lep1.pid();
+      const double lep2_pid = lep2.pid();
+      double m_z = 91.18; 
+      if (lep1_pid==PID::ELECTRON && lep2_pid==PID::ELECTRON && fabs(m_ll-m_z) < 15.0) vetoEvent; 
+      
       // Retrieve clustered jets, sorted by pT, with a minimum pT cut
       Jets jets = apply<FastJets>(event, "jets").jetsByPt(Cuts::pT > 30*GeV);
       // Remove all jets within dR < 0.2 of a dressed lepton
@@ -100,21 +141,59 @@ namespace Rivet {
             }
         }
       }
-
+      if (tag2_jet_index < tag1_jet_index) swap(tag1_jet_index, tag2_jet_index); // organize tag jets by pt  
       if (!foundVBSJetPair)  vetoEvent;
 
-      FourMomentum tag1_jet_4vec = jets[tag1_jet_index].mom();
-      FourMomentum tag2_jet_4vec = jets[tag2_jet_index].mom();
-      const double mjj = (tag1_jet_4vec + tag2_jet_4vec).mass()/GeV;
-      const double dyjj = fabs(tag1_jet_4vec.rap() - tag2_jet_4vec.rap());
+      const FourMomentum tag1_jet = jets[tag1_jet_index].mom();
+      const FourMomentum tag2_jet = jets[tag2_jet_index].mom();
+      const double m_tagjets = (tag1_jet + tag2_jet).mass()/GeV;
+      const double dy_tagjets = fabs(tag1_jet.rap() - tag2_jet.rap());
 
-      _h["njet"]->fill(njets);
-      _h["nlepton_stable"]->fill(nlep_stable);
-      _h["nlepton"]->fill(ntau + nlep_stable);
-      _h["pt_jet1"]->fill(jets[0].pt());
-      _h["mjj"]->fill(mjj);
-      _h["dyjj"]->fill(dyjj);
-      _h2["mjj_dyjj"]->fill(mjj,dyjj);
+      const MissingMomentum& METfinder = apply<MissingMomentum>(event, "METFinder");
+      const double scalar_MET = METfinder.missingPt()/GeV;
+      const FourMomentum fourvec_MET = METfinder.missingMomentum();
+      const double m_T = (fourvec_MET + fourvec_ll).mass()/GeV;
+
+      const WFinder& wfinder_e = apply<WFinder>(event, "WFinder_e");
+      const WFinder& wfinder_mu = apply<WFinder>(event, "WFinder_mu");
+      int n_w = wfinder_e.bosons().size() + wfinder_mu.bosons().size();
+      int m_ww = -1;
+      if (n_w==2){
+        if (wfinder_e.bosons().size() == 2){m_ww = (wfinder_e.bosons()[0].mom() + wfinder_e.bosons()[1].mom()).mass()/GeV;}
+        else if (wfinder_mu.bosons().size() == 2){m_ww = (wfinder_mu.bosons()[0].mom() + wfinder_mu.bosons()[1].mom()).mass()/GeV;}
+        else{m_ww = (wfinder_mu.bosons()[0].mom() + wfinder_e.bosons()[0].mom()).mass()/GeV;}
+        }
+    
+      //jet plots
+      _h["n_jet"]->fill(njets);
+      _h["pt_tagjet1"]->fill(tag1_jet.pt());
+      _h["pt_tagjet2"]->fill(tag2_jet.pt());
+      // above this worked before
+      _h["m_tagjets"]->fill(m_tagjets);
+      _h["dy_tagjets"]->fill(dy_tagjets);
+      _h2["m_dy_tagjets"]->fill(m_tagjets,dy_tagjets);
+      _h["eta_tagjet1"]->fill(tag1_jet.eta());
+      _h["eta_tagjet2"]->fill(tag2_jet.eta());
+      _h["deta_tagjets"]->fill(deltaEta(tag1_jet,tag2_jet));
+      _h["phi_tagjet1"]->fill(tag1_jet.phi());
+      _h["phi_tagjet2"]->fill(tag2_jet.phi());
+      _h["dphi_tagjets"]->fill(deltaPhi(tag1_jet,tag2_jet));
+      //lepton plots
+      _h2["leptons_pids"]->fill(lep1_pid,lep2_pid); // to check that only have e and mu and of same charge
+      _h["n_lepton_stable"]->fill(nlep_stable);
+      _h["lepton_pt"]->fill(lep1.pT());
+      _h["lepton_pt"]->fill(lep2.pT()); // fill both to the same hists
+      _h["lepton_eta"]->fill(lep1.eta());
+      _h["lepton_eta"]->fill(lep2.eta());
+      _h["m_ll"]->fill(m_ll);
+      if (lep1_pid == PID::ELECTRON && lep2_pid == PID::ELECTRON){_h["m_ee"]->fill(m_ll);}
+      else if (lep1_pid == PID::MUON && lep2_pid == PID::MUON){_h["m_mumu"]->fill(m_ll);}
+      else{_h["m_emu"]->fill(m_ll);}
+      // other
+      _h["MET"]->fill(scalar_MET);
+      _h["n_w"]->fill(n_w);
+      _h["m_ww"]->fill(m_ww);
+      _h["m_T"]->fill(m_T);
       _c["found_VBS_pair"]->fill();
     }
 
@@ -126,12 +205,16 @@ namespace Rivet {
       double veto_survive_frac = veto_survive_sumW / sumW();
       std::cout << "survived veto, will norm to this: " << veto_survive_frac << "\n";
       double norm_to = veto_survive_frac*crossSection()/picobarn; // norm to generated cross-section in pb (after cuts)
-      normalize(_h["njet"], norm_to);
-      normalize(_h["nlepton_stable"], norm_to);
-      normalize(_h["pt_jet1"], norm_to);
-      normalize(_h["mjj"], norm_to); 
-      normalize(_h["dyjj"], norm_to);
-      normalize(_h2["mjj_dyjj"], norm_to);
+      
+      std::vector<std::string> hist_names_1d = {"n_jet","pt_tagjet1","pt_tagjet2","m_tagjets",
+      "dy_tagjets","eta_tagjet1","eta_tagjet2", "deta_tagjets", 
+      "phi_tagjet1","phi_tagjet2","dphi_tagjets",
+      "n_lepton_stable","lepton_pt","lepton_eta",
+      "m_ll","m_ee","m_mumu","m_emu","MET","n_w","m_ww","m_T"};       
+      for (auto&& i_name : hist_names_1d){ normalize(_h[i_name], norm_to);}
+      // also norm few 2d
+      normalize(_h2["m_dy_tagjets"], norm_to);
+      normalize(_h2["leptons_pids"],norm_to);
 
     }
 
