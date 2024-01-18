@@ -8,7 +8,6 @@
 #include "Rivet/Projections/DirectFinalState.hh"
 #include "Rivet/Projections/TauFinder.hh"
 #include "Rivet/Projections/MissingMomentum.hh"
-#include "Rivet/Projections/WFinder.hh"
 
 namespace Rivet {
 
@@ -45,17 +44,11 @@ namespace Rivet {
       DirectFinalState photons(Cuts::abspid == PID::PHOTON);
       // Dress the bare direct leptons with direct photons within dR < 0.1,
       // and apply some fiducial cuts on the dressed leptons
-      Cut lepton_cuts = Cuts::abseta < 5.0 && Cuts::pT > 0.001*GeV; // not even a cut but need a placeholder for Wfinder
+      Cut lepton_cuts = Cuts::abseta < 5.0 && Cuts::pT > 0.001*GeV; // not even a cut but need a placeholder
       DressedLeptons dressed_leps(photons, bare_leps, 0.1, lepton_cuts);
       declare(dressed_leps, "leptons_stable");
 
       declare(MissingMomentum(), "METFinder");
-
-      double min_MET = 5.0;
-      WFinder wfinder_e(fs, lepton_cuts, PID::ELECTRON, 60.0*GeV, 100.0*GeV, min_MET); //look for electron W-
-      declare(wfinder_e, "WFinder_e");
-      WFinder wfinder_mu(fs, lepton_cuts, PID::MUON, 60.0*GeV, 100.0*GeV, min_MET); //look for muon W-
-      declare(wfinder_mu, "WFinder_mu");
 
       // Book histograms
       int n_nbins = 10;
@@ -88,8 +81,6 @@ namespace Rivet {
       book(_h["m_emu"], "m_emu", int(n_pt/8), 0.0, max_pt/8);
       //other
       book(_h["MET"], "MET", int(n_pt/10), 0.0, max_pt/10);
-      book(_h["n_w"], "n_w", n_nbins, 0.0, n_nbins);
-      book(_h["m_ww"], "m_ww", int(n_pt/10), 0.0, max_pt/10);
       book(_h["m_T"], "mT", int(n_pt/10), 0.0, max_pt/10);
       book(_c["found_VBS_pair"],"found_VBS_pair");
     }
@@ -153,16 +144,6 @@ namespace Rivet {
       const double scalar_MET = METfinder.missingPt()/GeV;
       const FourMomentum fourvec_MET = METfinder.missingMomentum();
       const double m_T = (fourvec_MET + fourvec_ll).mass()/GeV;
-
-      const WFinder& wfinder_e = apply<WFinder>(event, "WFinder_e");
-      const WFinder& wfinder_mu = apply<WFinder>(event, "WFinder_mu");
-      int n_w = wfinder_e.bosons().size() + wfinder_mu.bosons().size();
-      int m_ww = -1;
-      if (n_w==2){
-        if (wfinder_e.bosons().size() == 2){m_ww = (wfinder_e.bosons()[0].mom() + wfinder_e.bosons()[1].mom()).mass()/GeV;}
-        else if (wfinder_mu.bosons().size() == 2){m_ww = (wfinder_mu.bosons()[0].mom() + wfinder_mu.bosons()[1].mom()).mass()/GeV;}
-        else{m_ww = (wfinder_mu.bosons()[0].mom() + wfinder_e.bosons()[0].mom()).mass()/GeV;}
-        }
     
       //jet plots
       _h["n_jet"]->fill(njets);
@@ -191,8 +172,6 @@ namespace Rivet {
       else{_h["m_emu"]->fill(m_ll);}
       // other
       _h["MET"]->fill(scalar_MET);
-      _h["n_w"]->fill(n_w);
-      _h["m_ww"]->fill(m_ww);
       _h["m_T"]->fill(m_T);
       _c["found_VBS_pair"]->fill();
     }
@@ -210,7 +189,7 @@ namespace Rivet {
       "dy_tagjets","eta_tagjet1","eta_tagjet2", "deta_tagjets", 
       "phi_tagjet1","phi_tagjet2","dphi_tagjets",
       "n_lepton_stable","lepton_pt","lepton_eta",
-      "m_ll","m_ee","m_mumu","m_emu","MET","n_w","m_ww","m_T"};       
+      "m_ll","m_ee","m_mumu","m_emu","MET","m_T"};       
       for (auto&& i_name : hist_names_1d){ normalize(_h[i_name], norm_to);}
       // also norm few 2d
       normalize(_h2["m_dy_tagjets"], norm_to);
