@@ -6,3 +6,7 @@ YLabel=[Insert $y$-axis label for histogram d01-x01-y01 here]
 END PLOT
 
 # ... add more histograms as you need them ...
+
+BEGIN PLOT /VBS_CROSS_TERMS/m_T
+XLabel=m_T
+END PLOT

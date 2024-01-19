@@ -58,7 +58,7 @@ namespace Rivet {
       double max_rap = 6.0;
       int n_pid = 15;
       //jet plots
-      book(_h["n_jet"], "njet", n_nbins, 0.0, n_nbins);
+      book(_h["n_jet"], "n_jet", n_nbins, 0.0, n_nbins);
       book(_h["pt_tagjet1"], "pt_tagjet1", n_pt, 0.0, max_pt); 
       book(_h["pt_tagjet2"], "pt_tagjet2", n_pt, 0.0, max_pt);
       book(_h["m_tagjets"], "m_tagjets", n_pt, 0.0, max_pt);
@@ -66,13 +66,14 @@ namespace Rivet {
       book(_h2["m_dy_tagjets"], "m_dy_tagjets", n_pt, 0.0, max_pt, n_rap, 0, max_rap);
       book(_h["eta_tagjet1"], "eta_tagjet1", n_rap, -1*max_rap, max_rap); 
       book(_h["eta_tagjet2"], "eta_tagjet2", n_rap, -1*max_rap, max_rap);
+      book(_h["eta_tagjets"], "eta_tagjets", n_rap, -1*max_rap, max_rap);
       book(_h["deta_tagjets"], "deta_tagjets", n_rap, 0, max_rap);
       book(_h["phi_tagjet1"], "phi_tagjet1", n_rap, 0, max_rap);
       book(_h["phi_tagjet2"], "phi_tagjet2", n_rap, 0, max_rap);
       book(_h["dphi_tagjets"], "dphi_tagjets", n_rap, 0, max_rap);
       // //lepton plots
       book(_h2["leptons_pids"], "leptons_pids", 2*n_pid, -1*n_pid, n_pid, 2*n_pid, -1*n_pid, n_pid);
-      book(_h["n_lepton_stable"], "nlepton_stable", n_nbins, 0.0, n_nbins);
+      book(_h["n_lepton_stable"], "n_lepton_stable", n_nbins, 0.0, n_nbins);
       book(_h["lepton_pt"], "lepton_pt", int(n_pt/10), 0.0, max_pt/10);
       book(_h["lepton_eta"], "lepton_eta", n_rap, -1*max_rap, max_rap);
       book(_h["m_ll"], "m_ll", int(n_pt/8), 0.0, max_pt/8);
@@ -81,7 +82,7 @@ namespace Rivet {
       book(_h["m_emu"], "m_emu", int(n_pt/8), 0.0, max_pt/8);
       //other
       book(_h["MET"], "MET", int(n_pt/10), 0.0, max_pt/10);
-      book(_h["m_T"], "mT", int(n_pt/10), 0.0, max_pt/10);
+      book(_h["m_T"], "m_T", int(n_pt/5), 0.0, max_pt/5);
       book(_c["found_VBS_pair"],"found_VBS_pair");
     }
 
@@ -155,6 +156,7 @@ namespace Rivet {
       _h2["m_dy_tagjets"]->fill(m_tagjets,dy_tagjets);
       _h["eta_tagjet1"]->fill(tag1_jet.eta());
       _h["eta_tagjet2"]->fill(tag2_jet.eta());
+      _h["eta_tagjets"]->fill(tag1_jet.eta()); _h["eta_tagjets"]->fill(tag2_jet.eta()); // fill both to the same hists
       _h["deta_tagjets"]->fill(deltaEta(tag1_jet,tag2_jet));
       _h["phi_tagjet1"]->fill(tag1_jet.phi());
       _h["phi_tagjet2"]->fill(tag2_jet.phi());
@@ -162,8 +164,7 @@ namespace Rivet {
       //lepton plots
       _h2["leptons_pids"]->fill(lep1_pid,lep2_pid); // to check that only have e and mu and of same charge
       _h["n_lepton_stable"]->fill(nlep_stable);
-      _h["lepton_pt"]->fill(lep1.pT());
-      _h["lepton_pt"]->fill(lep2.pT()); // fill both to the same hists
+      _h["lepton_pt"]->fill(lep1.pT()); _h["lepton_pt"]->fill(lep2.pT()); // fill both to the same hists
       _h["lepton_eta"]->fill(lep1.eta());
       _h["lepton_eta"]->fill(lep2.eta());
       _h["m_ll"]->fill(m_ll);
@@ -186,7 +187,7 @@ namespace Rivet {
       double norm_to = veto_survive_frac*crossSection()/picobarn; // norm to generated cross-section in pb (after cuts)
       
       std::vector<std::string> hist_names_1d = {"n_jet","pt_tagjet1","pt_tagjet2","m_tagjets",
-      "dy_tagjets","eta_tagjet1","eta_tagjet2", "deta_tagjets", 
+      "dy_tagjets","eta_tagjet1","eta_tagjet2","eta_tagjets", "deta_tagjets", 
       "phi_tagjet1","phi_tagjet2","dphi_tagjets",
       "n_lepton_stable","lepton_pt","lepton_eta",
       "m_ll","m_ee","m_mumu","m_emu","MET","m_T"};       
