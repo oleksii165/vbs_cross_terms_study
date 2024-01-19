@@ -31,7 +31,7 @@ rivet = Rivet_i()
 import os
 rivet.AnalysisPath = os.environ['PWD']
 
-rivet.Analyses += ['VBS_CROSS_TERMS']
+rivet.Analyses += ['VBS_CROSS_TERMS:DOCUT=YES']
 rivet.RunName = ''
 rivet.HistoFile = evnt_conf_dir + f'/MyOutput.yoda.gz'
 rivet.CrossSection = 1.0 #xsec_pb

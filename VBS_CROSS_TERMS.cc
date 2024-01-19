@@ -26,7 +26,10 @@ namespace Rivet {
     /// Book histograms and initialise projections before the run
     void init() {
 
-      // Initialise and register projections
+      _docut = 0;
+      if (getOption("DOCUT") =="YES") _docut = 1;
+      if (getOption("DOCUT") =="NO") _docut = 0;
+      std::cout << "received docut " << _docut <<"\n";
 
       // The basic final-state projection:
       // all final-state particles within
@@ -43,8 +46,15 @@ namespace Rivet {
       DirectFinalState bare_leps(Cuts::abspid == PID::MUON || Cuts::abspid == PID::ELECTRON);
       DirectFinalState photons(Cuts::abspid == PID::PHOTON);
       // Dress the bare direct leptons with direct photons within dR < 0.1,
-      // and apply some fiducial cuts on the dressed leptons
-      Cut lepton_cuts = Cuts::abseta < 5.0 && Cuts::pT > 0.001*GeV; // not even a cut but need a placeholder
+      // and apply some fiducial cuts on the dressed leptons depending on param passed
+      double max_abs_eta;
+      if (_docut==1){
+        max_abs_eta = 2.5;
+        } 
+      else{
+        max_abs_eta = 5.0;
+        } // not even a cut but need a placeholder
+      Cut lepton_cuts = Cuts::abseta < max_abs_eta && Cuts::pT > 0.001*GeV;
       DressedLeptons dressed_leps(photons, bare_leps, 0.1, lepton_cuts);
       declare(dressed_leps, "leptons_stable");
 
@@ -207,6 +217,7 @@ namespace Rivet {
     map<string, Histo2DPtr> _h2;
     // map<string, Profile1DPtr> _p;
     map<string, CounterPtr> _c;
+    int _docut;
     /// @}
 
 
