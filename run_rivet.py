@@ -2,6 +2,7 @@
 import subprocess
 import lib_utils
 import os
+import run_chain
 from optparse import OptionParser
 parser = OptionParser()
 parser.add_option("--conf", default = "user.okurdysh.MadGraph_WmWm_lvlv_FT0_FULL")
