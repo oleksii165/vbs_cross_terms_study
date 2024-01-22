@@ -1,3 +1,8 @@
 rivet-build RivetVBS_CROSS_TERMS.so VBS_CROSS_TERMS.cc
 
-athena rivet_job.py -c 'conf="WmWm_FT0_FULL"'
+to run rivet+plots for one config, when files are downloaded already
+python run_rivet.py --evtMax 10000 --conf "user.okurdysh.MadGraph_WmWm_lvlv_FM0_SM" --DOCUT "NO" --redoRivet "yes" --redoPlots "yes"
+also can add path to config .plot with plots labels thouth --plotConfRivet
+
+
+python run_chain_summary.py --runSMAndFULL "yes" --runQUADAndCROSS "yes"
