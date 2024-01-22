@@ -1,21 +1,11 @@
-# example of running:   athena rivet_example.py -c 'conf="user.okurdysh.MadGraph_WmWm_FT0_FULL"'
-theApp.EvtMax = -1
-print("#####received conf from cmd through -c 'conf=X':  ",conf)
-prod_temp = conf[conf.find("user.okurdysh.MadGraph_")+len("user.okurdysh.MadGraph_"):]
-print("start from string", prod_temp)
-prod_dec = prod_temp[:prod_temp.find("_F")]
-print("from conf found production dec", prod_dec)
+# example of running:   athena rivet_example.py -c 'conf="user.okurdysh.MadGraph_WmWm_FT0_FULL";DOCUT="YES"'
 
-import glob
-def find_dir(search_com):
-    conf_dir_arr = glob.glob(search_com)
-    print("found possibilities for dir", conf_dir_arr)
-    conf_dir = conf_dir_arr[0] if len(conf_dir_arr)>=1 else -1  
-    if conf_dir == -1: raise ValueError("did not find folder for this config ",search_com)
-    return conf_dir
-base_dir = f"/exp/atlas/kurdysh/vbs_cross_terms_study/eft_files/{prod_dec}/"
-evnt_conf_dir = find_dir(base_dir + f"/*{conf}*EXT0")
-evnt_file = glob.glob(evnt_conf_dir + "/*EVNT.root")[0]
+theApp.EvtMax = -1
+print("#####received conf from cmd through -c 'conf=X;DOCUT=Y':  ",conf, DOCUT)
+import lib_utils
+prod_dec, base_dir = lib_utils.find_prod_dec_and_dir(conf)
+evnt_conf_dir,evnt_file  = lib_utils.find_evnt_dir_and_file(base_dir + f"/*{conf}*EXT0")
+conf_cut_dir = lib_utils.get_conf_cut_dir(evnt_conf_dir, DOCUT)
 
 import AthenaPoolCnvSvc.ReadAthenaPool
 svcMgr.EventSelector.InputCollections = [ evnt_file ]
@@ -31,9 +21,9 @@ rivet = Rivet_i()
 import os
 rivet.AnalysisPath = os.environ['PWD']
 
-rivet.Analyses += ['VBS_CROSS_TERMS:DOCUT=YES']
+rivet.Analyses += [f'VBS_CROSS_TERMS:DOCUT={DOCUT}']
 rivet.RunName = ''
-rivet.HistoFile = evnt_conf_dir + f'/MyOutput.yoda.gz'
+rivet.HistoFile = conf_cut_dir + f'/MyOutput.yoda.gz'
 rivet.CrossSection = 1.0 #xsec_pb
 #rivet.IgnoreBeamCheck = True
 job += rivet

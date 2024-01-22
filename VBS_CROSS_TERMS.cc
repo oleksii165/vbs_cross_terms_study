@@ -47,14 +47,10 @@ namespace Rivet {
       DirectFinalState photons(Cuts::abspid == PID::PHOTON);
       // Dress the bare direct leptons with direct photons within dR < 0.1,
       // and apply some fiducial cuts on the dressed leptons depending on param passed
-      double max_abs_eta;
-      if (_docut==1){
-        max_abs_eta = 2.5;
-        } 
-      else{
-        max_abs_eta = 5.0;
-        } // not even a cut but need a placeholder
-      Cut lepton_cuts = Cuts::abseta < max_abs_eta && Cuts::pT > 0.001*GeV;
+      Cut lepton_cuts;
+      if (_docut==1){lepton_cuts= Cuts::abseta < 2.5 && Cuts::pT > 27.0*GeV;} 
+      else{lepton_cuts= Cuts::abseta < 10.0 && Cuts::pT > 0.001*GeV;}
+       
       DressedLeptons dressed_leps(photons, bare_leps, 0.1, lepton_cuts);
       declare(dressed_leps, "leptons_stable");
 
@@ -103,7 +99,7 @@ namespace Rivet {
       // Retrieve dressed leptons, sorted by pT
       Particles leptons_stable = apply<FinalState>(event, "leptons_stable").particles();
       int nlep_stable = leptons_stable.size();
-      if (nlep_stable!=2)  vetoEvent;
+      if (nlep_stable!=2)  vetoEvent; // meaning both are e,mu and not tau
 
       const Particle& lep1 = leptons_stable[0];
       const Particle& lep2 = leptons_stable[1]; 
@@ -111,10 +107,14 @@ namespace Rivet {
 
       const FourMomentum fourvec_ll = lep1.mom() + lep2.mom(); 
       const double m_ll = fourvec_ll.mass()/GeV;
+      if (_docut==1 && m_ll<20.0) vetoEvent; 
+
       const double lep1_pid = lep1.pid();
       const double lep2_pid = lep2.pid();
       double m_z = 91.18; 
-      if (lep1_pid==PID::ELECTRON && lep2_pid==PID::ELECTRON && fabs(m_ll-m_z) < 15.0) vetoEvent; 
+      if (_docut==1){
+        if (lep1_pid==PID::ELECTRON && lep2_pid==PID::ELECTRON && fabs(m_ll-m_z) < 15.0) vetoEvent; 
+      }
       
       // Retrieve clustered jets, sorted by pT, with a minimum pT cut
       Jets jets = apply<FastJets>(event, "jets").jetsByPt(Cuts::pT > 30*GeV);
@@ -148,11 +148,18 @@ namespace Rivet {
 
       const FourMomentum tag1_jet = jets[tag1_jet_index].mom();
       const FourMomentum tag2_jet = jets[tag2_jet_index].mom();
+      if (_docut==1 && (tag1_jet.pT()<65.0 || tag2_jet.pT()<35.0)) vetoEvent; 
+
       const double m_tagjets = (tag1_jet + tag2_jet).mass()/GeV;
+      if (_docut==1 && m_tagjets<500.0) vetoEvent;
+
       const double dy_tagjets = fabs(tag1_jet.rap() - tag2_jet.rap());
+      if (_docut==1 && dy_tagjets<2.0) vetoEvent;
 
       const MissingMomentum& METfinder = apply<MissingMomentum>(event, "METFinder");
       const double scalar_MET = METfinder.missingPt()/GeV;
+      if (_docut==1 && scalar_MET<30.0) vetoEvent;
+
       const FourMomentum fourvec_MET = METfinder.missingMomentum();
       const double m_T = (fourvec_MET + fourvec_ll).mass()/GeV;
     
