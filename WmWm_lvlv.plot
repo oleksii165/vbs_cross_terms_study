@@ -62,7 +62,7 @@ END PLOT
 
 BEGIN PLOT /WmWm_lvlv/leptons_pids
 XLabel=lepton1 PDG ID
-YLabel=lepton1 PDG ID
+YLabel=lepton2 PDG ID
 END PLOT
 
 BEGIN PLOT /WmWm_lvlv/lepton_pt
