@@ -65,6 +65,7 @@ namespace Rivet {
       int n_pid = 15;
       //jet plots
       book(_h["n_jet"], "n_jet", n_nbins, 0.0, n_nbins);
+      book(_h["n_bjet"], "n_bjet", n_nbins, 0.0, n_nbins);
       book(_h["pt_tagjet1"], "pt_tagjet1", n_pt, 0.0, max_pt); 
       book(_h["pt_tagjet2"], "pt_tagjet2", n_pt, 0.0, max_pt);
       book(_h["m_tagjets"], "m_tagjets", n_pt, 0.0, max_pt);
@@ -118,11 +119,16 @@ namespace Rivet {
       
       // Retrieve clustered jets, sorted by pT, with a minimum pT cut
       Jets jets = apply<FastJets>(event, "jets").jetsByPt(Cuts::pT > 30*GeV);
+      Jets btagging_jets = apply<FastJets>(event, "jets").jetsByPt(Cuts::absrap < 2.5 && Cuts::pT > 20*GeV);
       // Remove all jets within dR < 0.2 of a dressed lepton
       idiscardIfAnyDeltaRLess(jets, leptons_stable, 0.2);
+      idiscardIfAnyDeltaRLess(btagging_jets, leptons_stable, 0.2);
 
       int njets = jets.size();
       if (njets < 2)  vetoEvent;  
+
+      int nbtags = count(btagging_jets, hasBTag());
+      if (_docut==1 && nbtags>0) vetoEvent;
 
       bool foundVBSJetPair = false; // look in opposite hemispheres and pair should have highest mjj
       double max_mjj = 0;
@@ -165,6 +171,7 @@ namespace Rivet {
     
       //jet plots
       _h["n_jet"]->fill(njets);
+      _h["n_bjet"]->fill(nbtags);
       _h["pt_tagjet1"]->fill(tag1_jet.pt());
       _h["pt_tagjet2"]->fill(tag2_jet.pt());
       // above this worked before
@@ -203,7 +210,7 @@ namespace Rivet {
       std::cout << "survived veto, will norm to this: " << veto_survive_frac << "\n";
       double norm_to = veto_survive_frac*crossSection()/picobarn; // norm to generated cross-section in pb (after cuts)
       
-      std::vector<std::string> hist_names_1d = {"n_jet","pt_tagjet1","pt_tagjet2","m_tagjets",
+      std::vector<std::string> hist_names_1d = {"n_jet","n_bjet","pt_tagjet1","pt_tagjet2","m_tagjets",
       "dy_tagjets","eta_tagjet1","eta_tagjet2","eta_tagjets", "deta_tagjets", 
       "phi_tagjet1","phi_tagjet2","dphi_tagjets",
       "n_lepton_stable","lepton_pt","lepton_eta",
