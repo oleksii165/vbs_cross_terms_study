@@ -6,3 +6,6 @@ also can add path to config .plot with plots labels thouth --plotConfRivet
 
 
 python run_chain_summary.py --runQUADAndCROSS "yes" --runNoCuts "yes" --runWithCuts "no" --sumPlotsOnly "no"
+
+for plots 
+python run_chain_summary.py --runQUADAndCROSS "yes" --runNoCuts "no" --runWithCuts "yes" --sumPlotsOnly "yes"
