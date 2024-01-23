@@ -2,6 +2,7 @@ rivet-build RivetVBS_CROSS_TERMS.so VBS_CROSS_TERMS.cc
 
 to run rivet+plots for one config, when files are downloaded already
 python run_rivet.py --evtMax 10000 --conf "user.okurdysh.MadGraph_WmWm_lvlv_FM0_SM" --DOCUT "NO" --redoRivet "yes" --redoPlots "yes"
+python run_rivet.py --evtMax 400 --conf "user.okurdysh.MadGraph_WpWm_lvlv_FT0_QUAD" --DOCUT "YES" --redoRivet "yes" --redoPlots "yes"
 also can add path to config .plot with plots labels thouth --plotConfRivet
 
 
