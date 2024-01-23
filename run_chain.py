@@ -57,7 +57,7 @@ def get_evnt_log_files(i_job_name):
     print("returning log file", log_file)
     return evnt_file, log_file
 
-def save_fid_xsec_root_hists(DOCUT_str, mydir, xsec_fb):
+def save_fid_xsec_root_hists(DOCUT_str, mydir, xsec_fb, prod_dec):
     yoda_f_str = mydir + "MyOutput.yoda.gz"
     if os.path.exists(yoda_f_str):
         yoda_f = yoda.read(yoda_f_str)
@@ -69,12 +69,12 @@ def save_fid_xsec_root_hists(DOCUT_str, mydir, xsec_fb):
         else: proceed = 0
         if proceed:
             # save fid xsec
-            integral = yoda_f[f"/VBS_CROSS_TERMS:{DOCUT_str}/m_tagjets"].integral()
+            integral = yoda_f[f"/{prod_dec}:{DOCUT_str}/m_tagjets"].integral()
             lu.save_xsec_frac_prod(mydir,xsec_fb,integral)
             # save hists in root for further plotting
             root_file = ROOT.TFile(root_file,"UPDATE")
             for i_hist in hists_to_root:
-                h_yoda =  yoda_f[f"/VBS_CROSS_TERMS:{DOCUT_str}/" + i_hist]
+                h_yoda =  yoda_f[f"/{prod_dec}:{DOCUT_str}/" + i_hist]
                 h_root = lu.yoda_to_root_1d(h_yoda, i_hist)
                 h_root.Write("", ROOT.TObject.kOverwrite)
             root_file.Close()
@@ -95,8 +95,9 @@ def save_hists_log_get_xsec_after_cuts(job_name):
         # get xsec after cuts
         evnt_dir = os.path.dirname(evnt_file)
         xsec_fb = lu.get_xsec(log_file)
-        if opts.runNoCuts=="yes": save_fid_xsec_root_hists("DOCUT=NO",evnt_dir + "/DOCUT_NO/", xsec_fb)
-        if opts.runWithCuts=="yes": save_fid_xsec_root_hists("DOCUT=YES",evnt_dir + "/DOCUT_YES/", xsec_fb)
+        prod_dec, _ = lu.find_prod_dec_and_dir(job_name)
+        if opts.runNoCuts=="yes": save_fid_xsec_root_hists("DOCUT=NO",evnt_dir + "/DOCUT_NO/", xsec_fb, prod_dec)
+        if opts.runWithCuts=="yes": save_fid_xsec_root_hists("DOCUT=YES",evnt_dir + "/DOCUT_YES/", xsec_fb, prod_dec)
 
 def main():
     parser = OptionParser()

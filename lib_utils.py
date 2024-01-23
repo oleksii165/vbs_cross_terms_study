@@ -76,13 +76,12 @@ def get_envt_log_names_dirs(base_dir,i_job_name):
     print("returnning log did and dir",log_did, log_dir)
     return evnt_did, evnt_dir, log_did, log_dir  
 
-def get_rivet_com(job_name, evtMax=-1, redoRivet=-1, redoPlots=-1, DOCUT=-1, plotConfRivet=-1):
+def get_rivet_com(job_name, evtMax=-1, redoRivet=-1, redoPlots=-1, DOCUT=-1):
     mycom = f'python run_rivet.py --conf="{job_name}" '
     if evtMax!=-1: mycom += f' --evtMax {evtMax} '
     if redoRivet!=-1: mycom += f' --redoRivet "{redoRivet}" '
     if redoPlots!=-1: mycom += f' --redoPlots "{redoPlots}" '
     if DOCUT!=-1: mycom += f' --DOCUT "{DOCUT}" '
-    if plotConfRivet!=-1: mycom += f' --plotConfRivet "{plotConfRivet}" '
     return mycom
 
 def get_xsec(log_file):

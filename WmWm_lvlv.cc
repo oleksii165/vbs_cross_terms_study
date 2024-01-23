@@ -13,11 +13,11 @@ namespace Rivet {
 
 
   /// @brief Add a short analysis description here
-  class VBS_CROSS_TERMS : public Analysis {
+  class WmWm_lvlv : public Analysis {
   public:
 
     /// Constructor
-    RIVET_DEFAULT_ANALYSIS_CTOR(VBS_CROSS_TERMS);
+    RIVET_DEFAULT_ANALYSIS_CTOR(WmWm_lvlv);
 
 
     /// @name Analysis methods
@@ -231,6 +231,6 @@ namespace Rivet {
   };
 
 
-  RIVET_DECLARE_PLUGIN(VBS_CROSS_TERMS);
+  RIVET_DECLARE_PLUGIN(WmWm_lvlv);
 
 }

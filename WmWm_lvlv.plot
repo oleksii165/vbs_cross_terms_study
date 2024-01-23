@@ -1,4 +1,4 @@
-BEGIN PLOT /VBS_CROSS_TERMS/d01-x01-y01
+BEGIN PLOT /WmWm_lvlv/d01-x01-y01
 Title=[Insert title for histogram d01-x01-y01 here]
 XLabel=[Insert $x$-axis label for histogram d01-x01-y01 here]
 YLabel=[Insert $y$-axis label for histogram d01-x01-y01 here]
@@ -7,92 +7,92 @@ END PLOT
 
 # ... add more histograms as you need them ...
 
-BEGIN PLOT /VBS_CROSS_TERMS/n_jet
+BEGIN PLOT /WmWm_lvlv/n_jet
 XLabel=n_jet
 END PLOT
 
-BEGIN PLOT /VBS_CROSS_TERMS/pt_tagjet1
+BEGIN PLOT /WmWm_lvlv/pt_tagjet1
 XLabel=pt_tagjet1 [GeV]
 END PLOT
 
-BEGIN PLOT /VBS_CROSS_TERMS/pt_tagjet2
+BEGIN PLOT /WmWm_lvlv/pt_tagjet2
 XLabel=pt_tagjet2 [GeV]
 END PLOT
 
-BEGIN PLOT /VBS_CROSS_TERMS/m_tagjets
+BEGIN PLOT /WmWm_lvlv/m_tagjets
 XLabel=m_tagjets [GeV]
 END PLOT
 
-BEGIN PLOT /VBS_CROSS_TERMS/dy_tagjets
+BEGIN PLOT /WmWm_lvlv/dy_tagjets
 XLabel=dy_tagjets
 END PLOT
 
-BEGIN PLOT /VBS_CROSS_TERMS/m_dy_tagjets
+BEGIN PLOT /WmWm_lvlv/m_dy_tagjets
 XLabel=m_tagjets [GeV]
 YLabel=dy_tagjets
 END PLOT
 
-BEGIN PLOT /VBS_CROSS_TERMS/eta_tagjet1
+BEGIN PLOT /WmWm_lvlv/eta_tagjet1
 XLabel=eta_tagjet1
 END PLOT
 
-BEGIN PLOT /VBS_CROSS_TERMS/eta_tagjet2
+BEGIN PLOT /WmWm_lvlv/eta_tagjet2
 XLabel=eta_tagjet2
 END PLOT
 
-BEGIN PLOT /VBS_CROSS_TERMS/eta_tagjets
+BEGIN PLOT /WmWm_lvlv/eta_tagjets
 XLabel=eta_tagjets
 END PLOT
 
-BEGIN PLOT /VBS_CROSS_TERMS/deta_tagjets
+BEGIN PLOT /WmWm_lvlv/deta_tagjets
 XLabel=deta_tagjets
 END PLOT
 
-BEGIN PLOT /VBS_CROSS_TERMS/phi_tagjet1
+BEGIN PLOT /WmWm_lvlv/phi_tagjet1
 XLabel=phi_tagjet1
 END PLOT
 
-BEGIN PLOT /VBS_CROSS_TERMS/phi_tagjet2
+BEGIN PLOT /WmWm_lvlv/phi_tagjet2
 XLabel=phi_tagjet2
 END PLOT
 
-BEGIN PLOT /VBS_CROSS_TERMS/dphi_tagjets
+BEGIN PLOT /WmWm_lvlv/dphi_tagjets
 XLabel=dphi_tagjets
 END PLOT
 
-BEGIN PLOT /VBS_CROSS_TERMS/leptons_pids
+BEGIN PLOT /WmWm_lvlv/leptons_pids
 XLabel=lepton1 PDG ID
 YLabel=lepton1 PDG ID
 END PLOT
 
-BEGIN PLOT /VBS_CROSS_TERMS/lepton_pt
+BEGIN PLOT /WmWm_lvlv/lepton_pt
 XLabel=lepton_pt [GeV]
 END PLOT
 
-BEGIN PLOT /VBS_CROSS_TERMS/lepton_eta
+BEGIN PLOT /WmWm_lvlv/lepton_eta
 XLabel=lepton_eta
 END PLOT
 
-BEGIN PLOT /VBS_CROSS_TERMS/m_ll
+BEGIN PLOT /WmWm_lvlv/m_ll
 XLabel=m_ll [GeV]
 END PLOT
 
-BEGIN PLOT /VBS_CROSS_TERMS/m_ee
+BEGIN PLOT /WmWm_lvlv/m_ee
 XLabel=m_ee [GeV]
 END PLOT
 
-BEGIN PLOT /VBS_CROSS_TERMS/m_mumu
+BEGIN PLOT /WmWm_lvlv/m_mumu
 XLabel=m_mumu [GeV]
 END PLOT
 
-BEGIN PLOT /VBS_CROSS_TERMS/m_emu
+BEGIN PLOT /WmWm_lvlv/m_emu
 XLabel=m_emu [GeV]
 END PLOT
 
-BEGIN PLOT /VBS_CROSS_TERMS/MET
+BEGIN PLOT /WmWm_lvlv/MET
 XLabel=MET [GeV]
 END PLOT
 
-BEGIN PLOT /VBS_CROSS_TERMS/m_T
+BEGIN PLOT /WmWm_lvlv/m_T
 XLabel=m_T [GeV]
 END PLOT

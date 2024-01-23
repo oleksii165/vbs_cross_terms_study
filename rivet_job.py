@@ -1,4 +1,4 @@
-# example of running:   athena rivet_example.py -c 'conf="user.okurdysh.MadGraph_WmWm_FT0_FULL";DOCUT="YES"'
+# example of running:   athena rivet_example.py -c 'conf="user.okurdysh.MadGraph_WmWm_lvlv_FT0_FULL";DOCUT="YES"'
 
 theApp.EvtMax = -1
 print("#####received conf from cmd through -c 'conf=X;DOCUT=Y':  ",conf, DOCUT)
@@ -21,7 +21,7 @@ rivet = Rivet_i()
 import os
 rivet.AnalysisPath = os.environ['PWD']
 
-rivet.Analyses += [f'VBS_CROSS_TERMS:DOCUT={DOCUT}']
+rivet.Analyses += [f'{prod_dec}:DOCUT={DOCUT}']
 rivet.RunName = ''
 rivet.HistoFile = conf_cut_dir + f'/MyOutput.yoda.gz'
 rivet.CrossSection = 1.0 #xsec_pb
