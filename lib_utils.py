@@ -4,6 +4,11 @@ from array import array
 import ROOT
 import itertools
 
+def get_plotdir(prod_dec, DOCUT_str):
+    my_dir = f"/exp/atlas/kurdysh/vbs_cross_terms_study/plots/{prod_dec}/{DOCUT_str}/" 
+    if not os.path.exists(my_dir): os.makedirs(my_dir)
+    return my_dir
+
 def get_ops(include_fs0_2):
     all_ops = ["FM0","FM1","FM2","FM3","FM4","FM5","FM7",
                 "FS02","FS1",
@@ -20,7 +25,8 @@ def get_hists_arr(prod_dec):
       "phi_tagjet1","phi_tagjet2","dphi_tagjets",
       "n_lepton_stable","lepton_pt","lepton_eta",
       "m_ll","m_ee","m_mumu","m_emu","MET","m_T"]
-    hists_to_root = {"WmWm_lvlv": hists_all_1d}
+    hists_to_root = {"WmWm_lvlv": hists_all_1d, 
+                        "WpWm_lvlv": hists_all_1d}
     return hists_to_root[prod_dec]
 
 def find_prod_dec_and_dir(conf):
@@ -113,6 +119,32 @@ def yoda_to_root_1d(h_yoda, yoda_title):
         rtErrs.AddAt(h_yoda.bin(i).sumW2(), i+1)
     mjj_h_root.SetDirectory(0)
     return mjj_h_root.Clone()
+
+def get_op_from_dir(mydir,prod_dec):
+    temp1 = mydir[len(f"user.okurdysh.MadGraph_{prod_dec}_"):]
+    temp2 = temp1[:temp1.find("_EXT0")]
+    if "try" in temp2: temp3 = temp2[:temp2.find("_try")]
+    else: temp3  = temp2
+    arr = temp3.split("_")
+    print("vec for this str", arr)
+    ops = arr[0]
+    regime = arr[1]
+    ops_arr = []
+    if "vs" in ops:
+        ops_arr.append(ops[:ops.find("vs")])
+        ops_arr.append(ops[ops.find("vs")+2:])
+    else:
+        ops_arr.append(ops)
+    return sorted(ops_arr), regime
+
+def save_plot(plot,path_to_save, draw_option = "text45", log_scale = False):
+    c=ROOT.TCanvas()
+    plot.Draw(draw_option)
+    if log_scale: ROOT.gPad.SetLogy()
+    c.Modified()
+    c.Update()
+    c.Show()
+    c.SaveAs(path_to_save)
 
 
 
