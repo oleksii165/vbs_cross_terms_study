@@ -5,4 +5,4 @@ python run_rivet.py --evtMax 10000 --conf "user.okurdysh.MadGraph_WmWm_lvlv_FM0_
 also can add path to config .plot with plots labels thouth --plotConfRivet
 
 
-python run_chain_summary.py --runSMAndFULL "yes" --runQUADAndCROSS "yes"
+python run_chain_summary.py --runQUADAndCROSS "yes" --runNoCuts "yes" --runWithCuts "no" --sumPlotsOnly "no"
