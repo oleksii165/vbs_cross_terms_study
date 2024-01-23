@@ -18,6 +18,7 @@ parser.add_option("--runNoCuts", default = "no")
 parser.add_option("--runWithCuts", default = "yes")
 parser.add_option("--runAgain", default = "no")
 parser.add_option("--sumPlotsOnly", default = "yes")
+parser.add_option("--SMOnSumPlots", default = "no")
 opts, _ = parser.parse_args()
 assert [opts.runNoCuts, opts.runWithCuts]!=["yes","yes"], "once at the time"
 
@@ -88,25 +89,46 @@ for op_dir in os.listdir(top_files_dir):
     print("this is for ops", ops_arr, "in regime", regime)
     product_file = full_op_dir + "xsec_times_frac_fb.txt"
     hists_file = full_op_dir + "hists.root"
-    if os.path.exists(product_file):
+    if os.path.exists(product_file) and os.path.exists(hists_file):
+        # xsec organization
         f = open(product_file, "r")
         fid_xsec_fb = float(f.read())
         print("reading back fid_xsec in fb", fid_xsec_fb)    
         if regime=="CROSS":
-            my_op1 = ops_arr[0]
-            my_op2 = ops_arr[1]
+            my_op1, my_op2  = ops_arr[0], ops_arr[1]
             if my_op1 not in xsec_dict[regime].keys(): xsec_dict[regime][my_op1] = {}
             xsec_dict[regime][my_op1][my_op2] = fid_xsec_fb 
         else:
             my_op = ops_arr[0]
             xsec_dict[regime][my_op] = fid_xsec_fb
+        # hists organization
+        op_hists = lu.read_hists(hists_file, plots_to_save)
+        for i_hist_name in plots_to_save:
+            if regime=="CROSS":
+                my_op1,my_op2 = ops_arr[0], ops_arr[1]
+                if my_op1 not in plots_dict[regime][i_hist_name].keys(): 
+                    plots_dict[regime][i_hist_name][my_op1] = {}
+                plots_dict[regime][i_hist_name][my_op1][my_op2] = op_hists[i_hist_name] 
+            else:
+                my_op = ops_arr[0]
+                plots_dict[regime][i_hist_name][my_op] = op_hists[i_hist_name]
     else:
-        print("didnt find the txt xsec fid file for", op_dir)
+        print("didnt find the txt xsec fid and/or root file for", op_dir)
 print("xsec SM", xsec_dict["SM"])
 print("xsec FULL", xsec_dict["FULL"])
 print("xsec QUAD", xsec_dict["QUAD"])
 for i_key1 in xsec_dict["CROSS"].keys():
     print("xsec CROSS",i_key1,xsec_dict["CROSS"][i_key1])
+#
+print("saved hists SM", [[i_plot, plots_dict["SM"][i_plot].keys()] for i_plot in plots_to_save])
+print("saved hists FULL", [[i_plot, plots_dict["FULL"][i_plot].keys()] for i_plot in plots_to_save])
+print("saved hists QUAD", [[i_plot, plots_dict["QUAD"][i_plot].keys()] for i_plot in plots_to_save])
+print("saved hists CROSS")
+for i_plot in plots_to_save:
+    print("for plot", i_plot)
+    for i_key1 in plots_dict["CROSS"][i_plot].keys():
+        print("have hists", plots_dict["CROSS"][i_plot][i_key1].keys())
+
 
 all_ops =  sorted(list(xsec_dict["QUAD"].keys()))
 print("all ops", all_ops)
@@ -182,3 +204,50 @@ if opts.runQUADAndCROSS=="yes":
     ##########
     # make plots
     ###########
+    # for each distrib draw on same plot QUAD1,QUAD2,CROSS - normalied to same area and with each xsec*filt
+    for i_plot_name in plots_to_save:
+        i_plot_plots_dir = plot_dir + f"/plots_{i_plot_name}/"
+        if not os.path.exists(i_plot_plots_dir): os.makedirs(i_plot_plots_dir)
+        if not os.path.exists(i_plot_plots_dir + "/svg/"): os.makedirs(i_plot_plots_dir + "/svg/")
+
+        quad_plot_ops = plots_dict["QUAD"][i_plot_name].keys()
+        for i_key1 in plots_dict["CROSS"][i_plot_name]:
+            i_key1_keys2 = plots_dict["CROSS"][i_plot_name][i_key1].keys()
+            if len(i_key1_keys2)>0:
+                for i_key2 in i_key1_keys2:
+                    print("have hist", i_plot_name, "for CROSS pair", [i_key1,i_key2])
+                    if i_key1 in quad_plot_ops and i_key2 in quad_plot_ops:
+                        print("also have CROSS plot", i_plot_name, "for both of these ops")
+                        i_plot_cross = plots_dict["CROSS"][i_plot_name][i_key1][i_key2]
+                        i_plot_cross = lu.dress_hist(i_plot_cross, f"CROSS_{i_key1}_{i_key2}", 1, xsec_dict["CROSS"][i_key1][i_key2])
+                        #
+                        i_plot_quad1 = plots_dict["QUAD"][i_plot_name][i_key1]
+                        i_plot_quad1 = lu.dress_hist(i_plot_quad1, f"QUAD_{i_key1}", 2, xsec_dict["QUAD"][i_key1])
+                        #
+                        i_plot_quad2 = plots_dict["QUAD"][i_plot_name][i_key2]
+                        i_plot_quad2 = lu.dress_hist(i_plot_quad2, f"QUAD_{i_key2}", 3, xsec_dict["QUAD"][i_key2])
+                        if "FM0" in plots_dict["SM"][i_plot_name].keys() and opts.SMOnSumPlots=="yes":
+                            i_plot_sm = plots_dict["SM"][i_plot_name]["FM0"]
+                            i_plot_sm = lu.dress_hist(i_plot_sm, f"SM", 4, xsec_dict["SM"]["FM0"])
+                        else: i_plot_sm = -1 
+                        c = ROOT.TCanvas()
+                        c.Divide(2)
+                        c.cd(1)
+                        stack_norm_xsec = ROOT.THStack("stack_norm_xsec", "stack_norm_xsec")
+                        for i_plot in [i_plot_cross, i_plot_quad1, i_plot_quad2]: stack_norm_xsec.Add(i_plot) 
+                        if i_plot_sm!=-1: stack_norm_xsec.Add(i_plot_sm)
+                        stack_norm_xsec.Draw("nostack")
+                        ROOT.gPad.BuildLegend()
+                        ROOT.gPad.SetLogy()
+                        c.cd(2)
+                        i_plot_cross.DrawNormalized("hist")
+                        i_plot_quad1.DrawNormalized("same hist")
+                        i_plot_quad2.DrawNormalized("same hist")
+                        if i_plot_sm!=-1: i_plot_sm.DrawNormalized("same hist")
+                        ROOT.gPad.SetLogy()
+                        c.Modified()
+                        c.Update()
+                        c.Show()
+                        i_plot_save_name = i_key1 + "_" + i_key2 
+                        c.SaveAs(f"{i_plot_plots_dir}/{i_plot_save_name}.pdf")
+                        c.SaveAs(f"{i_plot_plots_dir}/svg/{i_plot_save_name}.svg")

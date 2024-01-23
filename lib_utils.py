@@ -146,5 +146,32 @@ def save_plot(plot,path_to_save, draw_option = "text45", log_scale = False):
     c.Show()
     c.SaveAs(path_to_save)
 
+def read_hists(root_file_name, h_names_arr):
+    hists = {}
+    if os.path.exists(root_file_name):
+        h_file =  ROOT.TFile.Open(root_file_name, "READ")
+        hists_in_file = [i_obj.GetName() for i_obj in h_file.GetListOfKeys()]
+        # print("list of hists in this file", hists_in_file, "in file ", root_file_name)
+        for i_name in h_names_arr:
+            if i_name in hists_in_file: 
+                i_hist = h_file.Get(i_name)
+                i_hist.SetDirectory(0)
+                hists[i_name] = i_hist 
+            else:
+                print("there is no hist", i_name, "in file ", root_file_name)
+        h_file.Close()
+    return hists
+
+def dress_hist(my_hist, my_title, my_color, my_norm = 1.0):
+    my_hist.SetTitle(my_title)
+    my_hist.SetLineColor(my_color)
+    my_hist.SetMarkerColor(my_color)
+    hist_integ = my_hist.Integral()
+    print("normalize", my_hist.GetName(), my_hist.GetTitle(), "to", my_norm, "start from integ", hist_integ)
+    my_hist.Scale(my_norm/hist_integ)
+    print("get back integ", my_hist.Integral())
+    return my_hist.Clone()
+
+
 
 
