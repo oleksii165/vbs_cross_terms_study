@@ -11,3 +11,6 @@ python run_chain_summary.py --runQUADAndCROSS "yes" --runNoCuts "yes" --runWithC
 
 for plots 
 python run_chain_summary.py --runQUADAndCROSS "yes" --runNoCuts "no" --runWithCuts "yes" --sumPlotsOnly "yes"
+
+python run_chain_summary.py --tProd "WmWm" --runQUADAndCROSS "yes"  --sumPlotsOnly "yes" --SMOnSumPlots "yes"
+python run_chain_summary.py --tProd "WpWm" --runQUADAndCROSS "yes"  --sumPlotsOnly "yes"
