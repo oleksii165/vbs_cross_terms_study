@@ -85,12 +85,12 @@ namespace Rivet {
         // //lepton plots
         book(_h2["leptons_pids"], "leptons_pids", 2*n_pid, -1*n_pid, n_pid, 2*n_pid, -1*n_pid, n_pid);
         book(_h["n_lepton_stable"], "n_lepton_stable", n_nbins, 0.0, n_nbins);
-        book(_h["lepton_pt"], "lepton_pt", int(n_pt/10), 0.0, max_pt/10);
+        book(_h["lepton_pt"], "lepton_pt", int(n_pt/3), 0.0, max_pt/3);
         book(_h["lepton_eta"], "lepton_eta", n_rap, -1*max_rap, max_rap);
-        book(_h["m_ll"], "m_ll", int(n_pt/8), 0.0, max_pt/8);
+        book(_h["m_ll"], "m_ll", int(n_pt), 0.0, max_pt);
         //other
-        book(_h["MET"], "MET", int(n_pt/10), 0.0, max_pt/10);
-        book(_h["m_T"], "m_T", int(n_pt/5), 0.0, max_pt/5);
+        book(_h["MET"], "MET", int(n_pt), 0.0, max_pt);
+        book(_h["m_T"], "m_T", int(n_pt*2), 0.0, max_pt*2);
         book(_h["centrality"], "centrality", int(n_nbins*2), 0.0, int(n_nbins/2)); 
         book(_h["jet3_centrality"], "jet3_centrality", int(n_nbins*2), 0.0, int(n_nbins/2)); 
         book(_c["found_VBS_pair"],"found_VBS_pair");
