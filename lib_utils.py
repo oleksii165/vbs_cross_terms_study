@@ -9,6 +9,13 @@ def get_plotdir(prod_dec, DOCUT_str):
     if not os.path.exists(my_dir): os.makedirs(my_dir)
     return my_dir
 
+def get_bookletdir(start_path, normalized=""):
+    my_dir = start_path + "/booklets/"
+    if len(normalized)>0: my_dir = my_dir[:-1] + "_normalized/"
+    if not os.path.exists(my_dir): os.makedirs(my_dir)
+    if not os.path.exists(my_dir + "/svg/"): os.makedirs(my_dir + "/svg/")
+    return my_dir
+
 def get_ops(include_fs0_2):
     all_ops = ["FM0","FM1","FM2","FM3","FM4","FM5","FM7",
                 "FS02","FS1",
@@ -19,11 +26,26 @@ def get_ops(include_fs0_2):
     op_pairs = sorted(list(itertools.combinations(all_ops,2)))
     return all_ops, op_pairs
 
-def get_hists_to_draw_with_params(prod_dec):
+def get_hists_to_draw(prod_dec):
     hists_dict= {}
-    hists_dict["WmWm_lvlv"] = ["pt_tagjet1", "m_tagjets", "deta_tagjets", "lepton_pt","lepton_eta","m_ll", "MET", "m_T"] 
+    hists_dict["WmWm_lvlv"] =  ["pt_tagjet1", "m_tagjets", "deta_tagjets", "lepton_pt","lepton_eta","m_ll", "MET", "m_T"]
     hists_dict["WpWm_lvlv"] =  ["pt_tagjet1", "m_tagjets", "deta_tagjets", "pt_tagjet2",  "jet3_centralty",  "m_ll", "centrality", "MET"]
     return hists_dict[prod_dec]
+
+def get_root_hist_param(plot_name):
+    params = {}
+    params["pt_tagjet1"] = [0, 2000, 10]
+    params["pt_tagjet2"] = [0, 1000, 10]
+    params["m_tagjets"] = [-1, -1, 10]
+    params["deta_tagjets"] = [-1, -1, 5]
+    params["m_ll"] = params["MET"] =[-1, -1, 3]
+    params["m_T"] =[-1, -1, 5]
+    params["lepton_pt"] = [0, 200, 2]
+    params["lepton_eta"] = [-3.0, 3.0, 2]
+    if plot_name in params.keys():
+        return params[plot_name]
+    else:
+        return [-1,-1,-1]
 
 def find_prod_dec_and_dir(conf):
     prod_temp = conf[conf.find("user.okurdysh.MadGraph_")+len("user.okurdysh.MadGraph_"):]
@@ -132,10 +154,11 @@ def get_op_from_dir(mydir,prod_dec):
         ops_arr.append(ops)
     return sorted(ops_arr), regime
 
-def save_plot(plot,path_to_save, draw_option = "text45", log_scale = False):
+def save_plot(plot,path_to_save, draw_option = "text45", log_scale = False, legend=False):
     c=ROOT.TCanvas()
     plot.Draw(draw_option)
     if log_scale: ROOT.gPad.SetLogy()
+    if legend: ROOT.gPad.BuildLegend()
     c.Modified()
     c.Update()
     c.Show()
@@ -167,6 +190,13 @@ def dress_hist(my_hist, my_title, my_color, my_norm = 1.0):
     print("get back integ", my_hist.Integral())
     return my_hist.Clone()
 
+def make_stack(hist_arr, title="",norm=-1):
+    my_stack = ROOT.THStack(f"{title}/{norm}", f"{title}/{norm}")
+    for i_plot in hist_arr:
+        plot_copy = i_plot.Clone() # since will use several time with/without normalzietions  
+        if norm!=-1: plot_copy.Scale(norm/plot_copy.Integral())
+        my_stack.Add(plot_copy)
+    return my_stack.Clone()
 
 
 

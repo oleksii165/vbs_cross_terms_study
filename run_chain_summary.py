@@ -1,6 +1,7 @@
 import ROOT
 ROOT.gStyle.SetOptStat(0)
 ROOT.gROOT.SetBatch(ROOT.kTRUE)
+# ROOT.gROOT.gErrorIgnoreLevel(ROOT.kWarning)
 import os
 import lib_utils as lu
 import math
@@ -25,8 +26,10 @@ assert [opts.runNoCuts, opts.runWithCuts]!=["yes","yes"], "once at the time"
 prod_dec = f"{opts.tProd}_{opts.tDec}"
 _, top_files_dir = lu.find_prod_dec_and_dir(f"user.okurdysh.MadGraph_{prod_dec}_FM0_SM")
 docut_dir = "DOCUT_YES" if opts.runWithCuts=="yes" else "DOCUT_NO"
-plots_to_save = lu.get_hists_to_draw_with_params(prod_dec)
+plots_to_save = lu.get_hists_to_draw(prod_dec)
 plot_dir = lu.get_plotdir(prod_dec, docut_dir)
+booklet_dir_norm = lu.get_bookletdir(plot_dir, normalized="yes")
+booklet_dir_xsec = lu.get_bookletdir(plot_dir)
 
 tasks = c.get_tasks(limit=1000, days=30, username="Oleksii Kurdysh", status="done") # get already last try since only retry if it failed
 task_names = [i_task['taskname'].replace("/","") for i_task in tasks if "MadGraph" in i_task['taskname'] and opts.tProd in i_task['taskname'] and opts.tDec in i_task['taskname']]
@@ -204,14 +207,8 @@ if opts.runQUADAndCROSS=="yes":
     ##########
     # make plots
     ###########
-    # def get_multihist(op_pair)
-
-    # for each distrib draw on same plot QUAD1,QUAD2,CROSS - normalied to same area and with each xsec*filt
-    for i_plot_name in plots_to_save:
-        i_plot_plots_dir = plot_dir + f"/plots_{i_plot_name}/"
-        if not os.path.exists(i_plot_plots_dir): os.makedirs(i_plot_plots_dir)
-        if not os.path.exists(i_plot_plots_dir + "/svg/"): os.makedirs(i_plot_plots_dir + "/svg/")
-
+    def get_multihist_all_pairs(i_plot_name):
+        plot_hist_cross_quads_sm={}
         quad_plot_ops = plots_dict["QUAD"][i_plot_name].keys()
         for i_key1 in plots_dict["CROSS"][i_plot_name]:
             i_key1_keys2 = plots_dict["CROSS"][i_plot_name][i_key1].keys()
@@ -228,28 +225,57 @@ if opts.runQUADAndCROSS=="yes":
                         #
                         i_plot_quad2 = plots_dict["QUAD"][i_plot_name][i_key2]
                         i_plot_quad2 = lu.dress_hist(i_plot_quad2, f"QUAD_{i_key2}", 3, xsec_dict["QUAD"][i_key2])
+                        #
+                        i_op_pair = i_key1 + "_" + i_key2
+                        plot_hist_cross_quads_sm[i_op_pair] = [i_plot_cross.Clone(), i_plot_quad1.Clone(), i_plot_quad2.Clone()]
                         if "FM0" in plots_dict["SM"][i_plot_name].keys() and opts.SMOnSumPlots=="yes":
                             i_plot_sm = plots_dict["SM"][i_plot_name]["FM0"]
                             i_plot_sm = lu.dress_hist(i_plot_sm, f"SM", 4, xsec_dict["SM"]["FM0"])
-                        else: i_plot_sm = -1 
-                        c = ROOT.TCanvas()
-                        c.Divide(2)
-                        c.cd(1)
-                        stack_norm_xsec = ROOT.THStack("stack_norm_xsec", "stack_norm_xsec")
-                        for i_plot in [i_plot_cross, i_plot_quad1, i_plot_quad2]: stack_norm_xsec.Add(i_plot) 
-                        if i_plot_sm!=-1: stack_norm_xsec.Add(i_plot_sm)
-                        stack_norm_xsec.Draw("nostack")
-                        ROOT.gPad.BuildLegend()
-                        ROOT.gPad.SetLogy()
-                        c.cd(2)
-                        i_plot_cross.DrawNormalized("hist")
-                        i_plot_quad1.DrawNormalized("same hist")
-                        i_plot_quad2.DrawNormalized("same hist")
-                        if i_plot_sm!=-1: i_plot_sm.DrawNormalized("same hist")
-                        ROOT.gPad.SetLogy()
-                        c.Modified()
-                        c.Update()
-                        c.Show()
-                        i_plot_save_name = i_key1 + "_" + i_key2 
-                        c.SaveAs(f"{i_plot_plots_dir}/{i_plot_save_name}.pdf")
-                        c.SaveAs(f"{i_plot_plots_dir}/svg/{i_plot_save_name}.svg")
+                            plot_hist_cross_quads_sm[i_op_pair].append(i_plot_sm)
+        print("int the end for plot", i_plot_name, "found hists for pairs", plot_hist_cross_quads_sm.keys())
+        return plot_hist_cross_quads_sm
+
+    # for each distrib draw on same plot QUAD1,QUAD2,CROSS - normalied to same area and with each xsec*filt
+    stacks_arr_per_pair = {} # key is pair
+    stacks_arr_per_pair_normalized = {}
+    for i_plot_name in plots_to_save:
+        i_plot_hist_dict = get_multihist_all_pairs(i_plot_name)
+        print("received for plot", i_plot_name, "arrays of c,q,q,?sm for pairs", i_plot_hist_dict.keys())
+        for i_pair in i_plot_hist_dict.keys():
+            i_pair_hists = i_plot_hist_dict[i_pair]
+            if len(i_pair_hists):
+                # rebin and maybe change bounds
+                display_params = lu.get_root_hist_param(i_plot_name)
+                for i_hist in i_pair_hists:
+                    if display_params[2]!=-1: i_hist.RebinX(display_params[2]) 
+                # save normalized
+                i_pair_plot_stack = lu.make_stack(i_pair_hists, title = i_plot_name,norm = 1)
+                if i_pair not in stacks_arr_per_pair_normalized.keys(): stacks_arr_per_pair_normalized[i_pair] = [i_pair_plot_stack]
+                else: stacks_arr_per_pair_normalized[i_pair].append(i_pair_plot_stack)
+                # same without normalization
+                i_pair_plot_stack_xsec = lu.make_stack(i_pair_hists, title = i_plot_name)
+                if i_pair not in stacks_arr_per_pair.keys(): stacks_arr_per_pair[i_pair] = [i_pair_plot_stack_xsec]
+                else: stacks_arr_per_pair[i_pair].append(i_pair_plot_stack_xsec)
+                
+    def draw_booklets(stacks_arr, outdir):
+        for i_pair in stacks_arr.keys():
+            stacks_pair = stacks_arr[i_pair]
+            c=ROOT.TCanvas()
+            c.Divide(4,2)
+            for num_canvas, i_stack in enumerate(stacks_pair,start=1):
+                display_params = lu.get_root_hist_param(i_stack.GetName().split("/")[0])
+                c.cd(num_canvas)
+                i_stack.Draw("nostack")
+                if display_params[0]!=-1: i_stack.GetXaxis().SetRangeUser(display_params[0], display_params[1]) 
+                ROOT.gPad.BuildLegend()
+                ROOT.gPad.SetLogy()
+            c.Modified()
+            c.Update()
+            c.Show()
+            c.SaveAs(f"{outdir}/{i_pair}.pdf")
+            c.SaveAs(f"{outdir}/svg/{i_pair}.svg")
+
+    draw_booklets(stacks_arr_per_pair_normalized, booklet_dir_norm)
+    draw_booklets(stacks_arr_per_pair, booklet_dir_xsec)
+
+    
