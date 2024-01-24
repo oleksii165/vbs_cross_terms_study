@@ -68,6 +68,7 @@ namespace Rivet {
         book(_h["n_bjet"], "n_bjet", n_nbins, 0.0, n_nbins);
         book(_h["tagjet1_index"], "tagjet1_index", n_nbins, 0.0, n_nbins);
         book(_h["tagjet2_index"], "tagjet2_index", n_nbins, 0.0, n_nbins);
+        book(_h2["tagjets_index"], "tagjets_index", int(n_nbins/2), 0.0, int(n_nbins/2),int(n_nbins/2), 0.0, int(n_nbins/2));
         book(_h["jet3_index"], "jet3_index", n_nbins, 0.0, n_nbins);
         book(_h["pt_tagjet1"], "pt_tagjet1", n_pt, 0.0, max_pt); 
         book(_h["pt_tagjet2"], "pt_tagjet2", n_pt, 0.0, max_pt);
@@ -193,6 +194,7 @@ namespace Rivet {
         _h["n_bjet"]->fill(nbtags);
         _h["tagjet1_index"]->fill(tag1_jet_index);
         _h["tagjet2_index"]->fill(tag2_jet_index);
+        _h2["tagjets_index"]->fill(tag1_jet_index,tag2_jet_index);
         _h["jet3_index"]->fill(jet3_index);
         _h["pt_tagjet1"]->fill(tag1_jet.pt());
         _h["pt_tagjet2"]->fill(tag2_jet.pt());
@@ -239,6 +241,7 @@ namespace Rivet {
         // also norm few 2d
         normalize(_h2["m_dy_tagjets"], norm_to);
         normalize(_h2["leptons_pids"],norm_to);
+        normalize(_h2["tagjets_index"],norm_to);
 
     }
 
