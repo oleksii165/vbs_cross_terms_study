@@ -62,6 +62,11 @@ def save_fid_xsec_root_hists(DOCUT_str, mydir, xsec_fb, prod_dec):
     if os.path.exists(yoda_f_str):
         yoda_f = yoda.read(yoda_f_str)
         print("reading from yoda file ", yoda_f_str)
+        all_hists_in_yoda = [iname  for iname in yoda_f.keys() if "[" not in iname and "RAW" not in iname]
+        hists_1h_in_yoda = []
+        for i_name in all_hists_in_yoda:
+            if yoda_f[i_name].type()=="Histo1D": hists_1h_in_yoda.append(i_name)  
+        print("have 1d hists to be saved in root:", hists_1h_in_yoda, "in yoda file", yoda_f_str)
 
         root_file = mydir + "/hists.root"
         if not os.path.exists(root_file) or not os.path.exists(mydir + "xsec_fb.txt"): proceed = 1
@@ -73,9 +78,9 @@ def save_fid_xsec_root_hists(DOCUT_str, mydir, xsec_fb, prod_dec):
             lu.save_xsec_frac_prod(mydir,xsec_fb,integral)
             # save hists in root for further plotting
             root_file = ROOT.TFile(root_file,"UPDATE")
-            for i_hist in hists_to_root:
-                h_yoda =  yoda_f[f"/{prod_dec}:{DOCUT_str}/" + i_hist]
-                h_root = lu.yoda_to_root_1d(h_yoda, i_hist)
+            for i_hist in hists_1h_in_yoda: # they are in format '/WpWm_lvlv:DOCUT=YES/leptons_pids'
+                h_yoda =  yoda_f[i_hist]
+                h_root = lu.yoda_to_root_1d(h_yoda, i_hist.split("/")[-1])
                 h_root.Write("", ROOT.TObject.kOverwrite)
             root_file.Close()
         else:
@@ -89,7 +94,7 @@ def save_hists_log_get_xsec_after_cuts(job_name):
     if evnt_file!=-1 and log_file!=-1:
         com_run_rivet_no_cut = lu.get_rivet_com(job_name, evtMax = 20000, DOCUT = "NO", redoRivet=opts.runAgain, redoPlots=opts.runAgain)
         com_run_rivet_with_cut = lu.get_rivet_com(job_name, evtMax = 20000, DOCUT = "YES", redoRivet=opts.runAgain, redoPlots=opts.runAgain)
-        print("will run rivet+untar in two ways in sequence with/without cut \n", com_run_rivet_no_cut, "\n",com_run_rivet_with_cut)
+        print("run both or one:  rivet+untar in two ways in sequence with/without cut \n", com_run_rivet_no_cut, "\n",com_run_rivet_with_cut)
         if opts.runNoCuts=="yes":subprocess.call(com_run_rivet_no_cut, shell=True)
         if opts.runWithCuts=="yes": subprocess.call(com_run_rivet_with_cut, shell=True)
         # get xsec after cuts
@@ -109,11 +114,9 @@ def main():
     opts, _ = parser.parse_args()
 
     global base_dir
-    global hists_to_root    
     if len(opts.jobName)>0:
         print("##################### \n ############# will work on job", opts.jobName)
         prod_dec, base_dir = lu.find_prod_dec_and_dir(opts.jobName) # dir where all files are stored
-        hists_to_root = lu.get_hists_arr(prod_dec)
         save_hists_log_get_xsec_after_cuts(opts.jobName)
 
     return 0

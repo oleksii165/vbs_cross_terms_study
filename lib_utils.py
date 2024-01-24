@@ -19,15 +19,11 @@ def get_ops(include_fs0_2):
     op_pairs = sorted(list(itertools.combinations(all_ops,2)))
     return all_ops, op_pairs
 
-def get_hists_arr(prod_dec):
-    hists_all_1d = ["n_jet","pt_tagjet1","pt_tagjet2","m_tagjets",
-      "dy_tagjets","eta_tagjet1","eta_tagjet2","eta_tagjets", "deta_tagjets", 
-      "phi_tagjet1","phi_tagjet2","dphi_tagjets",
-      "n_lepton_stable","lepton_pt","lepton_eta",
-      "m_ll","m_ee","m_mumu","m_emu","MET","m_T"]
-    hists_to_root = {"WmWm_lvlv": hists_all_1d, 
-                        "WpWm_lvlv": hists_all_1d}
-    return hists_to_root[prod_dec]
+def get_hists_to_draw_with_params(prod_dec):
+    hists_dict= {}
+    hists_dict["WmWm_lvlv"] = ["pt_tagjet1", "m_tagjets", "deta_tagjets", "lepton_pt","lepton_eta","m_ll", "MET", "m_T"] 
+    hists_dict["WpWm_lvlv"] =  ["pt_tagjet1", "m_tagjets", "deta_tagjets", "pt_tagjet2",  "jet3_centralty",  "m_ll", "centrality", "MET"]
+    return hists_dict[prod_dec]
 
 def find_prod_dec_and_dir(conf):
     prod_temp = conf[conf.find("user.okurdysh.MadGraph_")+len("user.okurdysh.MadGraph_"):]

@@ -25,8 +25,7 @@ assert [opts.runNoCuts, opts.runWithCuts]!=["yes","yes"], "once at the time"
 prod_dec = f"{opts.tProd}_{opts.tDec}"
 _, top_files_dir = lu.find_prod_dec_and_dir(f"user.okurdysh.MadGraph_{prod_dec}_FM0_SM")
 docut_dir = "DOCUT_YES" if opts.runWithCuts=="yes" else "DOCUT_NO"
-# plots_to_save = ["pt_tagjet1","eta_tagjets","m_tagjets", "dy_tagjets", "lepton_pt","lepton_eta", "m_ll", "MET"]
-plots_to_save = ["m_tagjets", "m_ll"]
+plots_to_save = lu.get_hists_to_draw_with_params(prod_dec)
 plot_dir = lu.get_plotdir(prod_dec, docut_dir)
 
 tasks = c.get_tasks(limit=1000, days=30, username="Oleksii Kurdysh", status="done") # get already last try since only retry if it failed
@@ -82,7 +81,7 @@ for i_eft in plots_dict.keys():
         plots_dict[i_eft][i_plot] = {}
 xsec_dict = {'SM':{}, 'FULL':{}, 'QUAD':{}, 'CROSS':{}, 'INT':{}}
 
-for op_dir in os.listdir(top_files_dir):
+for op_dir in [i_obj for i_obj in os.listdir(top_files_dir) if os.path.isdir(top_files_dir + "/" + i_obj)]:
     full_op_dir = os.path.join(top_files_dir,op_dir,docut_dir,"")
     print("#### plotting new conf", op_dir, "full path", full_op_dir)
     ops_arr, regime = lu.get_op_from_dir(op_dir, prod_dec)
@@ -104,14 +103,15 @@ for op_dir in os.listdir(top_files_dir):
         # hists organization
         op_hists = lu.read_hists(hists_file, plots_to_save)
         for i_hist_name in plots_to_save:
-            if regime=="CROSS":
-                my_op1,my_op2 = ops_arr[0], ops_arr[1]
-                if my_op1 not in plots_dict[regime][i_hist_name].keys(): 
-                    plots_dict[regime][i_hist_name][my_op1] = {}
-                plots_dict[regime][i_hist_name][my_op1][my_op2] = op_hists[i_hist_name] 
-            else:
-                my_op = ops_arr[0]
-                plots_dict[regime][i_hist_name][my_op] = op_hists[i_hist_name]
+            if i_hist_name in op_hists.keys(): 
+                if regime=="CROSS":
+                    my_op1,my_op2 = ops_arr[0], ops_arr[1]
+                    if my_op1 not in plots_dict[regime][i_hist_name].keys(): 
+                        plots_dict[regime][i_hist_name][my_op1] = {}
+                    plots_dict[regime][i_hist_name][my_op1][my_op2] = op_hists[i_hist_name] 
+                else:
+                    my_op = ops_arr[0]
+                    plots_dict[regime][i_hist_name][my_op] = op_hists[i_hist_name]
     else:
         print("didnt find the txt xsec fid and/or root file for", op_dir)
 print("xsec SM", xsec_dict["SM"])
@@ -204,6 +204,8 @@ if opts.runQUADAndCROSS=="yes":
     ##########
     # make plots
     ###########
+    # def get_multihist(op_pair)
+
     # for each distrib draw on same plot QUAD1,QUAD2,CROSS - normalied to same area and with each xsec*filt
     for i_plot_name in plots_to_save:
         i_plot_plots_dir = plot_dir + f"/plots_{i_plot_name}/"
