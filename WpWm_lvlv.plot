@@ -11,6 +11,27 @@ BEGIN PLOT /WpWm_lvlv/n_jet
 XLabel=n_jet
 END PLOT
 
+BEGIN PLOT /WpWm_lvlv/n_bjet
+XLabel=n_bjet
+END PLOT
+
+BEGIN PLOT /WpWm_lvlv/tagjet1_index
+XLabel=tagjet1_index
+END PLOT
+
+BEGIN PLOT /WpWm_lvlv/tagjet2_index
+XLabel=tagjet2_index
+END PLOT
+
+BEGIN PLOT /WpWm_lvlv/tagjets_index
+XLabel=tagjet1_index
+XLabel=tagjet2_index
+END PLOT
+
+BEGIN PLOT /WpWm_lvlv/jet3_index
+XLabel=jet3_index
+END PLOT
+
 BEGIN PLOT /WpWm_lvlv/pt_tagjet1
 XLabel=pt_tagjet1 [GeV]
 END PLOT

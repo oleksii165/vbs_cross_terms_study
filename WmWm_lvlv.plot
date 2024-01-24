@@ -11,6 +11,10 @@ BEGIN PLOT /WmWm_lvlv/n_jet
 XLabel=n_jet
 END PLOT
 
+BEGIN PLOT /WpWm_lvlv/n_bjet
+XLabel=n_bjet
+END PLOT
+
 BEGIN PLOT /WmWm_lvlv/pt_tagjet1
 XLabel=pt_tagjet1 [GeV]
 END PLOT
