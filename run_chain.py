@@ -92,8 +92,8 @@ def save_hists_log_get_xsec_after_cuts(job_name):
     prepare_grid_files(job_name)
     evnt_file, log_file = get_evnt_log_files(job_name)
     if evnt_file!=-1 and log_file!=-1:
-        com_run_rivet_no_cut = lu.get_rivet_com(job_name, evtMax = 20000, DOCUT = "NO", redoRivet=opts.runAgain, redoPlots=opts.runAgain)
-        com_run_rivet_with_cut = lu.get_rivet_com(job_name, evtMax = 20000, DOCUT = "YES", redoRivet=opts.runAgain, redoPlots=opts.runAgain)
+        com_run_rivet_no_cut = lu.get_rivet_com(job_name, evtMax = evtMax, DOCUT = "NO", redoRivet=opts.runAgain, redoPlots=opts.runAgain)
+        com_run_rivet_with_cut = lu.get_rivet_com(job_name, evtMax = evtMax, DOCUT = "YES", redoRivet=opts.runAgain, redoPlots=opts.runAgain)
         print("run both or one:  rivet+untar in two ways in sequence with/without cut \n", com_run_rivet_no_cut, "\n",com_run_rivet_with_cut)
         if opts.runNoCuts=="yes":subprocess.call(com_run_rivet_no_cut, shell=True)
         if opts.runWithCuts=="yes": subprocess.call(com_run_rivet_with_cut, shell=True)
@@ -110,10 +110,13 @@ def main():
     parser.add_option("--runWithCuts", default = "yes")
     parser.add_option("--runAgain", default = "no")
     parser.add_option("--jobName", default = "")
+    parser.add_option("--evtMax", default = 20000)
     global opts
     opts, _ = parser.parse_args()
 
     global base_dir
+    global evtMax
+    evtMax = int(opts.evtMax)
     if len(opts.jobName)>0:
         print("##################### \n ############# will work on job", opts.jobName)
         prod_dec, base_dir = lu.find_prod_dec_and_dir(opts.jobName) # dir where all files are stored
