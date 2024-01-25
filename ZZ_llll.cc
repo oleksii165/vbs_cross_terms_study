@@ -77,7 +77,7 @@ namespace Rivet {
         book(_h["n_lepton_stable"], "n_lepton_stable", n_nbins, 0.0, n_nbins);
         book(_h["lepton_pt"], "lepton_pt", int(n_pt), 0.0, max_pt);
         book(_h["lepton_eta"], "lepton_eta", n_rap, -1*max_rap, max_rap);
-        book(_h["all_lep_pairs_m_ll"], "all_lep_pairs_m_ll", int(n_pt), 0.0, max_pt); // TODO: change bounds 
+        book(_h["all_lep_pairs_m_ll"], "all_lep_pairs_m_ll", int(n_pt), 0.0, max_pt);
         book(_h["m_ll_of_pairs_best_quadruplet"], "m_ll_of_pairs_best_quadruplet", int(n_pt), 0.0, max_pt);
         book(_h["m_4l"], "m_4l", int(n_pt), 0.0, max_pt);
         //other
