@@ -42,7 +42,7 @@ def get_hists_to_draw(prod_dec):
 
 def get_root_hist_param(plot_name):
     params = {}
-    params["pt_tagjet1"] = params["MET"] = [0, 2000, 10]
+    params["pt_tagjet1"] = params["MET"] = params["lepton_pt"] =  [0, 2000, 10]
     params["all_lep_pairs_m_ll"] = [0, 2500, 10] 
     params["m_ll_of_pairs_best_quadruplet"] = [0, 200, 1]
     params["m_ll"] = [-1,-1,10]
@@ -51,7 +51,6 @@ def get_root_hist_param(plot_name):
     params["deta_tagjets"] = [-1, -1, 5]
     params["dphi_tagjets"] = [0, 4, 5]
     params["m_T"] =[-1, -1, 15]
-    params["lepton_pt"] = [-1, -1, 2]
     params["lepton_eta"] = [-3.0, 3.0, 2]
     if plot_name in params.keys():
         return params[plot_name]
