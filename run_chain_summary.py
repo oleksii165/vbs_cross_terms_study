@@ -28,8 +28,6 @@ _, top_files_dir = lu.find_prod_dec_and_dir(f"user.okurdysh.MadGraph_{prod_dec}_
 docut_dir = "DOCUT_YES" if opts.runWithCuts=="yes" else "DOCUT_NO"
 plots_to_save = lu.get_hists_to_draw(prod_dec)
 plot_dir = lu.get_plotdir(prod_dec, docut_dir)
-booklet_dir_norm = lu.get_bookletdir(plot_dir, normalized="yes")
-booklet_dir_xsec = lu.get_bookletdir(plot_dir)
 
 tasks = c.get_tasks(limit=1000, days=30, username="Oleksii Kurdysh", status="done") # get already last try since only retry if it failed
 task_names = [i_task['taskname'].replace("/","") for i_task in tasks if "MadGraph" in i_task['taskname'] and opts.tProd in i_task['taskname'] and opts.tDec in i_task['taskname']]
@@ -275,7 +273,19 @@ if opts.runQUADAndCROSS=="yes":
             c.SaveAs(f"{outdir}/{i_pair}.pdf")
             c.SaveAs(f"{outdir}/svg/{i_pair}.svg")
 
-    draw_booklets(stacks_arr_per_pair_normalized, booklet_dir_norm)
-    draw_booklets(stacks_arr_per_pair, booklet_dir_xsec)
+    draw_booklets(stacks_arr_per_pair_normalized, lu.get_bookletdir(plot_dir, normalized="yes"))
+    draw_booklets(stacks_arr_per_pair, lu.get_bookletdir(plot_dir))
+
+    stacks_arr_per_pair_normalized_big_pairs = {}
+    big_pairs = lu.get_big_pairs()
+    print("big pairs", big_pairs)
+    print("all pairs that have", stacks_arr_per_pair_normalized.keys())
+    for i_pair in stacks_arr_per_pair_normalized.keys():
+        print("print checking if pair", i_pair, "is big")
+        if i_pair in big_pairs: 
+            print("re-saved")
+            stacks_arr_per_pair_normalized_big_pairs[i_pair] = stacks_arr_per_pair_normalized[i_pair] 
+    print("big pairs re-saved", stacks_arr_per_pair_normalized_big_pairs.keys())
+    draw_booklets(stacks_arr_per_pair_normalized_big_pairs, lu.get_bookletdir(plot_dir, normalized="yes",big_pairs=True))
 
     

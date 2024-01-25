@@ -9,8 +9,15 @@ def get_plotdir(prod_dec, DOCUT_str):
     if not os.path.exists(my_dir): os.makedirs(my_dir)
     return my_dir
 
-def get_bookletdir(start_path, normalized=""):
+# @TODO uniformize where i'm using _ or vs
+def get_big_pairs():
+    return ["FM0_FM1", "FM0_FM7", "FM1_FM7", "FM2_FM3",  "FM4_FM5", 
+            "FS0_FS1", "FS0_FS2", "FS1_FS2",
+            "FT0_FT1","FT0_FT2", "FT1_FT2","FT5_FT6","FT5_FT7","FT6_FT7"]
+
+def get_bookletdir(start_path, normalized="", big_pairs = False):
     my_dir = start_path + "/booklets/"
+    if big_pairs: my_dir = my_dir[:-1] + "_big_pairs/"
     if len(normalized)>0: my_dir = my_dir[:-1] + "_normalized/"
     if not os.path.exists(my_dir): os.makedirs(my_dir)
     if not os.path.exists(my_dir + "/svg/"): os.makedirs(my_dir + "/svg/")
@@ -43,7 +50,7 @@ def get_root_hist_param(plot_name):
     params["m_tagjets"] = [-1, -1, 10]
     params["deta_tagjets"] = [-1, -1, 5]
     params["dphi_tagjets"] = [0, 4, 5]
-    params["m_T"] =[-1, -1, 5]
+    params["m_T"] =[-1, -1, 15]
     params["lepton_pt"] = [-1, -1, 2]
     params["lepton_eta"] = [-3.0, 3.0, 2]
     if plot_name in params.keys():
