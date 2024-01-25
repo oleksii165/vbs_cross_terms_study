@@ -30,17 +30,21 @@ def get_hists_to_draw(prod_dec):
     hists_dict= {}
     hists_dict["WmWm_lvlv"] =  ["pt_tagjet1", "m_tagjets", "deta_tagjets", "lepton_pt","lepton_eta","m_ll", "MET", "m_T"]
     hists_dict["WpWm_lvlv"] =  ["pt_tagjet1", "m_tagjets", "deta_tagjets", "lepton_eta", "m_ll", "centrality", "jet3_centrality", "MET"]
+    hists_dict["ZZ_llll"] =  ["pt_tagjet1", "m_tagjets", "deta_tagjets", "dphi_tagjets", "lepton_eta", "lepton_pt", "all_lep_pairs_m_ll", "m_ll_of_pairs_best_quadruplet"]
     return hists_dict[prod_dec]
 
 def get_root_hist_param(plot_name):
     params = {}
     params["pt_tagjet1"] = params["MET"] = [0, 2000, 10]
+    params["all_lep_pairs_m_ll"] = [0, 2500, 10] 
+    params["m_ll_of_pairs_best_quadruplet"] = [0, 200, 1]
     params["m_ll"] = [-1,-1,10]
     params["pt_tagjet2"] = [0, 1000, 10]
     params["m_tagjets"] = [-1, -1, 10]
     params["deta_tagjets"] = [-1, -1, 5]
+    params["dphi_tagjets"] = [0, 4, 5]
     params["m_T"] =[-1, -1, 5]
-    params["lepton_pt"] = [0, 200, 2]
+    params["lepton_pt"] = [-1, -1, 2]
     params["lepton_eta"] = [-3.0, 3.0, 2]
     if plot_name in params.keys():
         return params[plot_name]
