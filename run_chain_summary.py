@@ -4,6 +4,7 @@ ROOT.gROOT.SetBatch(ROOT.kTRUE)
 # ROOT.gROOT.gErrorIgnoreLevel(ROOT.kWarning)
 import os
 import lib_utils as lu
+import matplotlib.pyplot as plt
 import math
 import subprocess
 from pandaclient import panda_api
@@ -28,6 +29,8 @@ _, top_files_dir = lu.find_prod_dec_and_dir(f"user.okurdysh.MadGraph_{prod_dec}_
 docut_dir = "DOCUT_YES" if opts.runWithCuts=="yes" else "DOCUT_NO"
 plots_to_save = lu.get_hists_to_draw(prod_dec)
 plot_dir = lu.get_plotdir(prod_dec, docut_dir)
+start_numev = 10000
+big_pairs_cutoff = 1.05
 
 tasks = c.get_tasks(limit=1000, days=30, username="Oleksii Kurdysh", status="done") # get already last try since only retry if it failed
 task_names = [i_task['taskname'].replace("/","") for i_task in tasks if "MadGraph" in i_task['taskname'] and opts.tProd in i_task['taskname'] and opts.tDec in i_task['taskname']]
@@ -81,40 +84,60 @@ for i_eft in plots_dict.keys():
     for i_plot in plots_to_save:
         plots_dict[i_eft][i_plot] = {}
 xsec_dict = {'SM':{}, 'FULL':{}, 'QUAD':{}, 'CROSS':{}, 'INT':{}}
-
+frac_dict = {'SM':{}, 'FULL':{}, 'QUAD':{}, 'CROSS':{}, 'INT':{}}
+sumw_initial_dict = {'SM':{}, 'FULL':{}, 'QUAD':{}, 'CROSS':{}, 'INT':{}}
 for op_dir in [i_obj for i_obj in os.listdir(top_files_dir) if os.path.isdir(top_files_dir + "/" + i_obj)]:
     full_op_dir = os.path.join(top_files_dir,op_dir,docut_dir,"")
     print("#### plotting new conf", op_dir, "full path", full_op_dir)
+    _, log_file = lu.get_evnt_log_files(top_files_dir,op_dir[:op_dir.find("_EXT0")])
     ops_arr, regime = lu.get_op_from_dir(op_dir, prod_dec)
     print("this is for ops", ops_arr, "in regime", regime)
     product_file = full_op_dir + "xsec_times_frac_fb.txt"
+    frac_file = full_op_dir + "frac_after_cuts.txt"
     hists_file = full_op_dir + "hists.root"
-    if os.path.exists(product_file) and os.path.exists(hists_file):
-        # xsec organization
-        f = open(product_file, "r")
+
+    if not os.path.exists(product_file) or not os.path.exists(frac_file) or not os.path.exists(hists_file) or not os.path.exists(log_file):
+        print("didnt find the txt xsec fid and/or root file or frac file or log file for", op_dir)
+        continue 
+
+    sumw_in = lu.get_sumw_initial(log_file)
+    print("reading back sumw_initial", sumw_in)
+    # xsec organization
+    with open(product_file, 'r') as f:
         fid_xsec_fb = float(f.read())
-        print("reading back fid_xsec in fb", fid_xsec_fb)    
+    print("reading back fid_xsec in fb", fid_xsec_fb)
+    with open(frac_file, 'r') as f:
+        frac = float(f.read())    
+    print("reading back efficiency", frac)
+    if regime=="CROSS":
+        my_op1, my_op2  = ops_arr[0], ops_arr[1]
+        if my_op1 not in xsec_dict[regime].keys(): xsec_dict[regime][my_op1] = {}
+        xsec_dict[regime][my_op1][my_op2] = fid_xsec_fb
+        #
+        if my_op1 not in frac_dict[regime].keys(): frac_dict[regime][my_op1] = {}
+        frac_dict[regime][my_op1][my_op2] = frac
+        #
+        if my_op1 not in sumw_initial_dict[regime].keys(): sumw_initial_dict[regime][my_op1] = {}
+        sumw_initial_dict[regime][my_op1][my_op2] = sumw_in
+    else:
+        my_op = ops_arr[0]
+        xsec_dict[regime][my_op] = fid_xsec_fb
+        frac_dict[regime][my_op] = frac
+        sumw_initial_dict[regime][my_op] = sumw_in
+    # hists organization
+    op_hists = lu.read_hists(hists_file, plots_to_save)
+    for i_hist_name in plots_to_save:
+        if i_hist_name not in op_hists.keys(): continue
+
         if regime=="CROSS":
-            my_op1, my_op2  = ops_arr[0], ops_arr[1]
-            if my_op1 not in xsec_dict[regime].keys(): xsec_dict[regime][my_op1] = {}
-            xsec_dict[regime][my_op1][my_op2] = fid_xsec_fb 
+            my_op1,my_op2 = ops_arr[0], ops_arr[1]
+            if my_op1 not in plots_dict[regime][i_hist_name].keys(): 
+                plots_dict[regime][i_hist_name][my_op1] = {}
+            plots_dict[regime][i_hist_name][my_op1][my_op2] = op_hists[i_hist_name] 
         else:
             my_op = ops_arr[0]
-            xsec_dict[regime][my_op] = fid_xsec_fb
-        # hists organization
-        op_hists = lu.read_hists(hists_file, plots_to_save)
-        for i_hist_name in plots_to_save:
-            if i_hist_name in op_hists.keys(): 
-                if regime=="CROSS":
-                    my_op1,my_op2 = ops_arr[0], ops_arr[1]
-                    if my_op1 not in plots_dict[regime][i_hist_name].keys(): 
-                        plots_dict[regime][i_hist_name][my_op1] = {}
-                    plots_dict[regime][i_hist_name][my_op1][my_op2] = op_hists[i_hist_name] 
-                else:
-                    my_op = ops_arr[0]
-                    plots_dict[regime][i_hist_name][my_op] = op_hists[i_hist_name]
-    else:
-        print("didnt find the txt xsec fid and/or root file for", op_dir)
+            plots_dict[regime][i_hist_name][my_op] = op_hists[i_hist_name]
+    
 print("xsec SM", xsec_dict["SM"])
 print("xsec FULL", xsec_dict["FULL"])
 print("xsec QUAD", xsec_dict["QUAD"])
@@ -129,7 +152,6 @@ for i_plot in plots_to_save:
     print("for plot", i_plot)
     for i_key1 in plots_dict["CROSS"][i_plot].keys():
         print("have hists", plots_dict["CROSS"][i_plot][i_key1].keys())
-
 
 all_ops =  sorted(list(xsec_dict["QUAD"].keys()))
 print("all ops", all_ops)
@@ -152,7 +174,7 @@ if opts.runSMAndFULL=="yes" and len(xsec_dict["SM"])>=1 and len(xsec_dict["FULL"
 
 if opts.runQUADAndCROSS=="yes":
     ##########
-    # make tables
+    # make tables and efficiency plot
     ###########
     QUAD_h = ROOT.TH2F("QUAD_h","QUAD_h", nbins,0,nbins,1,0,1)
     for num_bin,i_op in enumerate(all_ops, start=1):
@@ -163,44 +185,122 @@ if opts.runQUADAndCROSS=="yes":
     CROSS_h = ROOT.TH2F("CROSS_h","CROSS_h", nbins,0,nbins,nbins,0,nbins)
     CROSS_geom_QUAD_h = ROOT.TH2F("CROSS_geom_QUAD_h","CROSS_geom_QUAD_h", nbins,0,nbins,nbins,0,nbins)
     CROSS_el_area_ratio_h = ROOT.TH2F("CROSS_el_area_ratio_h","CROSS_el_area_ratio_h", nbins,0,nbins,nbins,0,nbins)
+    pairs_str_avalaible = []
+    fracs_quad1 = []
+    fracs_quad2 = []
+    fracs_cross = []
+    fracs_errors_quad1 = []
+    fracs_errors_quad2 = []
+    fracs_errors_cross = []
+    #
+    pairs_str_big_c = []
+    fracs_quad1_big_c = []
+    fracs_quad2_big_c = []
+    fracs_cross_big_c = []
+    fracs_errors_quad1_big_c = []
+    fracs_errors_quad2_big_c = []
+    fracs_errors_cross_big_c = []
     for i_op1 in all_ops:
-        if i_op1 in xsec_dict["CROSS"].keys(): 
-            bin_x = all_ops.index(i_op1) + 1
-            CROSS_h.GetXaxis().SetBinLabel(bin_x,i_op1)
-            CROSS_geom_QUAD_h.GetXaxis().SetBinLabel(bin_x,i_op1)
-            CROSS_el_area_ratio_h.GetXaxis().SetBinLabel(bin_x,i_op1)
-            for i_op2 in xsec_dict["CROSS"][i_op1]:
-                bin_y = all_ops.index(i_op2) + 1
-                CROSS_h.GetYaxis().SetBinLabel(bin_y,i_op2)
-                CROSS_geom_QUAD_h.GetYaxis().SetBinLabel(bin_y,i_op2)
-                CROSS_el_area_ratio_h.GetYaxis().SetBinLabel(bin_y,i_op2)
-                cross = xsec_dict["CROSS"][i_op1][i_op2]
-                CROSS_h.SetBinContent(bin_x, bin_y, cross)
-                # fill geometric average
-                if i_op1 in xsec_dict["QUAD"].keys() and i_op2 in xsec_dict["QUAD"].keys():
-                    quad1 = xsec_dict["QUAD"][i_op1]
-                    quad2 = xsec_dict["QUAD"][i_op2]
-                    geom_average = cross / math.sqrt(quad1*quad2)
-                    # print("for i_op1 i_op2", i_op1, i_op2, "using quads", quad1, quad2, "and cross",xsec_fid ,"with geom ave", geom_average)
-                    CROSS_geom_QUAD_h.SetBinContent(bin_x, bin_y, geom_average)
-                    ##### ellipses
-                    lumi = 140 # lumi of run2 in 1/fb, expect xsec to be in fb
-                    el_q1_c = lumi * quad1 / 3 # dont square xsec since already squared from madgraph
-                    el_q2_c = lumi * quad2 / 3 # divide by 3 since formula for are expect factor to be 1
-                    el_cross_c = lumi * cross / 3
-                    den_with_cross2 = 4*el_q1_c*el_q2_c - el_cross_c**2
-                    if den_with_cross2 > 0:
-                        area_no_cross = 2 * math.pi / math.sqrt(4*el_q1_c*el_q2_c)
-                        area_with_cross = 2 * math.pi / math.sqrt(den_with_cross2)
-                        area_ratio = area_with_cross/area_no_cross
-                        print(f"for i_op1 i_op2 {i_op1} {i_op2} got areas no cross {area_no_cross:.2f} with cross {area_with_cross:.2f} ratio {area_ratio:.2f} used ellipse q1 q2 cross {el_q1_c:.2f} {el_q2_c:.2f} {el_cross_c:.2f}")
-                    else:
-                        print("for i_op1 i_op2", i_op1, i_op2, "cannot do area sqrt in this case",den_with_cross2)
-                        area_ratio = -99
-                    CROSS_el_area_ratio_h.SetBinContent(bin_x, bin_y, area_ratio)
+        if i_op1 not in xsec_dict["CROSS"].keys(): continue 
+
+        bin_x = all_ops.index(i_op1) + 1
+        CROSS_h.GetXaxis().SetBinLabel(bin_x,i_op1)
+        CROSS_geom_QUAD_h.GetXaxis().SetBinLabel(bin_x,i_op1)
+        CROSS_el_area_ratio_h.GetXaxis().SetBinLabel(bin_x,i_op1)
+        for i_op2 in xsec_dict["CROSS"][i_op1]:
+            bin_y = all_ops.index(i_op2) + 1
+            CROSS_h.GetYaxis().SetBinLabel(bin_y,i_op2)
+            CROSS_geom_QUAD_h.GetYaxis().SetBinLabel(bin_y,i_op2)
+            CROSS_el_area_ratio_h.GetYaxis().SetBinLabel(bin_y,i_op2)
+            cross = xsec_dict["CROSS"][i_op1][i_op2]
+            CROSS_h.SetBinContent(bin_x, bin_y, cross)
+            # fill geometric average
+
+            if i_op1 not in xsec_dict["QUAD"].keys() or i_op2 not in xsec_dict["QUAD"].keys(): continue
+
+            quad1 = xsec_dict["QUAD"][i_op1]
+            quad2 = xsec_dict["QUAD"][i_op2]
+            geom_average = cross / math.sqrt(quad1*quad2)
+            # print("for i_op1 i_op2", i_op1, i_op2, "using quads", quad1, quad2, "and cross",xsec_fid ,"with geom ave", geom_average)
+            CROSS_geom_QUAD_h.SetBinContent(bin_x, bin_y, geom_average)
+            ##### ellipses
+            lumi = 140 # lumi of run2 in 1/fb, expect xsec to be in fb
+            el_q1_c = lumi * quad1 / 3 # dont square xsec since already squared from madgraph
+            el_q2_c = lumi * quad2 / 3 # divide by 3 since formula for are expect factor to be 1
+            el_cross_c = lumi * cross / 3
+            den_with_cross2 = 4*el_q1_c*el_q2_c - el_cross_c**2
+            if den_with_cross2 > 0:
+                area_no_cross = 2 * math.pi / math.sqrt(4*el_q1_c*el_q2_c)
+                area_with_cross = 2 * math.pi / math.sqrt(den_with_cross2)
+                area_ratio = area_with_cross/area_no_cross
+                print(f"for i_op1 i_op2 {i_op1} {i_op2} got areas no cross {area_no_cross:.2f} with cross {area_with_cross:.2f} ratio {area_ratio:.2f} used ellipse q1 q2 cross {el_q1_c:.2f} {el_q2_c:.2f} {el_cross_c:.2f}")
+            else:
+                print("for i_op1 i_op2", i_op1, i_op2, "cannot do area sqrt in this case",den_with_cross2)
+                area_ratio = -99
+            CROSS_el_area_ratio_h.SetBinContent(bin_x, bin_y, area_ratio)
+            ##### fractions
+            pair_str = lu.get_pair_str(i_op1,i_op2)
+            pairs_str_avalaible.append(pair_str)
+            i_frac_quad1 = frac_dict["QUAD"][i_op1]
+            i_frac_quad2 = frac_dict["QUAD"][i_op2]
+            i_frac_cross = frac_dict["CROSS"][i_op1][i_op2]
+            print("for pair", pair_str, "founds fracs q1 q2 cross", i_frac_quad1, i_frac_quad2, i_frac_cross)
+            fracs_quad1.append(i_frac_quad1)
+            fracs_quad2.append(i_frac_quad2)
+            fracs_cross.append(i_frac_cross)
+            i_frac_quad1_unc = math.sqrt(i_frac_quad1*(1-i_frac_quad1)/start_numev) if 1>i_frac_quad1>0 else 0 
+            i_frac_quad2_unc = math.sqrt(i_frac_quad2*(1-i_frac_quad2)/start_numev) if 1>i_frac_quad2>0 else 0
+            i_frac_cross_unc = math.sqrt(i_frac_cross*(1-i_frac_cross)/start_numev) if 1>i_frac_cross>0 else 0 
+            fracs_errors_quad1.append(i_frac_quad1_unc)
+            fracs_errors_quad2.append(i_frac_quad2_unc)
+            fracs_errors_cross.append(i_frac_cross_unc)
+            # fractions but for big pairs
+            if area_ratio>big_pairs_cutoff:
+                pairs_str_big_c.append(pair_str)
+                fracs_quad1_big_c.append(i_frac_quad1)
+                fracs_quad2_big_c.append(i_frac_quad2)
+                fracs_cross_big_c.append(i_frac_cross)
+                fracs_errors_quad1_big_c.append(i_frac_quad1_unc)
+                fracs_errors_quad2_big_c.append(i_frac_quad2_unc)
+                fracs_errors_cross_big_c.append(i_frac_cross_unc)
+            
+    # tables
     lu.save_plot(CROSS_h, plot_dir + "CROSS.pdf")
     lu.save_plot(CROSS_geom_QUAD_h, plot_dir + "CROSS_geom_QUAD.pdf")
     lu.save_plot(CROSS_el_area_ratio_h, plot_dir + "CROSS_el_area_ratio_h.pdf")
+    # fractions 
+    for i_pair, i_frac_quad1, i_frac_quad2, i_frac_cross in zip(pairs_str_avalaible,fracs_quad1,fracs_quad2,fracs_cross):
+        print(f"for pair {i_pair} q1 q2 c fractions are {i_frac_quad1}, {i_frac_quad2}, {i_frac_cross}")
+    plt.clf()
+    ops_num = range(len(pairs_str_avalaible))
+    fig = plt.figure(figsize=(16,6))
+    plt.errorbar(ops_num, fracs_quad1, yerr=fracs_errors_quad1, fmt='o', mfc="blue", mec="blue", ecolor="blue", label="QUAD1")
+    plt.errorbar(ops_num, fracs_quad2, yerr=fracs_errors_quad2, fmt='o', mfc="green", mec="green", ecolor="green", label="QUAD2")
+    plt.errorbar(ops_num, fracs_cross, yerr=fracs_errors_cross, fmt='o', mfc="black", mec="black", ecolor="black", label="CROSS")
+    plt.xticks(ops_num, pairs_str_avalaible, fontsize = 7)
+    plt.xticks(rotation=90)
+    plt.ylabel('fraction of weights')
+    plt.xlabel('operator pair')
+    for xc in ops_num: plt.axvline(x=xc, color='0.3', linestyle='--', linewidth=0.3)
+    plt.legend()
+    plt.savefig(plot_dir + "/frac_w_after_cuts.pdf", bbox_inches='tight')
+    plt.savefig(plot_dir + "/frac_w_after_cuts.svg", bbox_inches='tight')
+    # fractions for big pairs
+    plt.clf()
+    ops_num_big_c = range(len(pairs_str_big_c))
+    fig = plt.figure(figsize=(16,6))
+    plt.errorbar(ops_num_big_c, fracs_quad1_big_c, yerr=fracs_errors_quad1_big_c, fmt='o', mfc="blue", mec="blue", ecolor="blue", label="QUAD1")
+    plt.errorbar(ops_num_big_c, fracs_quad2_big_c, yerr=fracs_errors_quad2_big_c, fmt='o', mfc="green", mec="green", ecolor="green", label="QUAD2")
+    plt.errorbar(ops_num_big_c, fracs_cross_big_c, yerr=fracs_errors_cross_big_c, fmt='o', mfc="black", mec="black", ecolor="black", label="CROSS")
+    plt.xticks(ops_num_big_c, pairs_str_big_c, fontsize = 7)
+    plt.xticks(rotation=90)
+    plt.ylabel('fraction of weights')
+    plt.xlabel('operator pair')
+    for xc in ops_num_big_c: plt.axvline(x=xc, color='0.3', linestyle='--', linewidth=0.3)
+    plt.legend()
+    plt.savefig(plot_dir + f"/frac_w_after_cuts_ratio_above_{big_pairs_cutoff}.pdf", bbox_inches='tight')
+    plt.savefig(plot_dir + f"/frac_w_after_cuts_ratio_above_{big_pairs_cutoff}.svg", bbox_inches='tight')
+    
 
     ##########
     # make plots
@@ -224,7 +324,7 @@ if opts.runQUADAndCROSS=="yes":
                         i_plot_quad2 = plots_dict["QUAD"][i_plot_name][i_key2]
                         i_plot_quad2 = lu.dress_hist(i_plot_quad2, f"QUAD_{i_key2}", 3, xsec_dict["QUAD"][i_key2])
                         #
-                        i_op_pair = i_key1 + "_" + i_key2
+                        i_op_pair = lu.get_pair_str(i_key1,i_key2)
                         plot_hist_cross_quads_sm[i_op_pair] = [i_plot_cross.Clone(), i_plot_quad1.Clone(), i_plot_quad2.Clone()]
                         if "FM0" in plots_dict["SM"][i_plot_name].keys() and opts.SMOnSumPlots=="yes":
                             i_plot_sm = plots_dict["SM"][i_plot_name]["FM0"]

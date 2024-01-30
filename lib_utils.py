@@ -4,6 +4,26 @@ from array import array
 import ROOT
 import itertools
 
+def get_evnt_log_files(base_dir,i_job_name):
+    evnt_did, evnt_dir, log_did, log_dir_before_untar = get_envt_log_names_dirs(base_dir,i_job_name)
+    evnt_file = -1
+    log_file = -1
+    if os.path.exists(evnt_dir) and os.path.exists(log_dir_before_untar):
+        print("directories for evnt and log exist")
+        evnt_candidates = glob.glob(evnt_dir + "/*EVNT.root")
+        log_candidates = glob.glob(log_dir_before_untar + "/tarball_PandaJob*/log.generate")
+        print("evnt candidates of len",len(evnt_candidates), evnt_candidates)
+        print("log candidates of len",len(log_candidates), log_candidates)
+        if len(evnt_candidates)==1 and len(log_candidates)==1:
+            evnt_file = evnt_candidates[0]
+            log_file =  log_candidates[0]
+    else:
+        print("directories for evnt and log DOESN:T exist")
+
+    print("returning evnt file", evnt_file)
+    print("returning log file", log_file)
+    return evnt_file, log_file
+
 def get_plotdir(prod_dec, DOCUT_str):
     my_dir = f"/exp/atlas/kurdysh/vbs_cross_terms_study/plots/{prod_dec}/{DOCUT_str}/" 
     if not os.path.exists(my_dir): os.makedirs(my_dir)
@@ -14,6 +34,10 @@ def get_big_pairs():
     return ["FM0_FM1", "FM0_FM7", "FM1_FM7", "FM2_FM3",  "FM4_FM5", 
             "FS0_FS1", "FS0_FS2", "FS1_FS2",
             "FT0_FT1","FT0_FT2", "FT1_FT2","FT5_FT6","FT5_FT7","FT6_FT7"]
+
+def get_pair_str(op1,op2):
+    mypair = sorted([op1,op2])
+    return f"{mypair[0]}_{mypair[1]}"
 
 def get_bookletdir(start_path, normalized="", big_pairs = False):
     my_dir = start_path + "/booklets/"
@@ -123,6 +147,20 @@ def get_xsec(log_file):
     xsec_fb = xsec_val * conv_fact_to_pb[xsec_unit] * 1000
     print("found xsec value ",xsec_val,"with unit",xsec_unit,"converting to fb get in fb",xsec_fb)
     return xsec_fb
+
+def get_sumw_initial(log_file):
+    with open(log_file) as textf:
+        sumw_neg, sumw_pos, filt_ef = -999.0 , -999.0, -999.0
+        for line in textf:
+            if 'MetaData: sumOfPosWeights =' in line:
+                sumw_pos = float(line[line.find('=')+1:])
+            if "MetaData: sumOfNegWeights =" in line:
+                sumw_neg = float(line[line.find('=')+1:])
+            if "MetaData: GenFiltEff =" in line:
+                filt_ef = float(line[line.find('=')+1:])    
+    sumw_in = (sumw_pos + sumw_neg) * filt_ef 
+    print(f"found sumw_in: {sumw_in} build from sumw_neg, pos and filt_ef: {sumw_neg}, {sumw_pos}, {filt_ef}")
+    return sumw_in
 
 def save_xsec_frac_prod(savedir,xsec_fb,frac):
     write_to_f(savedir + "xsec_fb.txt",xsec_fb)

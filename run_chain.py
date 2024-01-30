@@ -37,25 +37,7 @@ def prepare_grid_files(i_job_name):
     else:
         print("dont untar since did it before res in ", untared_dir_cand[0])
 
-def get_evnt_log_files(i_job_name):
-    evnt_did, evnt_dir, log_did, log_dir_before_untar = lu.get_envt_log_names_dirs(base_dir,i_job_name)
-    evnt_file = -1
-    log_file = -1
-    if os.path.exists(evnt_dir) and os.path.exists(log_dir_before_untar):
-        print("directories for evnt and log exist")
-        evnt_candidates = glob.glob(evnt_dir + "/*EVNT.root")
-        log_candidates = glob.glob(log_dir_before_untar + "/tarball_PandaJob*/log.generate")
-        print("evnt candidates of len",len(evnt_candidates), evnt_candidates)
-        print("log candidates of len",len(log_candidates), log_candidates)
-        if len(evnt_candidates)==1 and len(log_candidates)==1:
-            evnt_file = evnt_candidates[0]
-            log_file =  log_candidates[0]
-    else:
-        print("directories for evnt and log DOESN:T exist")
 
-    print("returning evnt file", evnt_file)
-    print("returning log file", log_file)
-    return evnt_file, log_file
 
 def save_fid_xsec_root_hists(DOCUT_str, mydir, xsec_fb, prod_dec):
     yoda_f_str = mydir + "MyOutput.yoda.gz"
@@ -90,7 +72,7 @@ def save_fid_xsec_root_hists(DOCUT_str, mydir, xsec_fb, prod_dec):
 
 def save_hists_log_get_xsec_after_cuts(job_name):
     prepare_grid_files(job_name)
-    evnt_file, log_file = get_evnt_log_files(job_name)
+    evnt_file, log_file = lu.get_evnt_log_files(base_dir,job_name)
     if evnt_file!=-1 and log_file!=-1:
         com_run_rivet_no_cut = lu.get_rivet_com(job_name, evtMax = evtMax, DOCUT = "NO", redoRivet=opts.runAgain, redoPlots=opts.runAgain)
         com_run_rivet_with_cut = lu.get_rivet_com(job_name, evtMax = evtMax, DOCUT = "YES", redoRivet=opts.runAgain, redoPlots=opts.runAgain)
