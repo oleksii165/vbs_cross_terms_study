@@ -13,6 +13,8 @@ import yoda
 import lib_utils as lu
 from optparse import OptionParser
 
+var_to_get_fraction_survived = "m_tagjets"
+
 def prepare_grid_files(i_job_name):
     print("will download+untar files evnt and log for", i_job_name)
     evnt_did, evnt_dir, log_did, log_dir = lu.get_envt_log_names_dirs(base_dir,i_job_name)
@@ -56,8 +58,8 @@ def save_fid_xsec_root_hists(DOCUT_str, mydir, xsec_fb, prod_dec):
         else: proceed = 0
         if proceed:
             # save fid xsec
-            integral = yoda_f[f"/{prod_dec}:{DOCUT_str}/m_tagjets"].integral()
-            lu.save_xsec_frac_prod(mydir,xsec_fb,integral)
+            frac_survived_cut = yoda_f[f"/{prod_dec}:{DOCUT_str}/{var_to_get_fraction_survived}"].integral()
+            lu.save_xsec_frac_prod(mydir,xsec_fb,frac_survived_cut)
             # save hists in root for further plotting
             root_file = ROOT.TFile(root_file,"UPDATE")
             for i_hist in hists_1h_in_yoda: # they are in format '/WpWm_lvlv:DOCUT=YES/leptons_pids'

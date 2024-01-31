@@ -4,6 +4,7 @@ from array import array
 import ROOT
 import itertools
 
+# @TODO maybe dublication with find_evnt_dir_and_file
 def get_evnt_log_files(base_dir,i_job_name):
     evnt_did, evnt_dir, log_did, log_dir_before_untar = get_envt_log_names_dirs(base_dir,i_job_name)
     evnt_file = -1
