@@ -63,6 +63,8 @@ def get_hists_to_draw(prod_dec):
     hists_dict["WmWm_lvlv"] =  ["pt_tagjet1", "m_tagjets", "deta_tagjets", "lepton_pt","lepton_eta","m_ll", "MET", "m_T"]
     hists_dict["WpWm_lvlv"] =  ["pt_tagjet1", "m_tagjets", "deta_tagjets", "lepton_eta", "m_ll", "centrality", "jet3_centrality", "MET"]
     hists_dict["ZZ_llll"] =  ["pt_tagjet1", "m_tagjets", "deta_tagjets", "dphi_tagjets", "lepton_eta", "lepton_pt", "all_lep_pairs_m_ll", "m_ll_of_pairs_best_quadruplet"]
+    hists_dict["Zy_lly"] =  ["pt_tagjet1", "m_tagjets"] # @TODO update properly
+    hists_dict["Zy_vvy"] =  ["pt_tagjet1", "m_tagjets"]
     return hists_dict[prod_dec]
 
 def get_root_hist_param(plot_name):
