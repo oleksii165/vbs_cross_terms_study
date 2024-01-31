@@ -13,7 +13,6 @@ parser.add_option("--redoPlots", default = "no")
 opts, _ = parser.parse_args()
 
 prod_dec, base_dir = lib_utils.find_prod_dec_and_dir(opts.conf)
-plotConfRivet = f"/exp/atlas/kurdysh/vbs_cross_terms_study/plotting/{prod_dec}.plot"
 conf_dir, _ = lib_utils.find_evnt_dir_and_file(base_dir + f"/*{opts.conf}*EXT0")
 conf_cut_dir = lib_utils.get_conf_cut_dir(conf_dir, opts.DOCUT)
 rivet_out_name = conf_cut_dir + f'/MyOutput.yoda.gz'
@@ -32,7 +31,7 @@ if not os.path.exists(plots_dir): do_plots = 1
 elif os.path.exists(plots_dir) and opts.redoPlots=="yes": do_plots = 1
 else: do_plots = 0
 if do_plots:
-    plot_com = f"rivet-mkhtml MyOutput.yoda.gz:'Title={prod_dec}' -c {plotConfRivet} --no-ratio"
+    plot_com = f"rivet-mkhtml MyOutput.yoda.gz:'Title={prod_dec}' --no-ratio"
     print("#### will run mkhtml in dir", conf_cut_dir, "with com", plot_com)
     subprocess.call(plot_com, shell=True, cwd = conf_cut_dir)
 else:
