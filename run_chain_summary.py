@@ -267,7 +267,11 @@ if opts.runQUADAndCROSS=="yes":
     # tables
     lu.save_plot(CROSS_h, plot_dir + "CROSS.pdf")
     lu.save_plot(CROSS_geom_QUAD_h, plot_dir + "CROSS_geom_QUAD.pdf")
-    lu.save_plot(CROSS_el_area_ratio_h, plot_dir + "CROSS_el_area_ratio_h.pdf")
+    lu.save_plot(CROSS_el_area_ratio_h, plot_dir + "CROSS_el_area_ratio_h.pdf", draw_option = "text45 colz")
+
+    root_file = ROOT.TFile(plot_dir + "/el_area_ratio.root","UPDATE")  # to divide between ana
+    CROSS_el_area_ratio_h.Write("", ROOT.TObject.kOverwrite)
+    root_file.Close()
     # fractions 
     for i_pair, i_frac_quad1, i_frac_quad2, i_frac_cross in zip(pairs_str_avalaible,fracs_quad1,fracs_quad2,fracs_cross):
         print(f"for pair {i_pair} q1 q2 c fractions are {i_frac_quad1}, {i_frac_quad2}, {i_frac_cross}")
