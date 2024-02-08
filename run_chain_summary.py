@@ -365,14 +365,14 @@ if opts.runQUADAndCROSS=="yes":
         for i_pair in stacks_arr.keys():
             stacks_pair = stacks_arr[i_pair]
             c=ROOT.TCanvas()
-            c.Divide(5,2)
+            c.Divide(4,2)
             for num_canvas, i_stack in enumerate(stacks_pair,start=1):
                 display_params = lu.get_root_hist_param(i_stack.GetName().split("/")[0])
                 c.cd(num_canvas)
                 i_stack.Draw("nostack")
                 if display_params[0]!=-1: i_stack.GetXaxis().SetRangeUser(display_params[0], display_params[1]) 
                 ROOT.gPad.BuildLegend()
-                ROOT.gPad.SetLogy()
+                if i_stack.GetTitle()[:2]!="n_": ROOT.gPad.SetLogy() # for plots like n_jets don't need log scale
             c.Modified()
             c.Update()
             c.Show()

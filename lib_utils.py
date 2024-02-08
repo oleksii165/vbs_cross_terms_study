@@ -64,7 +64,8 @@ def get_hists_to_draw(prod_dec):
     hists_dict["WmWm_lvlv"] =  ["pt_tagjet1", "m_tagjets", "deta_tagjets", "lepton_pt","lepton_eta","m_ll", "MET", "m_T"]
     hists_dict["WpWm_lvlv"] =  ["pt_tagjet1", "m_tagjets", "deta_tagjets", "lepton_eta", "m_ll", "centrality", "jet3_centrality", "MET"]
     hists_dict["ZZ_llll"] =  ["pt_tagjet1", "m_tagjets", "deta_tagjets", "dphi_tagjets", "lepton_eta", "lepton_pt", "all_lep_pairs_m_ll", "m_ll_of_pairs_best_quadruplet"]
-    hists_dict["Zy_lly"] =  ["pt_tagjet1", "m_tagjets", "lepton_eta", "lepton_pt", "photon_iso_pt", "photon_iso_eta", "m_lly", "m_ll", "centrality_lly", "n_gap_jets", "cone_to_photon_frac"] # @TODO update properly
+    # hists_dict["Zy_lly"] =  ["pt_tagjet1", "m_tagjets", "lepton_eta", "lepton_pt", "photon_iso_pt", "photon_iso_eta", "m_lly", "m_ll", "centrality_lly", "n_gap_jets", "cone_to_photon_frac"] # @TODO update properly
+    hists_dict["Zy_lly"] =  ["n_jet","pt_tagjet1", "pt_tagjet2", "m_tagjets","dy_tagjets", "lepton_eta", "lepton_pt", "photon_iso_pt", "m_lly", "m_ll"] # @TODO update properly
     hists_dict["Zy_vvy"] =  ["pt_tagjet1", "m_tagjets"]
     hists_dict["Wmy_lvy"] =  ["pt_tagjet1", "m_tagjets"]
     hists_dict["Wpy_lvy"] =  ["pt_tagjet1", "m_tagjets"]
@@ -79,7 +80,7 @@ def get_root_hist_param(plot_name):
     params["m_ll"] = [-1,-1,10]
     params["pt_tagjet2"] = [0, 1000, 10]
     params["m_tagjets"] = [-1, -1, 10]
-    params["deta_tagjets"] = [-1, -1, 5]
+    params["deta_tagjets"] = params["dy_tagjets"]= [-1, -1, 5]
     params["dphi_tagjets"] = [0, 4, 5]
     params["m_T"] =[-1, -1, 15]
     params["lepton_eta"] = params["photon_iso_eta"]  = [-3.0, 3.0, 2]
