@@ -40,9 +40,10 @@ def get_pair_str(op1,op2):
     mypair = sorted([op1,op2])
     return f"{mypair[0]}_{mypair[1]}"
 
-def get_bookletdir(start_path, normalized="", big_pairs = False):
+def get_bookletdir(start_path, normalized="", big_pairs = False, big_diff_eff=False):
     my_dir = start_path + "/booklets/"
     if big_pairs: my_dir = my_dir[:-1] + "_big_pairs/"
+    if big_diff_eff: my_dir = my_dir[:-1] + "_big_eff_diff/"
     if len(normalized)>0: my_dir = my_dir[:-1] + "_normalized/"
     if not os.path.exists(my_dir): os.makedirs(my_dir)
     if not os.path.exists(my_dir + "/svg/"): os.makedirs(my_dir + "/svg/")
@@ -63,7 +64,7 @@ def get_hists_to_draw(prod_dec):
     hists_dict["WmWm_lvlv"] =  ["pt_tagjet1", "m_tagjets", "deta_tagjets", "lepton_pt","lepton_eta","m_ll", "MET", "m_T"]
     hists_dict["WpWm_lvlv"] =  ["pt_tagjet1", "m_tagjets", "deta_tagjets", "lepton_eta", "m_ll", "centrality", "jet3_centrality", "MET"]
     hists_dict["ZZ_llll"] =  ["pt_tagjet1", "m_tagjets", "deta_tagjets", "dphi_tagjets", "lepton_eta", "lepton_pt", "all_lep_pairs_m_ll", "m_ll_of_pairs_best_quadruplet"]
-    hists_dict["Zy_lly"] =  ["pt_tagjet1", "m_tagjets"] # @TODO update properly
+    hists_dict["Zy_lly"] =  ["pt_tagjet1", "m_tagjets", "lepton_eta", "lepton_pt", "photon_iso_pt", "photon_iso_eta", "m_lly", "m_ll", "centrality_lly", "n_gap_jets", "cone_to_photon_frac"] # @TODO update properly
     hists_dict["Zy_vvy"] =  ["pt_tagjet1", "m_tagjets"]
     hists_dict["Wmy_lvy"] =  ["pt_tagjet1", "m_tagjets"]
     hists_dict["Wpy_lvy"] =  ["pt_tagjet1", "m_tagjets"]
@@ -72,6 +73,7 @@ def get_hists_to_draw(prod_dec):
 def get_root_hist_param(plot_name):
     params = {}
     params["pt_tagjet1"] = params["MET"] = params["lepton_pt"] =  [0, 2000, 10]
+    params["photon_iso_pt"] = params["m_lly"] = [-1,-1,10]
     params["all_lep_pairs_m_ll"] = [0, 2500, 10] 
     params["m_ll_of_pairs_best_quadruplet"] = [0, 200, 1]
     params["m_ll"] = [-1,-1,10]
@@ -80,7 +82,7 @@ def get_root_hist_param(plot_name):
     params["deta_tagjets"] = [-1, -1, 5]
     params["dphi_tagjets"] = [0, 4, 5]
     params["m_T"] =[-1, -1, 15]
-    params["lepton_eta"] = [-3.0, 3.0, 2]
+    params["lepton_eta"] = params["photon_iso_eta"]  = [-3.0, 3.0, 2]
     if plot_name in params.keys():
         return params[plot_name]
     else:
@@ -239,15 +241,18 @@ def dress_hist(my_hist, my_title, my_color, my_norm = 1.0):
     my_hist.SetMarkerColor(my_color)
     hist_integ = my_hist.Integral()
     print("normalize", my_hist.GetName(), my_hist.GetTitle(), "to", my_norm, "start from integ", hist_integ)
-    my_hist.Scale(my_norm/hist_integ)
-    print("get back integ", my_hist.Integral())
+    if hist_integ!=0:
+        my_hist.Scale(my_norm/hist_integ)
+        print("get back integ", my_hist.Integral())
+    else: 
+        print("dont normalize since integral is 0")
     return my_hist.Clone()
 
 def make_stack(hist_arr, title="",norm=-1):
     my_stack = ROOT.THStack(f"{title}/{norm}", f"{title}/{norm}")
     for i_plot in hist_arr:
         plot_copy = i_plot.Clone() # since will use several time with/without normalzietions  
-        if norm!=-1: plot_copy.Scale(norm/plot_copy.Integral())
+        if norm!=-1 and plot_copy.Integral()!=0: plot_copy.Scale(norm/plot_copy.Integral())
         my_stack.Add(plot_copy)
     return my_stack.Clone()
 

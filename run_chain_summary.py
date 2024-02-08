@@ -6,6 +6,7 @@ import os
 import lib_utils as lu
 import matplotlib.pyplot as plt
 import math
+import numpy as np
 import subprocess
 from pandaclient import panda_api
 c = panda_api.get_api()
@@ -31,6 +32,7 @@ plots_to_save = lu.get_hists_to_draw(prod_dec)
 plot_dir = lu.get_plotdir(prod_dec, docut_dir)
 start_numev = 10000
 big_pairs_cutoff = 1.05
+big_eff_envelope_cutoff = 0.015
 
 tasks = c.get_tasks(limit=1000, days=30, username="Oleksii Kurdysh", status="done") # get already last try since only retry if it failed
 task_names = [i_task['taskname'].replace("/","") for i_task in tasks if "MadGraph" in i_task['taskname'] and opts.tProd in i_task['taskname'] and opts.tDec in i_task['taskname']]
@@ -220,7 +222,7 @@ if opts.runQUADAndCROSS=="yes":
 
             quad1 = xsec_dict["QUAD"][i_op1]
             quad2 = xsec_dict["QUAD"][i_op2]
-            geom_average = cross / math.sqrt(quad1*quad2)
+            geom_average = cross / math.sqrt(quad1*quad2) if quad1*quad2>0 else -1
             # print("for i_op1 i_op2", i_op1, i_op2, "using quads", quad1, quad2, "and cross",xsec_fid ,"with geom ave", geom_average)
             CROSS_geom_QUAD_h.SetBinContent(bin_x, bin_y, geom_average)
             ##### ellipses
@@ -363,7 +365,7 @@ if opts.runQUADAndCROSS=="yes":
         for i_pair in stacks_arr.keys():
             stacks_pair = stacks_arr[i_pair]
             c=ROOT.TCanvas()
-            c.Divide(4,2)
+            c.Divide(5,2)
             for num_canvas, i_stack in enumerate(stacks_pair,start=1):
                 display_params = lu.get_root_hist_param(i_stack.GetName().split("/")[0])
                 c.cd(num_canvas)
@@ -379,7 +381,7 @@ if opts.runQUADAndCROSS=="yes":
 
     draw_booklets(stacks_arr_per_pair_normalized, lu.get_bookletdir(plot_dir, normalized="yes"))
     draw_booklets(stacks_arr_per_pair, lu.get_bookletdir(plot_dir))
-
+    
     stacks_arr_per_pair_normalized_big_pairs = {}
     big_pairs = lu.get_big_pairs()
     print("big pairs", big_pairs)
@@ -391,5 +393,24 @@ if opts.runQUADAndCROSS=="yes":
             stacks_arr_per_pair_normalized_big_pairs[i_pair] = stacks_arr_per_pair_normalized[i_pair] 
     print("big pairs re-saved", stacks_arr_per_pair_normalized_big_pairs.keys())
     draw_booklets(stacks_arr_per_pair_normalized_big_pairs, lu.get_bookletdir(plot_dir, normalized="yes",big_pairs=True))
+
+    if opts.runWithCuts=="yes":
+        #also draw kinematics for cases where selection efficiencies are different >3% envelope
+        diff_q1_q2 = np.abs(np.array(fracs_quad1_big_c)-np.array(fracs_quad2_big_c))
+        diff_q1_c = np.abs(np.array(fracs_quad1_big_c)-np.array(fracs_cross_big_c))
+        diff_q2_c = np.abs(np.array(fracs_quad2_big_c)-np.array(fracs_cross_big_c))
+        eff_envelope =[max([diff_q1_q2[i],diff_q1_c[i],diff_q2_c[i]]) for i in range(len(diff_q1_q2))]
+
+        pairs_str_diff_eff=[pairs_str_big_c[i] for i in range(len(diff_q1_q2)) if eff_envelope[i]>=big_eff_envelope_cutoff]
+
+        stacks_arr_per_pair_normalized_big_pairs_big_eff = {}
+        print("big pairs big eff", pairs_str_diff_eff)
+        for i_pair in stacks_arr_per_pair_normalized.keys():
+            print("print checking if pair", i_pair, "is big and bif eff")
+            if i_pair in pairs_str_diff_eff: 
+                print("re-saved")
+                stacks_arr_per_pair_normalized_big_pairs_big_eff[i_pair] = stacks_arr_per_pair_normalized[i_pair] 
+        print("big pairs big eff re-saved", stacks_arr_per_pair_normalized_big_pairs_big_eff.keys())
+        draw_booklets(stacks_arr_per_pair_normalized_big_pairs_big_eff, lu.get_bookletdir(plot_dir, normalized="yes", big_pairs = True, big_diff_eff=True))
 
     
