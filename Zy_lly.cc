@@ -9,6 +9,7 @@
 #include "Rivet/Projections/TauFinder.hh"
 #include "Rivet/Projections/MissingMomentum.hh"
 #include "Rivet/Projections/InvisibleFinalState.hh"
+#include "Rivet/Tools/Cutflow.hh"
 
 namespace Rivet {
 
@@ -102,29 +103,40 @@ namespace Rivet {
       book(_h["centrality_lly"], "centrality_lly", int(n_nbins), 0.0, n_nbins);
       //other
       book(_c["found_VBS_pair"],"found_VBS_pair");
+
+      // Cut-flows
+      _cutflows.addCutflow("sel", {"n_lep", "lep_pid_charge", "lep_pt", "m_ll", "have_photons", "have_iso_photons",
+                                  "m_ll_plus_m_lly", "n_jets", "jet_pt","m_tagjets","dy_tagjets","centrality_lly",
+                                  "n_gap_jets"});
+
     }
 
 
     /// Perform the per-event analysis
     void analyze(const Event& event) {
+      _cutflows.fillinit();
 
       // Retrieve dressed leptons, sorted by pT
       Particles leptons_stable = apply<FinalState>(event, "leptons_stable").particlesByPt();
       int nlep_stable = leptons_stable.size();
       if (nlep_stable!=2)  vetoEvent; // meaning both are e,mu and not tau
+      _cutflows.fillnext();
 
       const Particle& lep1 = leptons_stable[0];
       const Particle& lep2 = leptons_stable[1]; 
       if (lep1.pid()+lep2.pid()!=0) vetoEvent; // want opposite charge leptons of same fravour
+      _cutflows.fillnext();
       if (_docut==1 && (lep1.pT() < 30.0 || lep2.pT() < 20.0)) vetoEvent; 
-
+      _cutflows.fillnext();
       const FourMomentum fourvec_ll = lep1.mom() + lep2.mom(); 
       const double m_ll = fourvec_ll.mass()/GeV;
       if (_docut==1 && m_ll < 40.0) vetoEvent;
+      _cutflows.fillnext();
 
       //photons
       Particles photons = apply<FinalState>(event, "photons").particlesByPt();
       if (photons.empty())  vetoEvent;
+      _cutflows.fillnext();
       //photon cone calculation and photon OR with leptons 
       Particles isolated_photons;
       std::vector<double> cone_to_photon_fracs = {};
@@ -144,11 +156,13 @@ namespace Rivet {
         cone_to_photon_fracs.push_back(i_cone_to_photon_frac);
       }
       if (isolated_photons.empty())  vetoEvent;
+      _cutflows.fillnext();
 
       const Particle& lead_iso_photon = isolated_photons[0];
       const FourMomentum fourvec_lly = lep1.mom() + lep2.mom() + lead_iso_photon.mom();
       const double m_lly = fourvec_lly.mass();
       if (_docut==1 && (m_ll + m_lly)<=182*GeV)  vetoEvent;
+      _cutflows.fillnext();
 
       // Retrieve clustered jets, sorted by pT, with a minimum pT cut
       Jets jets = apply<FastJets>(event, "jets").jetsByPt(Cuts::pT > 20*GeV); // then will do cut on two leading pt>50
@@ -157,20 +171,25 @@ namespace Rivet {
       idiscardIfAnyDeltaRLess(jets, isolated_photons, 0.4);
 
       int n_jets = jets.size();
-      if (_docut==1 && n_jets < 2)  vetoEvent;  
+      if (_docut==1 && n_jets < 2)  vetoEvent;
+      _cutflows.fillnext();
 
       const FourMomentum tag1_jet = jets[0].mom();
       const FourMomentum tag2_jet = jets[1].mom();
       if (_docut==1 && (tag1_jet.pT()<50.0 || tag2_jet.pT()<50.0)) vetoEvent; 
+      _cutflows.fillnext();
 
       const double m_tagjets = (tag1_jet + tag2_jet).mass()/GeV;
       if (_docut==1 && m_tagjets<500.0) vetoEvent;
+      _cutflows.fillnext();
 
       const double dy_tagjets =  fabs(deltaRap(tag1_jet, tag2_jet));
       if (_docut==1 && dy_tagjets<1.0) vetoEvent;
+      _cutflows.fillnext();
 
       const double centrality_lly = fabs(0.5 * (fourvec_lly.rap() - (tag1_jet.rap()+tag2_jet.rap())/2) / (tag1_jet.rap()-tag2_jet.rap()));
       if (_docut==1 && centrality_lly > 5.0)  vetoEvent;
+      _cutflows.fillnext();
 
       int n_gap_jets = 0;
       for (int i = 0; i < n_jets; i++) {
@@ -178,6 +197,7 @@ namespace Rivet {
         if ((i_jet_rap < tag1_jet.rap() && i_jet_rap > tag2_jet.rap()) || (i_jet_rap < tag2_jet.rap() && i_jet_rap > tag1_jet.rap()))  ++n_gap_jets;
       }
       if (_docut==1 && n_gap_jets > 0)  vetoEvent;
+      _cutflows.fillnext();
 
       //jet plots
       _h["n_jet"]->fill(n_jets);
@@ -217,6 +237,8 @@ namespace Rivet {
       std::cout << "survived veto, will norm m_tagjets to this: " << veto_survive_frac << "\n";
       double norm_to = veto_survive_frac*crossSection()/picobarn; // norm to generated cross-section in pb (after cuts)
       normalize(_h["m_tagjets"], norm_to);
+
+      MSG_INFO("Cut-flow:\n" << _cutflows);
     }
 
     /// @}
@@ -229,6 +251,7 @@ namespace Rivet {
     // map<string, Profile1DPtr> _p;
     map<string, CounterPtr> _c;
     int _docut;
+    Cutflows _cutflows;
     /// @}
 
 
