@@ -103,6 +103,10 @@ namespace Rivet {
       book(_h["centrality_lly"], "centrality_lly", int(n_nbins), 0.0, n_nbins);
       //other
       book(_c["found_VBS_pair"],"found_VBS_pair");
+      book(_c["pos_w_initial"],"pos_w_initial");
+      book(_c["pos_w_final"],"pos_w_final");
+      book(_c["neg_w_initial"],"neg_w_initial");
+      book(_c["neg_w_final"],"neg_w_final");
 
       // Cut-flows
       _cutflows.addCutflow("sel", {"n_lep", "lep_pid_charge", "lep_pt", "m_ll", "have_photons", "have_iso_photons",
@@ -114,6 +118,11 @@ namespace Rivet {
 
     /// Perform the per-event analysis
     void analyze(const Event& event) {
+      double ev_nominal_weight =  event.weights()[0];
+      // MSG_INFO("filling weight" << ev_nominal_weight << "\n");
+      if (ev_nominal_weight>=0){_c["pos_w_initial"]->fill();} // dont need anything in bracket as this will be weight on weight
+      else {_c["neg_w_initial"]->fill();}
+
       _cutflows.fillinit();
 
       // Retrieve dressed leptons, sorted by pT
@@ -227,6 +236,10 @@ namespace Rivet {
       _h["centrality_lly"]->fill(centrality_lly);
       // other
       _c["found_VBS_pair"]->fill();
+      if (ev_nominal_weight>=0){_c["pos_w_final"]->fill();}
+      else {_c["neg_w_final"]->fill();}
+
+      
     }
 
     /// Normalise histograms etc., after the run
@@ -238,7 +251,14 @@ namespace Rivet {
       double norm_to = veto_survive_frac*crossSection()/picobarn; // norm to generated cross-section in pb (after cuts)
       normalize(_h["m_tagjets"], norm_to);
 
-      MSG_INFO("Cut-flow:\n" << _cutflows);
+      // MSG_INFO("Cut-flow:\n" << _cutflows);
+
+      double pos_w_sum_initial = dbl(*_c["pos_w_initial"]);
+      double neg_w_sum_initial = dbl(*_c["neg_w_initial"]);
+      double pos_w_sum_final = dbl(*_c["pos_w_final"]);
+      double neg_w_sum_final = dbl(*_c["neg_w_final"]);
+      MSG_INFO("\n pos weights initial final ratio " << pos_w_sum_initial <<" " << pos_w_sum_final <<" "<< pos_w_sum_final/pos_w_sum_initial << "\n" );
+      MSG_INFO("\n neg weights initial final ratio " << neg_w_sum_initial <<" " << neg_w_sum_final <<" "<< neg_w_sum_final/neg_w_sum_initial << "\n" );
     }
 
     /// @}
