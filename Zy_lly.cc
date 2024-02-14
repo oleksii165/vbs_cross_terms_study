@@ -10,6 +10,10 @@
 #include "Rivet/Projections/MissingMomentum.hh"
 #include "Rivet/Projections/InvisibleFinalState.hh"
 #include "Rivet/Tools/Cutflow.hh"
+#include "Rivet/Tools/RivetHepMC.hh"
+#include <fstream>
+#include <nlohmann/json.hpp>
+using json = nlohmann::json;
 
 namespace Rivet {
 
@@ -27,11 +31,25 @@ namespace Rivet {
 
     /// Book histograms and initialise projections before the run
     void init() {
-
+      
+      std::string out_dir = getOption("OUTDIR");
+      
       _docut = 0;
-      if (getOption("DOCUT") =="YES") _docut = 1;
-      if (getOption("DOCUT") =="NO") _docut = 0;
-      std::cout << "received docut " << _docut <<"\n";
+      if (out_dir.find("DOCUT_YES") != string::npos) _docut = 1;
+      if (out_dir.find("DOCUT_NO") != string::npos) _docut = 0;
+      // std::cout << "received docut " << _docut <<"\n";
+
+      std::cout << "++++++received outidir" << out_dir << "meaning _docut is " << _docut << "\n";
+
+      int stop_prod_dec_dir_ind = out_dir.find("/user.okurdysh.MadGraph");
+      std::string almost_prod_dec = out_dir.substr(0, stop_prod_dec_dir_ind);
+      int st_prod_dec_dir_ind = almost_prod_dec.find("/eft_files/");
+      std::string prod_dec = almost_prod_dec.substr(st_prod_dec_dir_ind + strlen("/eft_files/"));
+      std::string json_file_str =  "/exp/atlas/kurdysh/vbs_cross_terms_study/plotting/" + prod_dec + "_cuts.json"; 
+      std::cout << "++++++assume .json for this prod_dec" << prod_dec << "is " << json_file_str << "\n";
+      std::ifstream json_file(json_file_str);
+      json data = json::parse(json_file);
+      std::cout << "+++++++++ readgin lepton eta from array" << data["lepton_eta"][0] <<" " << data["lepton_eta"][1] << "\n";  
 
       // The basic final-state projection:
       // all final-state particles within
@@ -107,12 +125,16 @@ namespace Rivet {
       book(_c["pos_w_final"],"pos_w_final");
       book(_c["neg_w_initial"],"neg_w_initial");
       book(_c["neg_w_final"],"neg_w_final");
-
       // Cut-flows
-      _cutflows.addCutflow("sel", {"n_lep", "lep_pid_charge", "lep_pt", "m_ll", "have_photons", "have_iso_photons",
+      _cutflows.addCutflow("Zy_lly_selections", {"n_lep", "lep_pid_charge", "lep_pt", "m_ll", "have_photons", "have_iso_photons",
                                   "m_ll_plus_m_lly", "n_jets", "jet_pt","m_tagjets","dy_tagjets","centrality_lly",
                                   "n_gap_jets"});
-
+      // setup for  file used for drawing images
+      if (_docut==1){
+        std::ofstream pic_csv (out_dir + "/Rivet.csv", std::ofstream::out);
+        pic_csv << "ev_num;tagjet1_eta;tagjet2_eta;lep1_eta;lep2_eta;gamma_eta;tagjet1_pt;tagjet2_pt;lep1_pt;lep2_pt;gamma_pt \n";
+        pic_csv.close();
+      }
     }
 
 
@@ -239,7 +261,32 @@ namespace Rivet {
       if (ev_nominal_weight>=0){_c["pos_w_final"]->fill();}
       else {_c["neg_w_final"]->fill();}
 
-      
+      if (_docut==1){
+        // file used for drawing images
+        int ev_num =  _c["pos_w_initial"]->numEntries() + _c["neg_w_initial"]->numEntries();
+        // later to get average only makes sense todo it on +,- jets separately
+        // similarly for leps where one will have slighyl bigger eta
+        int ind_bigger_eta_tagjet = (tag1_jet.eta() >  tag2_jet.eta()) ? 0 : 1;
+        int ind_bigger_eta_lep = (lep1.eta() >  lep2.eta()) ? 0 : 1;
+        // find other index through ugly negating via boolean
+        int ind_smaller_eta_tagjet = static_cast<int>(!static_cast<bool>(ind_bigger_eta_tagjet));
+        int ind_smaller_eta_lep = static_cast<int>(!static_cast<bool>(ind_bigger_eta_lep));
+        // pulling file into common with init() _fout didn't work so re-open
+        std::ofstream pic_csv (getOption("OUTDIR") + "/Rivet.csv", std::ofstream::app); 
+        pic_csv << ev_num << ";";
+        //etas
+        pic_csv << jets[ind_bigger_eta_tagjet].eta() << ";";
+        pic_csv << jets[ind_smaller_eta_tagjet].eta() << ";";
+        pic_csv << leptons_stable[ind_bigger_eta_lep].eta() << ";";
+        pic_csv << leptons_stable[ind_smaller_eta_lep].eta() << ";";
+        pic_csv << lead_iso_photon.eta() << ";";
+        //pts
+        pic_csv << jets[ind_bigger_eta_tagjet].pt() << ";";
+        pic_csv << jets[ind_smaller_eta_tagjet].pt() << ";";
+        pic_csv << leptons_stable[ind_bigger_eta_lep].pt() << ";";
+        pic_csv << leptons_stable[ind_smaller_eta_lep].pt() << ";";
+        pic_csv << lead_iso_photon.pt() << "\n";
+      }
     }
 
     /// Normalise histograms etc., after the run
@@ -251,18 +298,23 @@ namespace Rivet {
       double norm_to = veto_survive_frac*crossSection()/picobarn; // norm to generated cross-section in pb (after cuts)
       normalize(_h["m_tagjets"], norm_to);
 
-      // MSG_INFO("Cut-flow:\n" << _cutflows);
+      std::string cut_str = _cutflows.str();
+      std::string cutflow_file = getOption("OUTDIR") + "/cutflow.txt";
+      std::ofstream ofs (cutflow_file, std::ofstream::out); // same for all variations so can overwrite and last will be correct
+      ofs << cut_str;
+      ofs.close();
 
       double pos_w_sum_initial = dbl(*_c["pos_w_initial"]);
       double neg_w_sum_initial = dbl(*_c["neg_w_initial"]);
       double pos_w_sum_final = dbl(*_c["pos_w_final"]);
       double neg_w_sum_final = dbl(*_c["neg_w_final"]);
+
       MSG_INFO("\n pos weights initial final ratio " << pos_w_sum_initial <<" " << pos_w_sum_final <<" "<< pos_w_sum_final/pos_w_sum_initial << "\n" );
       MSG_INFO("\n neg weights initial final ratio " << neg_w_sum_initial <<" " << neg_w_sum_final <<" "<< neg_w_sum_final/neg_w_sum_initial << "\n" );
+    
     }
 
     /// @}
-
 
     /// @name Histograms
     /// @{

@@ -58,8 +58,24 @@ def save_fid_xsec_root_hists(DOCUT_str, mydir, xsec_fb, prod_dec):
         else: proceed = 0
         if proceed:
             # save fid xsec
-            frac_survived_cut = yoda_f[f"/{prod_dec}:{DOCUT_str}/{var_to_get_fraction_survived}"].integral()
-            lu.save_xsec_frac_prod(mydir,xsec_fb,frac_survived_cut)
+            rivet_dir_name = f"/{prod_dec}:OUTDIR=/{mydir}".replace("//","/")
+            print("looking for prefix in counter",rivet_dir_name)
+            pos_n_in = yoda_f[f"{rivet_dir_name}/pos_w_initial"].numEntries()
+            neg_n_in = yoda_f[f"{rivet_dir_name}/neg_w_initial"].numEntries()
+            pos_n_f = yoda_f[f"{rivet_dir_name}/pos_w_final"].numEntries()
+            neg_n_f = yoda_f[f"{rivet_dir_name}/neg_w_final"].numEntries()
+            #
+            pos_w_in = yoda_f[f"{rivet_dir_name}/pos_w_initial"].sumW()
+            neg_w_in = yoda_f[f"{rivet_dir_name}/neg_w_initial"].sumW()
+            pos_w_f = yoda_f[f"{rivet_dir_name}/pos_w_final"].sumW()
+            neg_w_f = yoda_f[f"{rivet_dir_name}/neg_w_final"].sumW()
+            frac_survived_cut = (pos_w_f+neg_w_f) / (pos_w_in+neg_w_in) 
+            frac_survived_pos = pos_w_f / pos_w_in 
+            frac_survived_neg = neg_w_f / neg_w_in 
+            lu.save_xsec_frac_prod(mydir,xsec_fb,
+                                    frac_survived_cut, frac_survived_pos, frac_survived_neg,
+                                    pos_w_in, neg_w_in, pos_w_f, neg_w_f,
+                                    pos_n_in, neg_n_in, pos_n_f, neg_n_f)
             # save hists in root for further plotting
             root_file = ROOT.TFile(root_file,"UPDATE")
             for i_hist in hists_1h_in_yoda: # they are in format '/WpWm_lvlv:DOCUT=YES/leptons_pids'
