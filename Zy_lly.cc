@@ -37,42 +37,51 @@ namespace Rivet {
       _docut = 0;
       if (out_dir.find("DOCUT_YES") != string::npos) _docut = 1;
       if (out_dir.find("DOCUT_NO") != string::npos) _docut = 0;
-      // std::cout << "received docut " << _docut <<"\n";
-
       std::cout << "++++++received outidir" << out_dir << "meaning _docut is " << _docut << "\n";
 
       int stop_prod_dec_dir_ind = out_dir.find("/user.okurdysh.MadGraph");
       std::string almost_prod_dec = out_dir.substr(0, stop_prod_dec_dir_ind);
       int st_prod_dec_dir_ind = almost_prod_dec.find("/eft_files/");
       std::string prod_dec = almost_prod_dec.substr(st_prod_dec_dir_ind + strlen("/eft_files/"));
-      std::string json_file_str =  "/exp/atlas/kurdysh/vbs_cross_terms_study/plotting/" + prod_dec + "_cuts.json"; 
-      std::cout << "++++++assume .json for this prod_dec" << prod_dec << "is " << json_file_str << "\n";
-      std::ifstream json_file(json_file_str);
-      json data = json::parse(json_file);
-      std::cout << "+++++++++ readgin lepton eta from array" << data["lepton_eta"][0] <<" " << data["lepton_eta"][1] << "\n";  
+      std::string jsonfilestr =  "/exp/atlas/kurdysh/vbs_cross_terms_study/plotting/" + prod_dec + "_cuts.json"; 
+      std::cout << "++++++assume .json for this prod_dec" << prod_dec << "is " << jsonfilestr << "\n";
+      std::ifstream json_file(jsonfilestr);
+      
+      _jcuts = json::parse(json_file);
+      std::cout << "++++++ to check 1 var got photon pt min" << _jcuts["photon_pt"] << "\n";
+      _electron_eta_cut = (Cuts::absetaIn(_jcuts["e_eta"][0][0], _jcuts["e_eta"][0][1])) || 
+                                (Cuts::absetaIn(_jcuts["e_eta"][1][0], _jcuts["e_eta"][1][1]));
+      _photon_eta_cut = (Cuts::absetaIn(_jcuts["photon_eta"][0][0], _jcuts["photon_eta"][0][1])) || 
+                                (Cuts::absetaIn(_jcuts["photon_eta"][1][0], _jcuts["photon_eta"][1][1]));
+      _muon_eta_cut = Cuts::absetaIn(0.0, _jcuts["muon_eta"]);
+      _lepton2_pt_cut = Cuts::pT > dbl(_jcuts["lepton2_pt"])*GeV;      
 
       // The basic final-state projection:
       // all final-state particles within
       const FinalState fs;
 
       // photons as separate particles for final state, not dressing
-      DirectFinalState photons(Cuts::abspid == PID::PHOTON && Cuts::abseta < 2.37 && Cuts::pT > 25*GeV);
+      DirectFinalState photons(Cuts::abspid == PID::PHOTON);
       declare(photons, "photons");
 
       // FinalState of direct photons and bare muons and electrons in the event - ignore taus but if want to include use TauFinder
-      DirectFinalState bare_leps(Cuts::abspid == PID::MUON || Cuts::abspid == PID::ELECTRON);
+      DirectFinalState bare_e(Cuts::abspid == PID::ELECTRON);
+      DirectFinalState bare_mu(Cuts::abspid == PID::MUON);
       DirectFinalState photons_for_dressing(Cuts::abspid == PID::PHOTON);
       // Dress the bare direct leptons with direct photons within dR < 0.1,
       // and apply some fiducial cuts on the dressed leptons depending on param passed
-      Cut lepton_cuts = Cuts::abseta < 2.5 && Cuts::pT > 20.0*GeV; 
-      DressedLeptons dressed_leps(photons_for_dressing, bare_leps, 0.1, lepton_cuts);
-      declare(dressed_leps, "leptons_stable");
+      DressedLeptons dressed_e(photons_for_dressing, bare_e, 0.1);
+      DressedLeptons dressed_mu(photons_for_dressing, bare_mu, 0.1);
+      // declare(dressed_leps, "leptons_stable");
+      declare(dressed_e, "e_stable");
+      declare(dressed_mu, "mu_stable");
 
       // The final-state particles declared above are clustered using FastJet with
       // the anti-kT algorithm and a jet-radius parameter 0.4
       // muons and neutrinos are excluded from the clustering, also veto electrons(+muons but this is redundant) there
-      VetoedFinalState hadrons(FinalState(Cuts::abseta < 4.4));
-      hadrons.addVetoOnThisFinalState(dressed_leps);
+      VetoedFinalState hadrons(FinalState(Cuts::absetaIn(0.0, _jcuts["jet_eta"])));
+      hadrons.addVetoOnThisFinalState(dressed_e);
+      hadrons.addVetoOnThisFinalState(dressed_mu);
       declare(hadrons, "hadrons");
       FastJets jetsfs(hadrons, FastJets::ANTIKT, 0.4, JetAlg::Muons::NONE, JetAlg::Invisibles::NONE);
       declare(jetsfs, "jets");
@@ -80,7 +89,7 @@ namespace Rivet {
       // FS excluding the leading big pt photons, muons and neutrinos to calculate cone energy of bit pt photons
       // so basically electrons + jets left
       DirectFinalState bare_muon_for_ph_iso(Cuts::abspid == PID::MUON);
-      DressedLeptons dressed_muons_for_ph_iso(photons_for_dressing, bare_muon_for_ph_iso, 0.1, lepton_cuts);
+      DressedLeptons dressed_muons_for_ph_iso(photons_for_dressing, bare_muon_for_ph_iso, 0.1, _muon_eta_cut &&_lepton2_pt_cut);
       declare(dressed_muons_for_ph_iso, "muons_for_ph_iso");
       VetoedFinalState vfs;
       vfs.addVetoOnThisFinalState(photons);
@@ -120,13 +129,12 @@ namespace Rivet {
       book(_h["m_lly"], "m_lly", int(n_pt), 0.0, max_pt);
       book(_h["centrality_lly"], "centrality_lly", int(n_nbins), 0.0, n_nbins);
       //other
-      book(_c["found_VBS_pair"],"found_VBS_pair");
       book(_c["pos_w_initial"],"pos_w_initial");
       book(_c["pos_w_final"],"pos_w_final");
       book(_c["neg_w_initial"],"neg_w_initial");
       book(_c["neg_w_final"],"neg_w_final");
       // Cut-flows
-      _cutflows.addCutflow("Zy_lly_selections", {"n_lep", "lep_pid_charge", "lep_pt", "m_ll", "have_photons", "have_iso_photons",
+      _cutflows.addCutflow("Zy_lly_selections", {"n_lep_ok_pt2_eta", "lep_pid_charge", "lep_pt1", "m_ll", "have_iso_photons_ok_pt_eta",
                                   "m_ll_plus_m_lly", "n_jets", "jet_pt","m_tagjets","dy_tagjets","centrality_lly",
                                   "n_gap_jets"});
       // setup for  file used for drawing images
@@ -136,7 +144,6 @@ namespace Rivet {
         pic_csv.close();
       }
     }
-
 
     /// Perform the per-event analysis
     void analyze(const Event& event) {
@@ -148,26 +155,37 @@ namespace Rivet {
       _cutflows.fillinit();
 
       // Retrieve dressed leptons, sorted by pT
-      Particles leptons_stable = apply<FinalState>(event, "leptons_stable").particlesByPt();
+      Particles e_stable;
+      Particles mu_stable;
+      if (_docut==1){
+        e_stable = apply<FinalState>(event, "e_stable").particlesByPt(_electron_eta_cut && _lepton2_pt_cut);
+        mu_stable = apply<FinalState>(event, "mu_stable").particlesByPt(_muon_eta_cut && _lepton2_pt_cut);
+      }
+      else{
+        e_stable = apply<FinalState>(event, "e_stable").particlesByPt();
+        mu_stable = apply<FinalState>(event, "mu_stable").particlesByPt();
+      }
+      // will ahve either e or mu pair so don't need to sort combined e+mu array
+      Particles leptons_stable = e_stable + mu_stable; 
+
       int nlep_stable = leptons_stable.size();
-      if (nlep_stable!=2)  vetoEvent; // meaning both are e,mu and not tau
+      if (nlep_stable!=_jcuts["n_lep"])  vetoEvent; // meaning both are e,mu and not tau
       _cutflows.fillnext();
 
       const Particle& lep1 = leptons_stable[0];
-      const Particle& lep2 = leptons_stable[1]; 
+      const Particle& lep2 = leptons_stable[1];
       if (lep1.pid()+lep2.pid()!=0) vetoEvent; // want opposite charge leptons of same fravour
       _cutflows.fillnext();
-      if (_docut==1 && (lep1.pT() < 30.0 || lep2.pT() < 20.0)) vetoEvent; 
+      if (_docut==1 && (lep1.pT() < dbl(_jcuts["lepton1_pt"])*GeV)) vetoEvent;
       _cutflows.fillnext();
       const FourMomentum fourvec_ll = lep1.mom() + lep2.mom(); 
       const double m_ll = fourvec_ll.mass()/GeV;
-      if (_docut==1 && m_ll < 40.0) vetoEvent;
+      if (_docut==1 && m_ll < dbl(_jcuts["m_ll"])*GeV) vetoEvent;
       _cutflows.fillnext();
 
       //photons
-      Particles photons = apply<FinalState>(event, "photons").particlesByPt();
+      Particles photons = apply<FinalState>(event, "photons").particlesByPt(_photon_eta_cut);
       if (photons.empty())  vetoEvent;
-      _cutflows.fillnext();
       //photon cone calculation and photon OR with leptons 
       Particles isolated_photons;
       std::vector<double> cone_to_photon_fracs = {};
@@ -181,18 +199,19 @@ namespace Rivet {
           }
         }
         double i_cone_to_photon_frac = i_high_pt_photon_cone_E / i_high_pt_photon.pT(); 
-        if (i_cone_to_photon_frac > 0.07)  continue;
+        if (i_cone_to_photon_frac > _jcuts["cone_to_photon_frac"])  continue;
         if (any(leptons_stable, deltaRLess(i_high_pt_photon, 0.4))) continue;
         isolated_photons += i_high_pt_photon;
         cone_to_photon_fracs.push_back(i_cone_to_photon_frac);
       }
       if (isolated_photons.empty())  vetoEvent;
-      _cutflows.fillnext();
-
       const Particle& lead_iso_photon = isolated_photons[0];
+      if (_docut==1 && lead_iso_photon.pT() < dbl(_jcuts["photon_pt"])*GeV) vetoEvent;
+      _cutflows.fillnext();
+      
       const FourMomentum fourvec_lly = lep1.mom() + lep2.mom() + lead_iso_photon.mom();
       const double m_lly = fourvec_lly.mass();
-      if (_docut==1 && (m_ll + m_lly)<=182*GeV)  vetoEvent;
+      if (_docut==1 && (m_ll + m_lly)<=dbl(_jcuts["m_lly"])*GeV)  vetoEvent;
       _cutflows.fillnext();
 
       // Retrieve clustered jets, sorted by pT, with a minimum pT cut
@@ -202,24 +221,24 @@ namespace Rivet {
       idiscardIfAnyDeltaRLess(jets, isolated_photons, 0.4);
 
       int n_jets = jets.size();
-      if (_docut==1 && n_jets < 2)  vetoEvent;
+      if (_docut==1 && n_jets < _jcuts["n_jets"]) vetoEvent;
       _cutflows.fillnext();
 
       const FourMomentum tag1_jet = jets[0].mom();
       const FourMomentum tag2_jet = jets[1].mom();
-      if (_docut==1 && (tag1_jet.pT()<50.0 || tag2_jet.pT()<50.0)) vetoEvent; 
+      if (_docut==1 && (tag1_jet.pT()<dbl(_jcuts["jet_pt"])*GeV || tag2_jet.pT()<dbl(_jcuts["jet_pt"])*GeV)) vetoEvent; 
       _cutflows.fillnext();
 
       const double m_tagjets = (tag1_jet + tag2_jet).mass()/GeV;
-      if (_docut==1 && m_tagjets<500.0) vetoEvent;
+      if (_docut==1 && m_tagjets<dbl(_jcuts["m_tagjets"])*GeV) vetoEvent;
       _cutflows.fillnext();
 
       const double dy_tagjets =  fabs(deltaRap(tag1_jet, tag2_jet));
-      if (_docut==1 && dy_tagjets<1.0) vetoEvent;
+      if (_docut==1 && dy_tagjets<_jcuts["dy_tagjets"]) vetoEvent;
       _cutflows.fillnext();
 
       const double centrality_lly = fabs(0.5 * (fourvec_lly.rap() - (tag1_jet.rap()+tag2_jet.rap())/2) / (tag1_jet.rap()-tag2_jet.rap()));
-      if (_docut==1 && centrality_lly > 5.0)  vetoEvent;
+      if (_docut==1 && centrality_lly > _jcuts["centrality_lly"])  vetoEvent;
       _cutflows.fillnext();
 
       int n_gap_jets = 0;
@@ -227,7 +246,7 @@ namespace Rivet {
         const double i_jet_rap = jets[i].rap();
         if ((i_jet_rap < tag1_jet.rap() && i_jet_rap > tag2_jet.rap()) || (i_jet_rap < tag2_jet.rap() && i_jet_rap > tag1_jet.rap()))  ++n_gap_jets;
       }
-      if (_docut==1 && n_gap_jets > 0)  vetoEvent;
+      if (_docut==1 && n_gap_jets > _jcuts["n_gap_jets"])  vetoEvent;
       _cutflows.fillnext();
 
       //jet plots
@@ -257,12 +276,11 @@ namespace Rivet {
       _h["m_lly"]->fill(m_lly);
       _h["centrality_lly"]->fill(centrality_lly);
       // other
-      _c["found_VBS_pair"]->fill();
       if (ev_nominal_weight>=0){_c["pos_w_final"]->fill();}
       else {_c["neg_w_final"]->fill();}
 
+       // file used for drawing images
       if (_docut==1){
-        // file used for drawing images
         int ev_num =  _c["pos_w_initial"]->numEntries() + _c["neg_w_initial"]->numEntries();
         // later to get average only makes sense todo it on +,- jets separately
         // similarly for leps where one will have slighyl bigger eta
@@ -291,24 +309,16 @@ namespace Rivet {
 
     /// Normalise histograms etc., after the run
     void finalize() {
-
-      double veto_survive_sumW = dbl(*_c["found_VBS_pair"]);
-      double veto_survive_frac = veto_survive_sumW / sumW();
-      std::cout << "survived veto, will norm m_tagjets to this: " << veto_survive_frac << "\n";
-      double norm_to = veto_survive_frac*crossSection()/picobarn; // norm to generated cross-section in pb (after cuts)
-      normalize(_h["m_tagjets"], norm_to);
-
       std::string cut_str = _cutflows.str();
       std::string cutflow_file = getOption("OUTDIR") + "/cutflow.txt";
       std::ofstream ofs (cutflow_file, std::ofstream::out); // same for all variations so can overwrite and last will be correct
       ofs << cut_str;
       ofs.close();
 
-      double pos_w_sum_initial = dbl(*_c["pos_w_initial"]);
+      double pos_w_sum_initial = dbl(*_c["pos_w_initial"]); // from which also number of entries can be obtained
       double neg_w_sum_initial = dbl(*_c["neg_w_initial"]);
       double pos_w_sum_final = dbl(*_c["pos_w_final"]);
       double neg_w_sum_final = dbl(*_c["neg_w_final"]);
-
       MSG_INFO("\n pos weights initial final ratio " << pos_w_sum_initial <<" " << pos_w_sum_final <<" "<< pos_w_sum_final/pos_w_sum_initial << "\n" );
       MSG_INFO("\n neg weights initial final ratio " << neg_w_sum_initial <<" " << neg_w_sum_final <<" "<< neg_w_sum_final/neg_w_sum_initial << "\n" );
     
@@ -320,10 +330,16 @@ namespace Rivet {
     /// @{
     map<string, Histo1DPtr> _h;
     map<string, Histo2DPtr> _h2;
-    // map<string, Profile1DPtr> _p;
     map<string, CounterPtr> _c;
     int _docut;
+    Cut _electron_eta_cut;
+    Cut _photon_eta_cut;
+    Cut _muon_eta_cut;
+    Cut _lepton2_pt_cut;
+    json _jcuts;
+    std::string _jsonfilestr;
     Cutflows _cutflows;
+
     /// @}
 
 

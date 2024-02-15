@@ -1,3 +1,29 @@
 {
-    "lepton_eta": [0.0, 2.47]
+  "n_jets" : 2,
+  "n_jets_exactly_eq": 0,
+  "n_lep": 2,
+  "n_lep_exactly_eq": 1,
+  "n_gap_jets":0,  
+  "n_gap_jets_exactly_eq": 1,
+  "n_photons": 1,
+  "n_photon_exactly_eq": 0,
+  
+  "e_eta": [[0.0, 1.37],[1.52, 2.47]], 
+  "photon_eta": [[0.0, 1.37],[1.52, 2.37]], 
+  "muon_eta" : 2.5,
+  "jet_eta": 4.4,
+
+  "lepton1_pt": 30.0,
+  "lepton2_pt": 20.0,
+  "photon_pt": 25.0,
+  "jet_pt": 50.0,
+
+  "m_ll": 40.0,
+  "m_lly": 182.0,
+  "m_tagjets": 500.0,
+
+  "centrality_lly":0.4,
+  "dy_tagjets": 1.0,
+
+  "cone_to_photon_frac": 0.07 
   }
