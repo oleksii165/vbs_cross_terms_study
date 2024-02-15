@@ -31,6 +31,7 @@ namespace Rivet {
 
     /// Book histograms and initialise projections before the run
     void init() {
+      std::string txt_dir = "/exp/atlas/kurdysh/vbs_cross_terms_study/plotting/";
       
       std::string out_dir = getOption("OUTDIR");
       
@@ -39,12 +40,8 @@ namespace Rivet {
       if (out_dir.find("DOCUT_NO") != string::npos) _docut = 0;
       std::cout << "++++++received outidir" << out_dir << "meaning _docut is " << _docut << "\n";
 
-      int stop_prod_dec_dir_ind = out_dir.find("/user.okurdysh.MadGraph");
-      std::string almost_prod_dec = out_dir.substr(0, stop_prod_dec_dir_ind);
-      int st_prod_dec_dir_ind = almost_prod_dec.find("/eft_files/");
-      std::string prod_dec = almost_prod_dec.substr(st_prod_dec_dir_ind + strlen("/eft_files/"));
-      std::string jsonfilestr =  "/exp/atlas/kurdysh/vbs_cross_terms_study/plotting/" + prod_dec + "_cuts.json"; 
-      std::cout << "++++++assume .json for this prod_dec" << prod_dec << "is " << jsonfilestr << "\n";
+      std::string jsonfilestr =  txt_dir + "Zy_lly_cuts.json"; 
+      std::cout << "++++++assume .json for this Zy_lly" << "is " << jsonfilestr << "\n";
       std::ifstream json_file(jsonfilestr);
       
       _jcuts = json::parse(json_file);
@@ -97,46 +94,43 @@ namespace Rivet {
       vfs.addVetoOnThisFinalState(InvisibleFinalState());
       declare(vfs, "ElAndJetsForPhotonIsoCalc");
 
-      // Book histograms
-      int n_nbins = 10;
-      int n_pt = 200;
-      double max_pt = 3000.0;
-      int n_rap = 60;
-      double max_rap = 6.0;
-      int n_pid = 15;
-      //jet plots
-      book(_h["n_jet"], "n_jet", n_nbins, 0.0, n_nbins);
-      book(_h["n_gap_jet"], "n_gap_jet", n_nbins, 0.0, n_nbins);
-      book(_h["pt_tagjet1"], "pt_tagjet1", n_pt, 0.0, max_pt); 
-      book(_h["pt_tagjet2"], "pt_tagjet2", n_pt, 0.0, max_pt);
-      book(_h["m_tagjets"], "m_tagjets", n_pt, 0.0, max_pt);
-      book(_h["dy_tagjets"], "dy_tagjets", n_rap, 0, max_rap);
-      book(_h["eta_tagjets"], "eta_tagjets", n_rap, -1*max_rap, max_rap);
-      book(_h["dphi_tagjets"], "dphi_tagjets", n_rap, 0, max_rap);
-      // //lepton plots
-      book(_h2["leptons_pids"], "leptons_pids", 2*n_pid, -1*n_pid, n_pid, 2*n_pid, -1*n_pid, n_pid);
-      book(_h["n_lepton_stable"], "n_lepton_stable", n_nbins, 0.0, n_nbins);
-      book(_h["lepton_pt"], "lepton_pt", int(n_pt), 0.0, max_pt);
-      book(_h["lepton_eta"], "lepton_eta", n_rap, -1*max_rap, max_rap);
-      book(_h["m_ll"], "m_ll", int(n_pt/10), 0.0, max_pt/10);
-      //photon plots
-      book(_h["n_photons_iso"], "n_photons_iso", n_nbins, 0.0, n_nbins);
-      book(_h["frac_photons_iso"], "frac_photons_iso", 40, -2.0, 2.0); // relative to all photons
-      book(_h["cone_to_photon_frac"], "cone_to_photon_frac", 20, 0.0, 0.2);
-      book(_h["photon_iso_eta"], "photon_iso_eta", n_rap, -1*max_rap, max_rap);
-      book(_h["photon_iso_pt"], "photon_iso_pt", int(n_pt), 0.0, max_pt);
-      // lly
-      book(_h["m_lly"], "m_lly", int(n_pt), 0.0, max_pt);
-      book(_h["centrality_lly"], "centrality_lly", int(n_nbins), 0.0, n_nbins);
-      //other
+      // Book things
+
+      // plots common with others
+      std::ifstream jet_hist_file(txt_dir + "/jet_hists.json");      
+      json jet_hist = json::parse(jet_hist_file);
+      for (json::iterator it = jet_hist.begin(); it != jet_hist.end(); ++it) {
+        book(_h[it.key()], it.key(), it.value()[0], it.value()[1], it.value()[2]);
+      }
+      std::ifstream lep_hist_file(txt_dir + "/lepton_hists.json");      
+      json lep_hist = json::parse(lep_hist_file);
+      for (json::iterator it = lep_hist.begin(); it != lep_hist.end(); ++it) {
+        book(_h[it.key()], it.key(), it.value()[0], it.value()[1], it.value()[2]);
+      }
+      std::ifstream y_hist_file(txt_dir + "/photon_hists.json");      
+      json y_hist = json::parse(y_hist_file);
+      for (json::iterator it = y_hist.begin(); it != y_hist.end(); ++it) {
+        book(_h[it.key()], it.key(), it.value()[0], it.value()[1], it.value()[2]);
+      }
+      // plots that are not in other ana
+      book(_h2["leptons_pids"], "leptons_pids", 30, -15.0, 15.0, 30, -15.0, 15.0);
+      std::ifstream ana_hist_file(txt_dir + "/Zy_lly_hists.json");      
+      json ana_hist = json::parse(ana_hist_file);
+      for (json::iterator it = ana_hist.begin(); it != ana_hist.end(); ++it) {
+        book(_h[it.key()], it.key(), it.value()[0], it.value()[1], it.value()[2]);
+      }
+      
+      //counter for efficiency
       book(_c["pos_w_initial"],"pos_w_initial");
       book(_c["pos_w_final"],"pos_w_final");
       book(_c["neg_w_initial"],"neg_w_initial");
       book(_c["neg_w_final"],"neg_w_final");
+      
       // Cut-flows
       _cutflows.addCutflow("Zy_lly_selections", {"n_lep_ok_pt2_eta", "lep_pid_charge", "lep_pt1", "m_ll", "have_iso_photons_ok_pt_eta",
                                   "m_ll_plus_m_lly", "n_jets", "jet_pt","m_tagjets","dy_tagjets","centrality_lly",
                                   "n_gap_jets"});
+      
       // setup for  file used for drawing images
       if (_docut==1){
         std::ofstream pic_csv (out_dir + "/Rivet.csv", std::ofstream::out);
@@ -147,8 +141,8 @@ namespace Rivet {
 
     /// Perform the per-event analysis
     void analyze(const Event& event) {
+      // save weights before cuts
       double ev_nominal_weight =  event.weights()[0];
-      // MSG_INFO("filling weight" << ev_nominal_weight << "\n");
       if (ev_nominal_weight>=0){_c["pos_w_initial"]->fill();} // dont need anything in bracket as this will be weight on weight
       else {_c["neg_w_initial"]->fill();}
 
@@ -249,33 +243,31 @@ namespace Rivet {
       if (_docut==1 && n_gap_jets > _jcuts["n_gap_jets"])  vetoEvent;
       _cutflows.fillnext();
 
-      //jet plots
-      _h["n_jet"]->fill(n_jets);
-      _h["n_gap_jet"]->fill(n_gap_jets);
+      //jet common 
+      _h["n_jets"]->fill(n_jets);
       _h["pt_tagjet1"]->fill(tag1_jet.pt());
       _h["pt_tagjet2"]->fill(tag2_jet.pt());
+      _h["eta_tagjets"]->fill(tag1_jet.eta()); _h["eta_tagjets"]->fill(tag2_jet.eta());
       _h["m_tagjets"]->fill(m_tagjets);
       _h["dy_tagjets"]->fill(dy_tagjets);
-      _h["eta_tagjets"]->fill(tag1_jet.eta()); _h["eta_tagjets"]->fill(tag2_jet.eta());
       _h["dphi_tagjets"]->fill(deltaPhi(tag1_jet,tag2_jet));
       //lepton plots
-      _h2["leptons_pids"]->fill(lep1.pid(),lep2.pid());
       _h["n_lepton_stable"]->fill(nlep_stable);
-      _h["lepton_pt"]->fill(lep1.pT()); _h["lepton_pt"]->fill(lep2.pT()); 
-      _h["lepton_eta"]->fill(lep1.eta()); _h["lepton_eta"]->fill(lep2.eta());
-      _h["m_ll"]->fill(m_ll);
-      //photon plots
+      _h["pt_lepton"]->fill(lep1.pT()); _h["pt_lepton"]->fill(lep2.pT()); 
+      _h["eta_lepton"]->fill(lep1.eta()); _h["eta_lepton"]->fill(lep2.eta());
+      //photon plots where use lead only except n_ptoon
       _h["n_photons_iso"]->fill(isolated_photons.size());
-      _h["frac_photons_iso"]->fill(photons.size()/isolated_photons.size());
-      for (long unsigned int i = 0; i < cone_to_photon_fracs.size(); i++) {_h["cone_to_photon_frac"]->fill(cone_to_photon_fracs[i]);}
-      for (long unsigned int i = 0; i < isolated_photons.size(); i++) {
-        _h["photon_iso_eta"]->fill(isolated_photons[i].eta());
-        _h["photon_iso_pt"]->fill(isolated_photons[i].pT());
-        }
-      // lly
+      _h["cone_frac_photon"]->fill(cone_to_photon_fracs[0]);
+      _h["eta_photon"]->fill(lead_iso_photon.eta());
+      _h["pt_photon"]->fill(lead_iso_photon.pT());
+      // analysis-specific
+      _h["n_gap_jet"]->fill(n_gap_jets);
+      _h2["leptons_pids"]->fill(lep1.pid(),lep2.pid());
+      _h["m_ll"]->fill(m_ll);
       _h["m_lly"]->fill(m_lly);
       _h["centrality_lly"]->fill(centrality_lly);
-      // other
+
+      // save weights after cuts
       if (ev_nominal_weight>=0){_c["pos_w_final"]->fill();}
       else {_c["neg_w_final"]->fill();}
 
@@ -321,7 +313,6 @@ namespace Rivet {
       double neg_w_sum_final = dbl(*_c["neg_w_final"]);
       MSG_INFO("\n pos weights initial final ratio " << pos_w_sum_initial <<" " << pos_w_sum_final <<" "<< pos_w_sum_final/pos_w_sum_initial << "\n" );
       MSG_INFO("\n neg weights initial final ratio " << neg_w_sum_initial <<" " << neg_w_sum_final <<" "<< neg_w_sum_final/neg_w_sum_initial << "\n" );
-    
     }
 
     /// @}
@@ -337,11 +328,9 @@ namespace Rivet {
     Cut _muon_eta_cut;
     Cut _lepton2_pt_cut;
     json _jcuts;
-    std::string _jsonfilestr;
     Cutflows _cutflows;
 
     /// @}
-
 
   };
 
