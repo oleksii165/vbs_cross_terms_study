@@ -3,6 +3,85 @@ import os
 from array import array
 import ROOT
 import itertools
+import matplotlib.pyplot as plt
+plt.rcParams['text.usetex'] = True
+import pandas as pd
+import numpy as np
+import math
+
+def get_im_color(particle_name):
+    color = "black"
+    if "jet" in particle_name: color="blue"
+    elif "lepton" in particle_name: color = "red"
+    elif "photon" in particle_name: color = "yellow"
+    return color
+
+def latex_ana_str(prod_dec):
+    mystr=""
+    if "Zy_lly" in prod_dec: mystr = "Z(" + r"$\rightarrow$" + f"ll)y"
+    return mystr
+
+def draw_average_event(files_dir):
+    op = files_dir[files_dir.find("_F")+1 : files_dir.find("_EXT0")]
+    prod_dec = files_dir[files_dir.find("/eft_files/")+11 : files_dir.find("/user.okurdysh")]
+    print("found op and prod_dec", op, prod_dec)
+
+    f_str = files_dir + "info_for_image.csv" 
+    # "/exp/atlas/kurdysh/vbs_cross_terms_study/eft_files/Zy_lly/user.okurdysh.MadGraph_Zy_lly_FT7vsFT8_CROSS_EXT0/DOCUT_YES/Rivet.csv"
+    df = pd.read_csv(f_str,delimiter=";")
+    particles = set([i_col[i_col.find("_")+1:] for i_col in  list(df.head()) if "Unnamed" not in i_col])
+    print("found particles", particles, "in file", f_str)
+
+    fig, ax = plt.subplots(figsize=(8, 6))
+    plt.clf()
+    for i_part in sorted(list(particles)):
+        i_eta = round(np.mean(df["eta_" + i_part]), 2)
+        i_phi = round(np.mean(df["phi_" + i_part]), 2)
+        i_pt = round(np.mean(df["pt_" + i_part]), 2)
+        i_color = get_im_color(i_part)
+        print("drawing", i_part, "with eta phi pt", i_eta, i_phi, i_pt, "and color", i_color)
+        plt.plot([0, i_pt*math.sinh(i_eta)], [0, i_pt*math.sin(i_phi)], 
+                color = i_color, 
+                label=f"{i_part} $<p_T>={i_pt:.1f}$,$<\eta>={i_eta:.1f}$"
+                )
+    plt.legend()
+    plt.xlabel('beam Z')
+    plt.ylabel('Y')
+    plt.title( f"{latex_ana_str(prod_dec)} SR av.img for {op}")
+    # take super long to save pdf switch to png
+    plt.savefig(files_dir + "average_image.png", bbox_inches='tight') 
+    return
+
+def get_cutflow_arrays(cutflow_file):
+    names = []
+    cumu = []
+    incr = []
+    with open(cutflow_file) as f:
+        for i_line in f.readlines():
+            line_arr = [i_thing.strip().replace("%", "") for i_thing in i_line.split(" ") if i_thing != ""]
+            print(line_arr)
+            if len(line_arr) != 5: continue
+            names.append(line_arr[1])
+            cumu.append(float(line_arr[3]))
+            incr.append(float(line_arr[4]))
+    return names, cumu, incr
+
+def draw_cutflows(cut_names, y_arrays, labels_arr, outname, prod_dec=""):
+    cycle_colors = itertools.cycle('bgrcmk')
+    plt.clf()
+    fig, ax = plt.subplots(figsize=(6, 4))
+    for y_arr,label in zip(y_arrays, labels_arr):
+        plt.plot(range(len(cut_names)), y_arr, marker='o', label=label, color=next(cycle_colors))
+    plt.xticks(range(len(cut_names)), cut_names, fontsize=7)
+    plt.xticks(rotation=90)
+    for xc in cut_names: ax.axvline(x=xc, color='0.3', linestyle='--', linewidth=0.3)
+    plt.ylim(0, 110)
+    plt.legend()
+    plt.ylabel('fraction $[\%]$')
+    plt.xlabel('cut')
+    op = outname[outname.find("_F")+1 : outname.find("_EXT0")]
+    plt.title(latex_ana_str(prod_dec)+" "+op)
+    plt.savefig(outname, bbox_inches='tight')
 
 # @TODO maybe dublication with find_evnt_dir_and_file
 def get_evnt_log_files(base_dir,i_job_name):
@@ -184,7 +263,8 @@ def get_sumw_initial(log_file):
     print(f"found sumw_in: {sumw_in} build from sumw_neg, pos and filt_ef: {sumw_neg}, {sumw_pos}, {filt_ef}")
     return sumw_in
 
-def save_xsec_frac_prod(savedir,xsec_fb,frac,frac_pos,frac_neg, 
+def save_xsec_frac_prod(savedir,xsec_fb,
+                        frac,frac_pos,frac_neg, frac_er_bar, 
                         pos_w_in, neg_w_in, pos_w_f, neg_w_f,
                         pos_n_in, neg_n_in, pos_n_f, neg_n_f):
     write_to_f(savedir + "xsec_fb.txt",xsec_fb)
@@ -192,6 +272,7 @@ def save_xsec_frac_prod(savedir,xsec_fb,frac,frac_pos,frac_neg,
     write_to_f(savedir + "frac_after_cuts.txt",frac)
     write_to_f(savedir + "frac_after_cuts_pos.txt",frac_pos)
     write_to_f(savedir + "frac_after_cuts_neg.txt",frac_neg)
+    write_to_f(savedir + "frac_after_cuts_error_bar.txt", frac_er_bar)
     #
     write_to_f(savedir + "xsec_times_frac_fb.txt",xsec_fb*frac)
     #

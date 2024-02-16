@@ -12,8 +12,7 @@ import matplotlib
 import yoda
 import lib_utils as lu
 from optparse import OptionParser
-
-var_to_get_fraction_survived = "m_tagjets"
+import math
 
 def prepare_grid_files(i_job_name):
     print("will download+untar files evnt and log for", i_job_name)
@@ -39,74 +38,76 @@ def prepare_grid_files(i_job_name):
     else:
         print("dont untar since did it before res in ", untared_dir_cand[0])
 
-
-
-def save_fid_xsec_root_hists(DOCUT_str, mydir, xsec_fb, prod_dec):
+def save_job_infos(DOCUT_str, mydir, xsec_fb, prod_dec):
     yoda_f_str = mydir + "MyOutput.yoda.gz"
-    if os.path.exists(yoda_f_str):
-        yoda_f = yoda.read(yoda_f_str)
-        print("reading from yoda file ", yoda_f_str)
-        all_hists_in_yoda = [iname  for iname in yoda_f.keys() if "[" not in iname and "RAW" not in iname]
-        hists_1h_in_yoda = []
-        for i_name in all_hists_in_yoda:
-            if yoda_f[i_name].type()=="Histo1D": hists_1h_in_yoda.append(i_name)  
-        print("have 1d hists to be saved in root:", hists_1h_in_yoda, "in yoda file", yoda_f_str)
 
-        root_file = mydir + "/hists.root"
-        if not os.path.exists(root_file) or not os.path.exists(mydir + "xsec_fb.txt"): proceed = 1
-        elif (os.path.exists(root_file) or os.path.exists(mydir + "xsec_fb.txt")) and opts.runAgain=="yes": proceed = 1
-        else: proceed = 0
-        if proceed:
-            # save fid xsec
-            rivet_dir_name = f"/{prod_dec}:OUTDIR=/{mydir}".replace("//","/")
-            print("looking for prefix in counter",rivet_dir_name)
-            pos_n_in = yoda_f[f"{rivet_dir_name}/pos_w_initial"].numEntries()
-            neg_n_in = yoda_f[f"{rivet_dir_name}/neg_w_initial"].numEntries()
-            pos_n_f = yoda_f[f"{rivet_dir_name}/pos_w_final"].numEntries()
-            neg_n_f = yoda_f[f"{rivet_dir_name}/neg_w_final"].numEntries()
-            #
-            pos_w_in = yoda_f[f"{rivet_dir_name}/pos_w_initial"].sumW()
-            neg_w_in = yoda_f[f"{rivet_dir_name}/neg_w_initial"].sumW()
-            pos_w_f = yoda_f[f"{rivet_dir_name}/pos_w_final"].sumW()
-            neg_w_f = yoda_f[f"{rivet_dir_name}/neg_w_final"].sumW()
-            frac_survived_cut = (pos_w_f+neg_w_f) / (pos_w_in+neg_w_in) 
-            frac_survived_pos = pos_w_f / pos_w_in 
-            frac_survived_neg = neg_w_f / neg_w_in 
-            lu.save_xsec_frac_prod(mydir,xsec_fb,
-                                    frac_survived_cut, frac_survived_pos, frac_survived_neg,
-                                    pos_w_in, neg_w_in, pos_w_f, neg_w_f,
-                                    pos_n_in, neg_n_in, pos_n_f, neg_n_f)
-            # save hists in root for further plotting
-            root_file = ROOT.TFile(root_file,"UPDATE")
-            for i_hist in hists_1h_in_yoda: # they are in format '/WpWm_lvlv:DOCUT=YES/leptons_pids'
-                h_yoda =  yoda_f[i_hist]
-                h_root = lu.yoda_to_root_1d(h_yoda, i_hist.split("/")[-1])
-                h_root.Write("", ROOT.TObject.kOverwrite)
-            root_file.Close()
-        else:
-            print("dont do xsec and hisst to root")
-    else:
-        print("dont see yoda file in dir ", mydir)
+    if not os.path.exists(yoda_f_str): 
+        print("dont see yoda file in dir ", mydir, ",return")
+        return
+    
+    yoda_f = yoda.read(yoda_f_str)
+    print("reading from yoda file ", yoda_f_str)
+    all_hists_in_yoda = [iname  for iname in yoda_f.keys() if "[" not in iname and "RAW" not in iname]
+    hists_1h_in_yoda = []
+    for i_name in all_hists_in_yoda:
+        if yoda_f[i_name].type()=="Histo1D": hists_1h_in_yoda.append(i_name)  
+    print("have 1d hists to be saved in root:", hists_1h_in_yoda, "in yoda file", yoda_f_str)
 
-def save_hists_log_get_xsec_after_cuts(job_name):
-    prepare_grid_files(job_name)
-    evnt_file, log_file = lu.get_evnt_log_files(base_dir,job_name)
-    if evnt_file!=-1 and log_file!=-1:
-        com_run_rivet_no_cut = lu.get_rivet_com(job_name, evtMax = evtMax, DOCUT = "NO", redoRivet=opts.runAgain, redoPlots=opts.runAgain)
-        com_run_rivet_with_cut = lu.get_rivet_com(job_name, evtMax = evtMax, DOCUT = "YES", redoRivet=opts.runAgain, redoPlots=opts.runAgain)
-        print("run both or one:  rivet+untar in two ways in sequence with/without cut \n", com_run_rivet_no_cut, "\n",com_run_rivet_with_cut)
-        if opts.runNoCuts=="yes":subprocess.call(com_run_rivet_no_cut, shell=True)
-        if opts.runWithCuts=="yes": subprocess.call(com_run_rivet_with_cut, shell=True)
-        # get xsec after cuts
-        evnt_dir = os.path.dirname(evnt_file)
-        xsec_fb = lu.get_xsec(log_file)
-        prod_dec, _ = lu.find_prod_dec_and_dir(job_name)
-        if opts.runNoCuts=="yes": save_fid_xsec_root_hists("DOCUT=NO",evnt_dir + "/DOCUT_NO/", xsec_fb, prod_dec)
-        if opts.runWithCuts=="yes": save_fid_xsec_root_hists("DOCUT=YES",evnt_dir + "/DOCUT_YES/", xsec_fb, prod_dec)
+    root_file = mydir + "/hists.root"
+    if not os.path.exists(root_file) or not os.path.exists(mydir + "xsec_fb.txt"): proceed = 1
+    elif (os.path.exists(root_file) or os.path.exists(mydir + "xsec_fb.txt")) and opts.runAgain=="yes": proceed = 1
+    else: proceed = 0
 
+    if not proceed:
+        print("dont do xsec and hisst to root")
+        return  
+
+    # save fid xsec
+    rivet_dir_name = f"/{prod_dec}:OUTDIR=/{mydir}".replace("//","/")
+    print("looking for prefix in counter",rivet_dir_name)
+    pos_n_in = yoda_f[f"{rivet_dir_name}/pos_w_initial"].numEntries()
+    neg_n_in = yoda_f[f"{rivet_dir_name}/neg_w_initial"].numEntries()
+    pos_n_f = yoda_f[f"{rivet_dir_name}/pos_w_final"].numEntries()
+    neg_n_f = yoda_f[f"{rivet_dir_name}/neg_w_final"].numEntries()
+    #
+    frac_cut = (pos_n_f+neg_n_f) / (pos_n_in+neg_n_in) 
+    frac_pos = pos_n_f / pos_n_in 
+    frac_neg = neg_n_f / neg_n_in
+    frac_cut_unc = 1/(pos_n_in+neg_n_in) * math.sqrt(pos_n_in*frac_pos*(1-frac_pos) + neg_n_in*frac_neg*(1-frac_neg))
+    frac_cut_er_bar = frac_cut_unc / 2 
+    #
+    pos_w_in = yoda_f[f"{rivet_dir_name}/pos_w_initial"].sumW()
+    neg_w_in = yoda_f[f"{rivet_dir_name}/neg_w_initial"].sumW()
+    pos_w_f = yoda_f[f"{rivet_dir_name}/pos_w_final"].sumW()
+    neg_w_f = yoda_f[f"{rivet_dir_name}/neg_w_final"].sumW()
+    #
+    lu.save_xsec_frac_prod(mydir,xsec_fb,
+                            frac_cut, frac_pos, frac_neg, frac_cut_er_bar,
+                            pos_w_in, neg_w_in, pos_w_f, neg_w_f,
+                            pos_n_in, neg_n_in, pos_n_f, neg_n_f)
+    # save hists in root for further plotting
+    root_file = ROOT.TFile(root_file,"UPDATE")
+    for i_hist in hists_1h_in_yoda: # they are in format '/WpWm_lvlv:DOCUT=YES/leptons_pids'
+        h_yoda =  yoda_f[i_hist]
+        h_root = lu.yoda_to_root_1d(h_yoda, i_hist.split("/")[-1])
+        h_root.Write("", ROOT.TObject.kOverwrite)
+    root_file.Close()
+
+    ############## draw event and cutflow
+    print("drawing average image")
+    lu.draw_average_event(mydir)
+    #
+    print("saving cutflow as img")
+    cutflow_file = mydir + "cutflow.txt"
+    if os.path.exists(cutflow_file):
+        cut_names, cut_cumu, cut_incr = lu.get_cutflow_arrays(cutflow_file)
+        lu.draw_cutflows(cut_names, [cut_incr,cut_cumu], ["incremental","cumulative"],
+                        mydir+"/cutflow_img.png", prod_dec)
+        
+# def save_hists_log_get_xsec_after_cuts(job_name):
+    
 def main():
     parser = OptionParser()
-    parser.add_option("--runNoCuts", default = "no")
     parser.add_option("--runWithCuts", default = "yes")
     parser.add_option("--runAgain", default = "no")
     parser.add_option("--jobName", default = "")
@@ -115,12 +116,36 @@ def main():
     opts, _ = parser.parse_args()
 
     global base_dir
-    global evtMax
+    # global evtMax
     evtMax = int(opts.evtMax)
-    if len(opts.jobName)>0:
-        print("##################### \n ############# will work on job", opts.jobName)
-        prod_dec, base_dir = lu.find_prod_dec_and_dir(opts.jobName) # dir where all files are stored
-        save_hists_log_get_xsec_after_cuts(opts.jobName)
+
+    if len(opts.jobName)==0: return
+
+    print("##################### \n ############# will work on job", opts.jobName)
+    prod_dec, base_dir = lu.find_prod_dec_and_dir(opts.jobName) # dir where all files are stored
+    # save_hists_log_get_xsec_after_cuts(opts.jobName)
+    job_name = opts.jobName
+    prepare_grid_files(job_name)
+    evnt_file, log_file = lu.get_evnt_log_files(base_dir,job_name)
+
+    if evnt_file==-1 or log_file==-1: return 
+    
+    if opts.runWithCuts=="yes":
+        com_run_rivet = lu.get_rivet_com(job_name, evtMax = evtMax, DOCUT = "YES", redoRivet=opts.runAgain, redoPlots=opts.runAgain)
+        print("run rivet+untar in with com \n", com_run_rivet)
+        subprocess.call(com_run_rivet, shell=True)
+    else:
+        com_run_rivet = lu.get_rivet_com(job_name, evtMax = evtMax, DOCUT = "NO", redoRivet=opts.runAgain, redoPlots=opts.runAgain)
+        print("run rivet+untar in with com \n", com_run_rivet)
+        subprocess.call(com_run_rivet, shell=True)
+    # get xsec after cuts
+    evnt_dir = os.path.dirname(evnt_file)
+    xsec_fb = lu.get_xsec(log_file)
+    # prod_dec, _ = lu.find_prod_dec_and_dir(job_name)
+    if opts.runWithCuts=="yes": 
+        save_job_infos("DOCUT=YES",evnt_dir + "/DOCUT_YES/", xsec_fb, prod_dec)
+    else: 
+        save_job_infos("DOCUT=NO",evnt_dir + "/DOCUT_NO/", xsec_fb, prod_dec)
 
     return 0
 
