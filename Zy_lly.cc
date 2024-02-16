@@ -94,23 +94,26 @@ namespace Rivet {
       vfs.addVetoOnThisFinalState(InvisibleFinalState());
       declare(vfs, "ElAndJetsForPhotonIsoCalc");
 
-      // Book things
-
+      // Book things and save names to normalize later
+      
       // plots common with others
       std::ifstream jet_hist_file(txt_dir + "/jet_hists.json");      
       json jet_hist = json::parse(jet_hist_file);
       for (json::iterator it = jet_hist.begin(); it != jet_hist.end(); ++it) {
         book(_h[it.key()], it.key(), it.value()[0], it.value()[1], it.value()[2]);
+        _hist_names.push_back(it.key());
       }
       std::ifstream lep_hist_file(txt_dir + "/lepton_hists.json");      
       json lep_hist = json::parse(lep_hist_file);
       for (json::iterator it = lep_hist.begin(); it != lep_hist.end(); ++it) {
         book(_h[it.key()], it.key(), it.value()[0], it.value()[1], it.value()[2]);
+        _hist_names.push_back(it.key());
       }
       std::ifstream y_hist_file(txt_dir + "/photon_hists.json");      
       json y_hist = json::parse(y_hist_file);
       for (json::iterator it = y_hist.begin(); it != y_hist.end(); ++it) {
         book(_h[it.key()], it.key(), it.value()[0], it.value()[1], it.value()[2]);
+        _hist_names.push_back(it.key());
       }
       // plots that are not in other ana
       book(_h2["leptons_pids"], "leptons_pids", 30, -15.0, 15.0, 30, -15.0, 15.0);
@@ -118,6 +121,7 @@ namespace Rivet {
       json ana_hist = json::parse(ana_hist_file);
       for (json::iterator it = ana_hist.begin(); it != ana_hist.end(); ++it) {
         book(_h[it.key()], it.key(), it.value()[0], it.value()[1], it.value()[2]);
+        _hist_names.push_back(it.key());
       }
       
       //counter for efficiency
@@ -133,8 +137,14 @@ namespace Rivet {
       
       // setup for  file used for drawing images
       if (_docut==1){
-        std::ofstream pic_csv (out_dir + "/Rivet.csv", std::ofstream::out);
-        pic_csv << "ev_num;tagjet1_eta;tagjet2_eta;lep1_eta;lep2_eta;gamma_eta;tagjet1_pt;tagjet2_pt;lep1_pt;lep2_pt;gamma_pt \n";
+        std::vector<std::string> pic_particles = {"tagjet1", "tagjet2", "lepton1", "lepton2", "photon"};
+        std::ofstream pic_csv (out_dir + "/info_for_image.csv", std::ofstream::out);
+        for (auto & i_p : pic_particles){ 
+          pic_csv << "eta_" + i_p +";";
+          pic_csv << "phi_" + i_p +";";
+          pic_csv << "pt_" + i_p +";";
+        }
+        pic_csv << "\n";
         pic_csv.close();
       }
     }
@@ -273,7 +283,6 @@ namespace Rivet {
 
        // file used for drawing images
       if (_docut==1){
-        int ev_num =  _c["pos_w_initial"]->numEntries() + _c["neg_w_initial"]->numEntries();
         // later to get average only makes sense todo it on +,- jets separately
         // similarly for leps where one will have slighyl bigger eta
         int ind_bigger_eta_tagjet = (tag1_jet.eta() >  tag2_jet.eta()) ? 0 : 1;
@@ -282,20 +291,29 @@ namespace Rivet {
         int ind_smaller_eta_tagjet = static_cast<int>(!static_cast<bool>(ind_bigger_eta_tagjet));
         int ind_smaller_eta_lep = static_cast<int>(!static_cast<bool>(ind_bigger_eta_lep));
         // pulling file into common with init() _fout didn't work so re-open
-        std::ofstream pic_csv (getOption("OUTDIR") + "/Rivet.csv", std::ofstream::app); 
-        pic_csv << ev_num << ";";
-        //etas
+        std::ofstream pic_csv (getOption("OUTDIR") + "/info_for_image.csv", std::ofstream::app); 
+        // tagjet1
         pic_csv << jets[ind_bigger_eta_tagjet].eta() << ";";
-        pic_csv << jets[ind_smaller_eta_tagjet].eta() << ";";
-        pic_csv << leptons_stable[ind_bigger_eta_lep].eta() << ";";
-        pic_csv << leptons_stable[ind_smaller_eta_lep].eta() << ";";
-        pic_csv << lead_iso_photon.eta() << ";";
-        //pts
+        pic_csv << jets[ind_bigger_eta_tagjet].phi() << ";";
         pic_csv << jets[ind_bigger_eta_tagjet].pt() << ";";
+        //tagjet2
+        pic_csv << jets[ind_smaller_eta_tagjet].eta() << ";";
+        pic_csv << jets[ind_smaller_eta_tagjet].phi() << ";";
         pic_csv << jets[ind_smaller_eta_tagjet].pt() << ";";
+        //lepton1        
+        pic_csv << leptons_stable[ind_bigger_eta_lep].eta() << ";";
+        pic_csv << leptons_stable[ind_bigger_eta_lep].phi() << ";";
         pic_csv << leptons_stable[ind_bigger_eta_lep].pt() << ";";
+        //lepton2
+        pic_csv << leptons_stable[ind_smaller_eta_lep].eta() << ";";
+        pic_csv << leptons_stable[ind_smaller_eta_lep].phi() << ";";
         pic_csv << leptons_stable[ind_smaller_eta_lep].pt() << ";";
-        pic_csv << lead_iso_photon.pt() << "\n";
+        //photon        
+        pic_csv << lead_iso_photon.eta() << ";";
+        pic_csv << lead_iso_photon.phi() << ";";
+        pic_csv << lead_iso_photon.pt() << ";";
+        // terminate line
+        pic_csv << "\n";
       }
     }
 
@@ -313,6 +331,12 @@ namespace Rivet {
       double neg_w_sum_final = dbl(*_c["neg_w_final"]);
       MSG_INFO("\n pos weights initial final ratio " << pos_w_sum_initial <<" " << pos_w_sum_final <<" "<< pos_w_sum_final/pos_w_sum_initial << "\n" );
       MSG_INFO("\n neg weights initial final ratio " << neg_w_sum_initial <<" " << neg_w_sum_final <<" "<< neg_w_sum_final/neg_w_sum_initial << "\n" );
+
+      // normalize all to 1 since in case of mostly negative weights not clear what it will do
+      for (auto & i_name : _hist_names){ 
+        std::cout << "normalizeing hist" << i_name <<"to 1" ;
+        normalize(_h[i_name], 1.0);
+      }
     }
 
     /// @}
@@ -329,6 +353,7 @@ namespace Rivet {
     Cut _lepton2_pt_cut;
     json _jcuts;
     Cutflows _cutflows;
+    std::vector<std::string> _hist_names;
 
     /// @}
 
