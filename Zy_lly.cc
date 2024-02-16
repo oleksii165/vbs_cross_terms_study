@@ -258,6 +258,7 @@ namespace Rivet {
       _h["pt_tagjet1"]->fill(tag1_jet.pt());
       _h["pt_tagjet2"]->fill(tag2_jet.pt());
       _h["eta_tagjets"]->fill(tag1_jet.eta()); _h["eta_tagjets"]->fill(tag2_jet.eta());
+      _h["phi_tagjets"]->fill(tag1_jet.phi()); _h["phi_tagjets"]->fill(tag2_jet.phi());
       _h["m_tagjets"]->fill(m_tagjets);
       _h["dy_tagjets"]->fill(dy_tagjets);
       _h["dphi_tagjets"]->fill(deltaPhi(tag1_jet,tag2_jet));
