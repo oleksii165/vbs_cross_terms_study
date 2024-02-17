@@ -35,9 +35,9 @@ namespace Rivet {
       
       std::string out_dir = getOption("OUTDIR");
       
-      _docut = 0;
+      _docut = 0; // most cuts on number of particles are always applied to avoid segfault
       if (out_dir.find("DOCUT_YES") != string::npos) _docut = 1;
-      if (out_dir.find("DOCUT_NO") != string::npos) _docut = 0;
+      // if (out_dir.find("DOCUT_NO") != string::npos) _docut = 0;
       std::cout << "++++++received outidir" << out_dir << "meaning _docut is " << _docut << "\n";
 
       std::string jsonfilestr =  txt_dir + "Zy_lly_cuts.json"; 
@@ -45,7 +45,7 @@ namespace Rivet {
       std::ifstream json_file(jsonfilestr);
       
       _jcuts = json::parse(json_file);
-      std::cout << "++++++ to check 1 var got photon pt min" << _jcuts["photon_pt"] << "\n";
+      std::cout << "++++++ to check 1 var got photon pt min" << _jcuts["pt_photon"] << "\n";
       _electron_eta_cut = (Cuts::absetaIn(_jcuts["eta_lepton_electron"][0][0], _jcuts["eta_lepton_electron"][0][1])) || 
                                 (Cuts::absetaIn(_jcuts["eta_lepton_electron"][1][0], _jcuts["eta_lepton_electron"][1][1]));
       _photon_eta_cut = (Cuts::absetaIn(_jcuts["eta_photon"][0][0], _jcuts["eta_photon"][0][1])) || 
@@ -225,7 +225,7 @@ namespace Rivet {
       idiscardIfAnyDeltaRLess(jets, isolated_photons, 0.4);
 
       int n_jets = jets.size();
-      if (_docut==1 && n_jets < _jcuts["n_jets"]) vetoEvent;
+      if (n_jets < _jcuts["n_jets"]) vetoEvent;
       _cutflows.fillnext();
 
       const FourMomentum tag1_jet = jets[0].mom();
