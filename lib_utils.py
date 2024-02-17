@@ -9,11 +9,14 @@ import pandas as pd
 import numpy as np
 import math
 
-def get_im_color(particle_name):
+def get_im_color(particle_name, for_distribution=False):
     color = "black"
-    if "jet" in particle_name: color="blue"
-    elif "lepton" in particle_name: color = "red"
-    elif "photon" in particle_name: color = "yellow"
+    if "jet" in particle_name: 
+        color="blue" if not for_distribution else "deepskyblue"
+    elif "lepton" in particle_name:
+        color="red" if not for_distribution else "lightcoral"
+    elif "photon" in particle_name: 
+        color = "orange" if not for_distribution else "yellow"
     return color
 
 def latex_ana_str(prod_dec):
@@ -21,7 +24,7 @@ def latex_ana_str(prod_dec):
     if "Zy_lly" in prod_dec: mystr = "Z(" + r"$\rightarrow$" + f"ll)y"
     return mystr
 
-def draw_average_event(files_dir):
+def draw_average_event(files_dir, average_im=True):
     op = files_dir[files_dir.find("_F")+1 : files_dir.find("_EXT0")]
     prod_dec = files_dir[files_dir.find("/eft_files/")+11 : files_dir.find("/user.okurdysh")]
     print("found op and prod_dec", op, prod_dec)
@@ -34,22 +37,33 @@ def draw_average_event(files_dir):
 
     fig, ax = plt.subplots(figsize=(8, 6))
     plt.clf()
-    for i_part in sorted(list(particles)):
-        i_eta = round(np.mean(df["eta_" + i_part]), 2)
-        i_phi = round(np.mean(df["phi_" + i_part]), 2)
-        i_pt = round(np.mean(df["pt_" + i_part]), 2)
-        i_color = get_im_color(i_part)
-        print("drawing", i_part, "with eta phi pt", i_eta, i_phi, i_pt, "and color", i_color)
-        plt.plot([0, i_pt*math.sinh(i_eta)], [0, i_pt*math.sin(i_phi)], 
-                color = i_color, 
-                label=f"{i_part} $<p_T>={i_pt:.1f}$,$<\eta>={i_eta:.1f}$"
-                )
-    plt.legend()
+    if average_im:
+        for i_part in sorted(list(particles)):
+            i_eta = round(np.mean(df["eta_" + i_part]), 2)
+            i_phi = round(np.mean(df["phi_" + i_part]), 2)
+            i_pt = round(np.mean(df["pt_" + i_part]), 2)
+            i_color = get_im_color(i_part)
+            print("drawing", i_part, "with eta phi pt", i_eta, i_phi, i_pt, "and color", i_color)
+            plt.plot([0, i_pt*math.sinh(i_eta)], [0, i_pt*math.sin(i_phi)], 
+                    color = i_color, label=f"{i_part} $<p_T>={i_pt:.1f}$,$<\eta>={i_eta:.1f}$")
+        plt.legend(loc="upper left")
+    else:
+        for _, row in df.iterrows():
+            for i_part in sorted(list(particles)):
+                i_eta = round(row["eta_" + i_part], 2)
+                i_phi = round(row["phi_" + i_part], 2)
+                i_pt = round(row["pt_" + i_part], 2)
+                i_color = get_im_color(i_part, for_distribution=True)
+                plt.plot([0, i_pt*math.sinh(i_eta)], [0, i_pt*math.sin(i_phi)], color = i_color, alpha=0.4)
     plt.xlabel('beam Z')
     plt.ylabel('Y')
-    plt.title( f"{latex_ana_str(prod_dec)} SR av.img for {op}")
+    if average_im: my_title = f"{latex_ana_str(prod_dec)} SR av.img for {op}"
+    else: my_title = f"{latex_ana_str(prod_dec)} SR distr.img for {op}" 
+    plt.title(my_title)
     # take super long to save pdf switch to png
-    plt.savefig(files_dir + "average_image.png", bbox_inches='tight') 
+    save_path_no_ext = files_dir+"average_image" if average_im else files_dir+"distribution_image"  
+    plt.savefig(save_path_no_ext+".png", bbox_inches='tight') 
+    plt.savefig(save_path_no_ext+".svg", bbox_inches='tight') 
     return
 
 def get_cutflow_arrays(cutflow_file):

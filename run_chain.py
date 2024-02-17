@@ -94,18 +94,18 @@ def save_job_infos(DOCUT_str, mydir, xsec_fb, prod_dec):
     root_file.Close()
 
     ############## draw event and cutflow
-    print("drawing average image")
-    lu.draw_average_event(mydir)
-    #
-    print("saving cutflow as img")
-    cutflow_file = mydir + "cutflow.txt"
-    if os.path.exists(cutflow_file):
-        cut_names, cut_cumu, cut_incr = lu.get_cutflow_arrays(cutflow_file)
-        lu.draw_cutflows(cut_names, [cut_incr,cut_cumu], ["incremental","cumulative"],
-                        mydir+"/cutflow_img.png", prod_dec)
-        
-# def save_hists_log_get_xsec_after_cuts(job_name):
-    
+    if opts.runWithCuts=="yes":
+        print("drawing average and distubtioni image of event")
+        lu.draw_average_event(mydir, average_im=True)
+        lu.draw_average_event(mydir, average_im=False)
+        #
+        print("saving cutflow as img")
+        cutflow_file = mydir + "cutflow.txt"
+        if os.path.exists(cutflow_file):
+            cut_names, cut_cumu, cut_incr = lu.get_cutflow_arrays(cutflow_file)
+            lu.draw_cutflows(cut_names, [cut_incr,cut_cumu], ["incremental","cumulative"],
+                            mydir+"/cutflow_img.png", prod_dec)
+            
 def main():
     parser = OptionParser()
     parser.add_option("--runWithCuts", default = "yes")
