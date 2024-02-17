@@ -1,10 +1,11 @@
 import ROOT
 ROOT.gStyle.SetOptStat(0)
 ROOT.gROOT.SetBatch(ROOT.kTRUE)
-# ROOT.gROOT.gErrorIgnoreLevel(ROOT.kWarning)
 import os
 import lib_utils as lu
 import matplotlib.pyplot as plt
+from statistics import mean
+plt.rcParams.update({'text.usetex': True})
 import math
 import numpy as np
 import subprocess
@@ -17,20 +18,17 @@ parser.add_option("--tDec", default = "lvlv")
 parser.add_option("--runSMAndFULL", default = "no")
 parser.add_option("--runQUADAndCROSS", default = "no")
 parser.add_option("--numJobsParallel", default = 15)
-parser.add_option("--runNoCuts", default = "no")
 parser.add_option("--runWithCuts", default = "yes")
 parser.add_option("--runAgain", default = "no")
 parser.add_option("--sumPlotsOnly", default = "yes")
 parser.add_option("--SMOnSumPlots", default = "no")
 opts, _ = parser.parse_args()
-assert [opts.runNoCuts, opts.runWithCuts]!=["yes","yes"], "once at the time"
 
 prod_dec = f"{opts.tProd}_{opts.tDec}"
 _, top_files_dir = lu.find_prod_dec_and_dir(f"user.okurdysh.MadGraph_{prod_dec}_FM0_SM")
 docut_dir = "DOCUT_YES" if opts.runWithCuts=="yes" else "DOCUT_NO"
 plots_to_save = lu.get_hists_to_draw(prod_dec)
 plot_dir = lu.get_plotdir(prod_dec, docut_dir)
-start_numev = 10000
 big_pairs_cutoff = 1.05
 big_eff_envelope_cutoff = 0.015
 
@@ -44,7 +42,7 @@ blocks_of_op_pairs = [op_pairs[x:x + splitedSize] for x in range(0, len(op_pairs
 # get xsec*frac and save hists to root
 ##############
 def get_com(jobname):
-    return f'python run_chain.py --jobName "{jobname}" --runAgain "{opts.runAgain}" --runNoCuts "{opts.runNoCuts}" --runWithCuts "{opts.runWithCuts}"'
+    return f'python run_chain.py --jobName "{jobname}" --runAgain "{opts.runAgain}" --runWithCuts "{opts.runWithCuts}"'
 
 def call_bloc_proc(op_blocks, eft_config):
     for i_num_block,i_ops_block in enumerate(op_blocks,start=1): # loops over blocks of 5
@@ -87,7 +85,7 @@ for i_eft in plots_dict.keys():
         plots_dict[i_eft][i_plot] = {}
 xsec_dict = {'SM':{}, 'FULL':{}, 'QUAD':{}, 'CROSS':{}, 'INT':{}}
 frac_dict = {'SM':{}, 'FULL':{}, 'QUAD':{}, 'CROSS':{}, 'INT':{}}
-sumw_initial_dict = {'SM':{}, 'FULL':{}, 'QUAD':{}, 'CROSS':{}, 'INT':{}}
+frac_er_dict = {'SM':{}, 'FULL':{}, 'QUAD':{}, 'CROSS':{}, 'INT':{}}
 for op_dir in [i_obj for i_obj in os.listdir(top_files_dir) if os.path.isdir(top_files_dir + "/" + i_obj)]:
     full_op_dir = os.path.join(top_files_dir,op_dir,docut_dir,"")
     print("#### plotting new conf", op_dir, "full path", full_op_dir)
@@ -96,21 +94,20 @@ for op_dir in [i_obj for i_obj in os.listdir(top_files_dir) if os.path.isdir(top
     print("this is for ops", ops_arr, "in regime", regime)
     product_file = full_op_dir + "xsec_times_frac_fb.txt"
     frac_file = full_op_dir + "frac_after_cuts.txt"
+    frac_er_file = full_op_dir + "frac_after_cuts_error_bar.txt"
     hists_file = full_op_dir + "hists.root"
 
     if not os.path.exists(product_file) or not os.path.exists(frac_file) or not os.path.exists(hists_file) or not os.path.exists(log_file):
         print("didnt find the txt xsec fid and/or root file or frac file or log file for", op_dir)
         continue 
 
-    sumw_in = lu.get_sumw_initial(log_file)
-    print("reading back sumw_initial", sumw_in)
     # xsec organization
-    with open(product_file, 'r') as f:
-        fid_xsec_fb = float(f.read())
+    with open(product_file, 'r') as f: fid_xsec_fb = float(f.read())
     print("reading back fid_xsec in fb", fid_xsec_fb)
-    with open(frac_file, 'r') as f:
-        frac = float(f.read())    
+    with open(frac_file, 'r') as f: frac = float(f.read())    
     print("reading back efficiency", frac)
+    with open(frac_er_file, 'r') as f: frac_er = float(f.read())    
+    print("reading back efficiency error", frac)
     if regime=="CROSS":
         my_op1, my_op2  = ops_arr[0], ops_arr[1]
         if my_op1 not in xsec_dict[regime].keys(): xsec_dict[regime][my_op1] = {}
@@ -119,13 +116,13 @@ for op_dir in [i_obj for i_obj in os.listdir(top_files_dir) if os.path.isdir(top
         if my_op1 not in frac_dict[regime].keys(): frac_dict[regime][my_op1] = {}
         frac_dict[regime][my_op1][my_op2] = frac
         #
-        if my_op1 not in sumw_initial_dict[regime].keys(): sumw_initial_dict[regime][my_op1] = {}
-        sumw_initial_dict[regime][my_op1][my_op2] = sumw_in
+        if my_op1 not in frac_er_dict[regime].keys(): frac_er_dict[regime][my_op1] = {}
+        frac_er_dict[regime][my_op1][my_op2] = frac_er
     else:
         my_op = ops_arr[0]
         xsec_dict[regime][my_op] = fid_xsec_fb
         frac_dict[regime][my_op] = frac
-        sumw_initial_dict[regime][my_op] = sumw_in
+        frac_er_dict[regime][my_op] = frac_er
     # hists organization
     op_hists = lu.read_hists(hists_file, plots_to_save)
     for i_hist_name in plots_to_save:
@@ -181,27 +178,23 @@ if opts.runQUADAndCROSS=="yes":
     QUAD_h = ROOT.TH2F("QUAD_h","QUAD_h", nbins,0,nbins,1,0,1)
     for num_bin,i_op in enumerate(all_ops, start=1):
         QUAD_h.GetXaxis().SetBinLabel(num_bin,i_op)
-        if i_op in xsec_dict["QUAD"].keys(): QUAD_h.SetBinContent(num_bin, 1, xsec_dict["QUAD"][i_op])
+        if i_op in xsec_dict["QUAD"].keys(): QUAD_h.SetBinContent(num_bin, 1, round(xsec_dict["QUAD"][i_op],2))
     lu.save_plot(QUAD_h,plot_dir + "QUAD.pdf")
 
     CROSS_h = ROOT.TH2F("CROSS_h","CROSS_h", nbins,0,nbins,nbins,0,nbins)
     CROSS_geom_QUAD_h = ROOT.TH2F("CROSS_geom_QUAD_h","CROSS_geom_QUAD_h", nbins,0,nbins,nbins,0,nbins)
     CROSS_el_area_ratio_h = ROOT.TH2F("CROSS_el_area_ratio_h","CROSS_el_area_ratio_h", nbins,0,nbins,nbins,0,nbins)
     pairs_str_avalaible = []
+    area_ratios = []
     fracs_quad1 = []
     fracs_quad2 = []
     fracs_cross = []
+    fracs_ave = []
+    fracs_envelope = []
     fracs_errors_quad1 = []
     fracs_errors_quad2 = []
     fracs_errors_cross = []
-    #
-    pairs_str_big_c = []
-    fracs_quad1_big_c = []
-    fracs_quad2_big_c = []
-    fracs_cross_big_c = []
-    fracs_errors_quad1_big_c = []
-    fracs_errors_quad2_big_c = []
-    fracs_errors_cross_big_c = []
+    fracs_errors_ave = []
     for i_op1 in all_ops:
         if i_op1 not in xsec_dict["CROSS"].keys(): continue 
 
@@ -223,7 +216,6 @@ if opts.runQUADAndCROSS=="yes":
             quad1 = xsec_dict["QUAD"][i_op1]
             quad2 = xsec_dict["QUAD"][i_op2]
             geom_average = cross / math.sqrt(quad1*quad2) if quad1*quad2>0 else -1
-            # print("for i_op1 i_op2", i_op1, i_op2, "using quads", quad1, quad2, "and cross",xsec_fid ,"with geom ave", geom_average)
             CROSS_geom_QUAD_h.SetBinContent(bin_x, bin_y, geom_average)
             ##### ellipses
             lumi = 140 # lumi of run2 in 1/fb, expect xsec to be in fb
@@ -243,29 +235,29 @@ if opts.runQUADAndCROSS=="yes":
             ##### fractions
             pair_str = lu.get_pair_str(i_op1,i_op2)
             pairs_str_avalaible.append(pair_str)
+            area_ratios.append(area_ratio)
             i_frac_quad1 = frac_dict["QUAD"][i_op1]
             i_frac_quad2 = frac_dict["QUAD"][i_op2]
             i_frac_cross = frac_dict["CROSS"][i_op1][i_op2]
-            print("for pair", pair_str, "founds fracs q1 q2 cross", i_frac_quad1, i_frac_quad2, i_frac_cross)
             fracs_quad1.append(i_frac_quad1)
             fracs_quad2.append(i_frac_quad2)
             fracs_cross.append(i_frac_cross)
-            i_frac_quad1_unc = math.sqrt(i_frac_quad1*(1-i_frac_quad1)/start_numev) if 1>i_frac_quad1>0 else 0 
-            i_frac_quad2_unc = math.sqrt(i_frac_quad2*(1-i_frac_quad2)/start_numev) if 1>i_frac_quad2>0 else 0
-            i_frac_cross_unc = math.sqrt(i_frac_cross*(1-i_frac_cross)/start_numev) if 1>i_frac_cross>0 else 0 
+            mean_quads = mean([i_frac_quad1, i_frac_quad2])
+            geo_ave = i_frac_cross/mean_quads if mean_quads>0 else 0.0 
+            fracs_ave.append(geo_ave)
+            fracs_envelope.append(max([abs(i_frac_quad1-i_frac_quad2), 
+                                        abs(i_frac_quad1-i_frac_cross), 
+                                        abs(i_frac_quad2-i_frac_cross)]))
+            print("for pair", pair_str, "founds fracs q1 q2 cross", i_frac_quad1, i_frac_quad2, i_frac_cross)
+            print(f"and mean of q1 q2 {mean_quads} then c/ave is {geo_ave}")
+            i_frac_quad1_unc = frac_er_dict["QUAD"][i_op1] 
+            i_frac_quad2_unc = frac_er_dict["QUAD"][i_op2]
+            i_frac_cross_unc = frac_er_dict["CROSS"][i_op1][i_op2] 
             fracs_errors_quad1.append(i_frac_quad1_unc)
             fracs_errors_quad2.append(i_frac_quad2_unc)
             fracs_errors_cross.append(i_frac_cross_unc)
-            # fractions but for big pairs
-            if area_ratio>big_pairs_cutoff:
-                pairs_str_big_c.append(pair_str)
-                fracs_quad1_big_c.append(i_frac_quad1)
-                fracs_quad2_big_c.append(i_frac_quad2)
-                fracs_cross_big_c.append(i_frac_cross)
-                fracs_errors_quad1_big_c.append(i_frac_quad1_unc)
-                fracs_errors_quad2_big_c.append(i_frac_quad2_unc)
-                fracs_errors_cross_big_c.append(i_frac_cross_unc)
-            
+            fracs_errors_ave.append(math.sqrt(i_frac_quad1_unc**2 + i_frac_quad2_unc**2 + i_frac_cross_unc**2))
+            print("for pair", pair_str, "founds fracs errors q1 q2 cross", i_frac_quad1_unc, i_frac_quad2_unc, i_frac_cross_unc)
     # tables
     lu.save_plot(CROSS_h, plot_dir + "CROSS.pdf")
     lu.save_plot(CROSS_geom_QUAD_h, plot_dir + "CROSS_geom_QUAD.pdf")
@@ -277,37 +269,62 @@ if opts.runQUADAndCROSS=="yes":
     # fractions 
     for i_pair, i_frac_quad1, i_frac_quad2, i_frac_cross in zip(pairs_str_avalaible,fracs_quad1,fracs_quad2,fracs_cross):
         print(f"for pair {i_pair} q1 q2 c fractions are {i_frac_quad1}, {i_frac_quad2}, {i_frac_cross}")
-    plt.clf()
-    ops_num = range(len(pairs_str_avalaible))
-    fig = plt.figure(figsize=(16,6))
-    plt.errorbar(ops_num, fracs_quad1, yerr=fracs_errors_quad1, fmt='o', mfc="blue", mec="blue", ecolor="blue", label="QUAD1")
-    plt.errorbar(ops_num, fracs_quad2, yerr=fracs_errors_quad2, fmt='o', mfc="green", mec="green", ecolor="green", label="QUAD2")
-    plt.errorbar(ops_num, fracs_cross, yerr=fracs_errors_cross, fmt='o', mfc="black", mec="black", ecolor="black", label="CROSS")
-    plt.xticks(ops_num, pairs_str_avalaible, fontsize = 7)
-    plt.xticks(rotation=90)
-    plt.ylabel('fraction of weights')
-    plt.xlabel('operator pair')
-    for xc in ops_num: plt.axvline(x=xc, color='0.3', linestyle='--', linewidth=0.3)
-    plt.legend()
-    plt.savefig(plot_dir + "/frac_w_after_cuts.pdf", bbox_inches='tight')
-    plt.savefig(plot_dir + "/frac_w_after_cuts.svg", bbox_inches='tight')
-    # fractions for big pairs
-    plt.clf()
-    ops_num_big_c = range(len(pairs_str_big_c))
-    fig = plt.figure(figsize=(16,6))
-    plt.errorbar(ops_num_big_c, fracs_quad1_big_c, yerr=fracs_errors_quad1_big_c, fmt='o', mfc="blue", mec="blue", ecolor="blue", label="QUAD1")
-    plt.errorbar(ops_num_big_c, fracs_quad2_big_c, yerr=fracs_errors_quad2_big_c, fmt='o', mfc="green", mec="green", ecolor="green", label="QUAD2")
-    plt.errorbar(ops_num_big_c, fracs_cross_big_c, yerr=fracs_errors_cross_big_c, fmt='o', mfc="black", mec="black", ecolor="black", label="CROSS")
-    plt.xticks(ops_num_big_c, pairs_str_big_c, fontsize = 7)
-    plt.xticks(rotation=90)
-    plt.ylabel('fraction of weights')
-    plt.xlabel('operator pair')
-    for xc in ops_num_big_c: plt.axvline(x=xc, color='0.3', linestyle='--', linewidth=0.3)
-    plt.legend()
-    plt.savefig(plot_dir + f"/frac_w_after_cuts_ratio_above_{big_pairs_cutoff}.pdf", bbox_inches='tight')
-    plt.savefig(plot_dir + f"/frac_w_after_cuts_ratio_above_{big_pairs_cutoff}.svg", bbox_inches='tight')
     
-
+    def draw_efficiency(area_ratio_min):
+        new_pairs_str = []
+        new_fracs_quad1, new_fracs_errors_quad1 = [], []
+        new_fracs_quad2, new_fracs_errors_quad2 = [], []
+        new_fracs_cross, new_fracs_errors_cross = [], []
+        new_fracs_ave, new_fracs_errors_ave = [], []
+        new_fracs_envelope = []
+        for i,i_ratio in enumerate(area_ratios):
+            if i_ratio < area_ratio_min: continue
+            new_pairs_str.append(pairs_str_avalaible[i])
+            new_fracs_quad1.append(fracs_quad1[i])
+            new_fracs_errors_quad1.append(fracs_errors_quad1[i])
+            new_fracs_quad2.append(fracs_quad2[i])
+            new_fracs_errors_quad2.append(fracs_errors_quad2[i])
+            new_fracs_cross.append(fracs_cross[i])
+            new_fracs_errors_cross.append(fracs_errors_cross[i])
+            new_fracs_ave.append(fracs_ave[i])
+            new_fracs_errors_ave.append(fracs_errors_ave[i])
+            new_fracs_envelope.append(fracs_envelope[i])
+        new_ops_num = range(len(new_pairs_str))
+        #
+        plt.clf()        
+        fig, (ax1, ax2) = plt.subplots(2, figsize=(16,9), gridspec_kw={'height_ratios': [2, 1]})
+        ax1.errorbar(new_ops_num, new_fracs_quad1, yerr=new_fracs_errors_quad1, fmt='o', mfc="blue", mec="blue", ecolor="blue", label="QUAD1", alpha=0.7)
+        ax1.errorbar(new_ops_num, new_fracs_quad2, yerr=new_fracs_errors_quad2, fmt='o', mfc="green", mec="green", ecolor="green", label="QUAD2", alpha=0.7)
+        ax1.errorbar(new_ops_num, new_fracs_cross, yerr=new_fracs_errors_cross, fmt='o', mfc="black", mec="black", ecolor="black", label="CROSS", alpha=0.7)
+        ax1.set_ylabel('fraction of weights')
+        ax1.set_title(r"$A_{cross}/A_{nocross}>$"+str(area_ratio_min))
+        ax1.legend()
+        ax1.set_xticks(new_ops_num, minor=False)
+        ax1.set_xticklabels(new_pairs_str, fontdict=None, minor=False,fontsize = 9)
+        ax1.tick_params(axis='x', labelrotation=90)
+        #
+        color_ave = 'teal'
+        ax2.set_ylabel(r"$C /<Q1,Q2>$", color=color_ave)
+        ax2.errorbar(new_ops_num, new_fracs_ave, yerr=new_fracs_errors_ave, mfc=color_ave, mec=color_ave, ecolor=color_ave, fmt='o')
+        ax2.tick_params(axis='y', labelcolor=color_ave)
+        ax2.set_xticks(new_ops_num, minor=False)
+        plt.setp(ax2.get_xticklabels(), visible=False)
+        ax2.set_xlabel('operator pair')
+        #
+        ax3 = ax2.twinx()
+        color_env = 'purple'
+        ax3.set_ylabel('envelope', color=color_env)
+        ax3.scatter(new_ops_num, new_fracs_envelope, color=color_env)
+        ax3.tick_params(axis='y', labelcolor=color_env)
+        #
+        for i_ax in [ax1,ax2]:
+            for xc in new_ops_num: i_ax.axvline(x=xc, color='0.3', linestyle='--', linewidth=0.3)
+        fig.tight_layout()
+        fig.savefig(plot_dir + f"/frac_w_after_cuts_above_{area_ratio_min}.pdf")
+        fig.savefig(plot_dir + f"/frac_w_after_cuts_above_{area_ratio_min}.svg")
+    
+    draw_efficiency(0.99)
+    draw_efficiency(1.05)
     ##########
     # make plots
     ###########
