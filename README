@@ -8,14 +8,14 @@ also can add path to config .plot with plots labels thouth --plotConfRivet
 python run_chain.py --jobName "user.okurdysh.MadGraph_WmWm_lvlv_FM0_SM_try4" --runAgain "yes"
 
 python run_chain.py --jobName "user.okurdysh.MadGraph_Zy_lly_FT1vsFT2_CROSS" --runAgain "yes" --evtMax 200
-python run_chain.py --jobName "user.okurdysh.MadGraph_Zy_lly_FT1vsFT2_CROSS" --runNoCuts "yes" --runWithCuts "no" --runAgain "yes" --evtMax 200
+python run_chain.py --jobName "user.okurdysh.MadGraph_Zy_lly_FT1vsFT2_CROSS"  --runWithCuts "no" --runAgain "yes" --evtMax 200
 
 
 
-python run_chain_summary.py --runQUADAndCROSS "yes" --runNoCuts "yes" --runWithCuts "no" --sumPlotsOnly "no"
+python run_chain_summary.py --runQUADAndCROSS "yes"  --runWithCuts "no" --sumPlotsOnly "no"
 
 for plots 
-python run_chain_summary.py --runQUADAndCROSS "yes" --runNoCuts "no" --runWithCuts "yes" --sumPlotsOnly "yes"
+python run_chain_summary.py --runQUADAndCROSS "yes" --runWithCuts "yes" --sumPlotsOnly "yes"
 
 python run_chain_summary.py --tProd "WmWm" --runQUADAndCROSS "yes"  --sumPlotsOnly "yes" --SMOnSumPlots "yes"
 python run_chain_summary.py --tProd "WpWm" --runQUADAndCROSS "yes"  --sumPlotsOnly "yes"
