@@ -46,12 +46,12 @@ namespace Rivet {
       
       _jcuts = json::parse(json_file);
       std::cout << "++++++ to check 1 var got photon pt min" << _jcuts["photon_pt"] << "\n";
-      _electron_eta_cut = (Cuts::absetaIn(_jcuts["e_eta"][0][0], _jcuts["e_eta"][0][1])) || 
-                                (Cuts::absetaIn(_jcuts["e_eta"][1][0], _jcuts["e_eta"][1][1]));
-      _photon_eta_cut = (Cuts::absetaIn(_jcuts["photon_eta"][0][0], _jcuts["photon_eta"][0][1])) || 
-                                (Cuts::absetaIn(_jcuts["photon_eta"][1][0], _jcuts["photon_eta"][1][1]));
-      _muon_eta_cut = Cuts::absetaIn(0.0, _jcuts["muon_eta"]);
-      _lepton2_pt_cut = Cuts::pT > dbl(_jcuts["lepton2_pt"])*GeV;      
+      _electron_eta_cut = (Cuts::absetaIn(_jcuts["eta_lepton_electron"][0][0], _jcuts["eta_lepton_electron"][0][1])) || 
+                                (Cuts::absetaIn(_jcuts["eta_lepton_electron"][1][0], _jcuts["eta_lepton_electron"][1][1]));
+      _photon_eta_cut = (Cuts::absetaIn(_jcuts["eta_photon"][0][0], _jcuts["eta_photon"][0][1])) || 
+                                (Cuts::absetaIn(_jcuts["eta_photon"][1][0], _jcuts["eta_photon"][1][1]));
+      _muon_eta_cut = Cuts::absetaIn(0.0, _jcuts["eta_lepton_muon"]);
+      _lepton2_pt_cut = Cuts::pT > dbl(_jcuts["pt_lepton2"])*GeV;      
 
       // The basic final-state projection:
       // all final-state particles within
@@ -76,7 +76,7 @@ namespace Rivet {
       // The final-state particles declared above are clustered using FastJet with
       // the anti-kT algorithm and a jet-radius parameter 0.4
       // muons and neutrinos are excluded from the clustering, also veto electrons(+muons but this is redundant) there
-      VetoedFinalState hadrons(FinalState(Cuts::absetaIn(0.0, _jcuts["jet_eta"])));
+      VetoedFinalState hadrons(FinalState(Cuts::absetaIn(0.0, _jcuts["eta_tagjets"])));
       hadrons.addVetoOnThisFinalState(dressed_e);
       hadrons.addVetoOnThisFinalState(dressed_mu);
       declare(hadrons, "hadrons");
@@ -132,7 +132,7 @@ namespace Rivet {
       
       // Cut-flows
       _cutflows.addCutflow("Zy_lly_selections", {"n_lep_ok_pt2_eta", "lep_pid_charge", "lep_pt1", "m_ll", "have_iso_photons_ok_pt_eta",
-                                  "m_ll_plus_m_lly", "n_jets", "jet_pt","m_tagjets","dy_tagjets","centrality_lly",
+                                  "m_ll_plus_m_lly", "n_jets", "pt_tagjet1_2","m_tagjets","dy_tagjets","centrality_lly",
                                   "n_gap_jets"});
       
       // setup for  file used for drawing images
@@ -173,14 +173,14 @@ namespace Rivet {
       Particles leptons_stable = e_stable + mu_stable; 
 
       int nlep_stable = leptons_stable.size();
-      if (nlep_stable!=_jcuts["n_lep"])  vetoEvent; // meaning both are e,mu and not tau
+      if (nlep_stable!=_jcuts["n_lepton_stable"])  vetoEvent; // meaning both are e,mu and not tau
       _cutflows.fillnext();
 
       const Particle& lep1 = leptons_stable[0];
       const Particle& lep2 = leptons_stable[1];
       if (lep1.pid()+lep2.pid()!=0) vetoEvent; // want opposite charge leptons of same fravour
       _cutflows.fillnext();
-      if (_docut==1 && (lep1.pT() < dbl(_jcuts["lepton1_pt"])*GeV)) vetoEvent;
+      if (_docut==1 && (lep1.pT() < dbl(_jcuts["pt_lepton1"])*GeV)) vetoEvent;
       _cutflows.fillnext();
       const FourMomentum fourvec_ll = lep1.mom() + lep2.mom(); 
       const double m_ll = fourvec_ll.mass()/GeV;
@@ -203,14 +203,14 @@ namespace Rivet {
           }
         }
         double i_cone_to_photon_frac = i_high_pt_photon_cone_E / i_high_pt_photon.pT(); 
-        if (i_cone_to_photon_frac > _jcuts["cone_to_photon_frac"])  continue;
+        if (i_cone_to_photon_frac > _jcuts["cone_frac_photon"])  continue;
         if (any(leptons_stable, deltaRLess(i_high_pt_photon, 0.4))) continue;
         isolated_photons += i_high_pt_photon;
         cone_to_photon_fracs.push_back(i_cone_to_photon_frac);
       }
       if (isolated_photons.empty())  vetoEvent;
       const Particle& lead_iso_photon = isolated_photons[0];
-      if (_docut==1 && lead_iso_photon.pT() < dbl(_jcuts["photon_pt"])*GeV) vetoEvent;
+      if (_docut==1 && lead_iso_photon.pT() < dbl(_jcuts["pt_photon"])*GeV) vetoEvent;
       _cutflows.fillnext();
       
       const FourMomentum fourvec_lly = lep1.mom() + lep2.mom() + lead_iso_photon.mom();
@@ -230,7 +230,7 @@ namespace Rivet {
 
       const FourMomentum tag1_jet = jets[0].mom();
       const FourMomentum tag2_jet = jets[1].mom();
-      if (_docut==1 && (tag1_jet.pT()<dbl(_jcuts["jet_pt"])*GeV || tag2_jet.pT()<dbl(_jcuts["jet_pt"])*GeV)) vetoEvent; 
+      if (_docut==1 && (tag1_jet.pT()<dbl(_jcuts["pt_tagjet1"])*GeV || tag2_jet.pT()<dbl(_jcuts["pt_tagjet1"])*GeV)) vetoEvent; 
       _cutflows.fillnext();
 
       const double m_tagjets = (tag1_jet + tag2_jet).mass()/GeV;
@@ -335,7 +335,7 @@ namespace Rivet {
 
       // normalize all to 1 since in case of mostly negative weights not clear what it will do
       for (auto & i_name : _hist_names){ 
-        std::cout << "normalizeing hist" << i_name <<"to 1" ;
+        std::cout << "normalizeing hist " << i_name <<" to 1; " ;
         normalize(_h[i_name], 1.0);
       }
     }
