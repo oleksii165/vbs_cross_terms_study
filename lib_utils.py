@@ -123,15 +123,15 @@ def get_plotdir(prod_dec, DOCUT_str):
     if not os.path.exists(my_dir): os.makedirs(my_dir)
     return my_dir
 
-# @TODO uniformize where i'm using _ or vs
+# @TODO is this func needed?
 def get_big_pairs():
-    return ["FM0_FM1", "FM0_FM7", "FM1_FM7", "FM2_FM3",  "FM4_FM5", 
-            "FS0_FS1", "FS0_FS2", "FS1_FS2",
-            "FT0_FT1","FT0_FT2", "FT1_FT2","FT5_FT6","FT5_FT7","FT6_FT7"]
+    return ["FM0vsFM1", "FM0vsFM7", "FM1vsFM7", "FM2vsFM3",  "FM4vsFM5", 
+            "FS0vsFS1", "FS0vsFS2", "FS1vsFS2",
+            "FT0vsFT1","FT0vsFT2", "FT1vsFT2","FT5vsFT6","FT5vsFT7","FT6vsFT7"]
 
 def get_pair_str(op1,op2):
     mypair = sorted([op1,op2])
-    return f"{mypair[0]}_{mypair[1]}"
+    return f"{mypair[0]}vs{mypair[1]}"
 
 def get_bookletdir(start_path, normalized="", big_pairs = False, big_diff_eff=False):
     my_dir = start_path + "/booklets/"
