@@ -409,10 +409,9 @@ if opts.runQUADAndCROSS=="yes":
         for i_batch, i_pair_stack_batch in enumerate(i_pair_stack_batches, start=1): 
             c=ROOT.TCanvas()
             c.Divide(5,2)
-            text = ROOT.TText(0.005, 0.005, {i_pair}_part{i_batch})
+            text = ROOT.TText(0.005, 0.005, f"{i_pair}_part{i_batch}")
             text.Draw()
             for num_canvas, i_stack in enumerate(i_pair_stack_batch,start=1):
-                # display_params = lu.get_root_hist_param(i_stack.GetName().split("/")[0])
                 display_params = plots_to_save_info_dict[i_stack.GetName().split("/")[0]]
                 c.cd(num_canvas)
                 i_stack.Draw("nostack")
@@ -424,4 +423,28 @@ if opts.runQUADAndCROSS=="yes":
             c.Show()
             c.SaveAs(f"{bookletdir}/{i_pair}_part{i_batch}.pdf")
             c.SaveAs(f"{bookletdir}/svg/{i_pair}_part{i_batch}.svg")
+
+
+    # compare for each distribution quads shape   
+    quaddir = plot_dir + "/quad_kin/"
+    if not os.path.exists(quaddir): os.makedirs(quaddir)
+    if not os.path.exists(quaddir+"/svg/"): os.makedirs(quaddir+"/svg/")
+    for i_plot_name in plots_to_save:
+        display_params = plots_to_save_info_dict[i_plot_name]
+        i_plot_ops_arr =[]
+        for col, (quad_plot_op, quad_plot_in) in enumerate(plots_dict["QUAD"][i_plot_name].items(),start=1):
+            quad_plot = lu.dress_hist(quad_plot_in, f"QUAD_{quad_plot_op}", col)
+            if display_params[0]!=-1: quad_plot.RebinX(display_params[0])
+            i_plot_ops_arr.append(quad_plot)
+            i_stack = lu.make_stack(i_plot_ops_arr, title=i_plot_name)
+            c=ROOT.TCanvas()
+            i_stack.Draw("nostack")
+            if display_params[1]!=-1: i_stack.GetXaxis().SetRangeUser(display_params[1], display_params[2])
+            ROOT.gPad.BuildLegend()
+            if i_stack.GetTitle()[:2]!="n_": ROOT.gPad.SetLogy() # for plots like n_jets don't need log scale        
+            c.Modified()
+            c.Update()
+            c.Show()
+            c.SaveAs(f"{quaddir}/{i_plot_name}_many_quads.pdf") 
+            c.SaveAs(f"{quaddir}/svg/{i_plot_name}_many_quads.svg")
 

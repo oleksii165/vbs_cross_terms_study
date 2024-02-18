@@ -161,28 +161,11 @@ def get_hists_bounds_cuts(prod_dec):
         total_h.update(lepton_h)
         total_h.update(photon_h)
 
-    # not using cuts in the end
-    with open(f"{prod_dec}_cuts.json") as fo: cuts_in = json.load(fo)
-    for hist_name in total_h.keys():
-        for cut_in_name in cuts_in.keys():
-            if  hist_name not in cut_in_name: continue
-            #
-            max_cut  = max(np.array([cuts_in[cut_in_name]]).flatten().tolist())
-            if hist_name==cut_in_name: 
-                total_h[hist_name].append(max_cut)
-            elif hist_name+"1"==cut_in_name or hist_name+"2"==cut_in_name or hist_name+"_" in cut_in_name:
-                # if want to plot pt_lepton by separate cuts pt_lepton1 and pt_lepton2
-                # in case coinc or plot eta_lepton but cut is eta_lepton_electron
-                if len(total_h[hist_name])==3:
-                    total_h[hist_name].append(max_cut)
-                else:
-                    total_h[hist_name][3]=max_cut # to overwite cut in case it is there already
-
-    # only keep the hists where have cut and add what is direction of cut
+    # this loop is unncessecary
     return_dict = {} # key is hist name, value[nbin,min,max,cut,cutdir="+,-"]
     for i_hist, i_h_arr in total_h.items():
-        if len(i_h_arr)!=4: 
-            print("----were not able to find cut for",i_hist,"will not be there in kin plots")
+        if len(i_h_arr)!=3: 
+            print("----were not able to  for",i_hist,"will not be there in kin plots")
             continue
         return_dict[i_hist]=i_h_arr
     # replace original bin params with what want to have [rebin_x, x_low, x_up]
@@ -190,8 +173,10 @@ def get_hists_bounds_cuts(prod_dec):
     params["pt_tagjet1"]  = [10, 0, 2500]
     params["pt_tagjet2"] = [10, 0, 1000]
     params["eta_tagjets"] = [3, -1, -1]
+    params["phi_tagjets"] = [5, 0, 6]
     params["m_tagjets"] = [10, -1, -1]
     params["dy_tagjets"]= [5, 0, 9]
+    params["dphi_tagjets"]= [-1, 0, 3.5]
     params["pt_lepton"]  = [10, 0, 2500]
     params["eta_lepton"] = [3, -3, 3]
     params["pt_photon"] = [10, 0, 4000]
