@@ -8,7 +8,6 @@ from statistics import mean
 plt.rcParams.update({'text.usetex': True})
 import math
 import numpy as np
-import pandas as pd
 import subprocess
 from pandaclient import panda_api
 c = panda_api.get_api()
@@ -23,18 +22,15 @@ parser.add_option("--runWithCuts", default = "yes")
 parser.add_option("--runAgain", default = "no")
 parser.add_option("--sumPlotsOnly", default = "yes")
 parser.add_option("--SMOnSumPlots", default = "no")
-parser.add_option("--drawCutflow", default = "no")
 opts, _ = parser.parse_args()
 
 prod_dec = f"{opts.tProd}_{opts.tDec}"
 _, top_files_dir = lu.find_prod_dec_and_dir(f"user.okurdysh.MadGraph_{prod_dec}_FM0_SM")
 docut_dir = "DOCUT_YES" if opts.runWithCuts=="yes" else "DOCUT_NO"
-
+plots_to_save = lu.get_hists_to_draw(prod_dec)
 plot_dir = lu.get_plotdir(prod_dec, docut_dir)
 big_pairs_cutoff = 1.05
-
-plots_to_save_info_dict = lu.get_hists_bounds_cuts(prod_dec) 
-plots_to_save = plots_to_save_info_dict.keys()
+big_eff_envelope_cutoff = 0.015
 
 tasks = c.get_tasks(limit=1000, days=30, username="Oleksii Kurdysh", status="done") # get already last try since only retry if it failed
 task_names = [i_task['taskname'].replace("/","") for i_task in tasks if "MadGraph" in i_task['taskname'] and opts.tProd in i_task['taskname'] and opts.tDec in i_task['taskname']]
@@ -90,7 +86,6 @@ for i_eft in plots_dict.keys():
 xsec_dict = {'SM':{}, 'FULL':{}, 'QUAD':{}, 'CROSS':{}, 'INT':{}}
 frac_dict = {'SM':{}, 'FULL':{}, 'QUAD':{}, 'CROSS':{}, 'INT':{}}
 frac_er_dict = {'SM':{}, 'FULL':{}, 'QUAD':{}, 'CROSS':{}, 'INT':{}}
-cutflow_file_dict = {'SM':{}, 'FULL':{}, 'QUAD':{}, 'CROSS':{}, 'INT':{}}
 for op_dir in [i_obj for i_obj in os.listdir(top_files_dir) if os.path.isdir(top_files_dir + "/" + i_obj)]:
     full_op_dir = os.path.join(top_files_dir,op_dir,docut_dir,"")
     print("#### plotting new conf", op_dir, "full path", full_op_dir)
@@ -101,7 +96,6 @@ for op_dir in [i_obj for i_obj in os.listdir(top_files_dir) if os.path.isdir(top
     frac_file = full_op_dir + "frac_after_cuts.txt"
     frac_er_file = full_op_dir + "frac_after_cuts_error_bar.txt"
     hists_file = full_op_dir + "hists.root"
-    cutflow_file = full_op_dir + "cutflow.txt"
 
     if not os.path.exists(product_file) or not os.path.exists(frac_file) or not os.path.exists(hists_file) or not os.path.exists(log_file):
         print("didnt find the txt xsec fid and/or root file or frac file or log file for", op_dir)
@@ -124,16 +118,11 @@ for op_dir in [i_obj for i_obj in os.listdir(top_files_dir) if os.path.isdir(top
         #
         if my_op1 not in frac_er_dict[regime].keys(): frac_er_dict[regime][my_op1] = {}
         frac_er_dict[regime][my_op1][my_op2] = frac_er
-        #
-        if my_op1 not in cutflow_file_dict[regime].keys(): cutflow_file_dict[regime][my_op1] = {}
-        cutflow_file_dict[regime][my_op1][my_op2] = cutflow_file
-        
     else:
         my_op = ops_arr[0]
         xsec_dict[regime][my_op] = fid_xsec_fb
         frac_dict[regime][my_op] = frac
         frac_er_dict[regime][my_op] = frac_er
-        cutflow_file_dict[regime][my_op] = cutflow_file
     # hists organization
     op_hists = lu.read_hists(hists_file, plots_to_save)
     for i_hist_name in plots_to_save:
@@ -189,7 +178,7 @@ if opts.runQUADAndCROSS=="yes":
     QUAD_h = ROOT.TH2F("QUAD_h","QUAD_h", nbins,0,nbins,1,0,1)
     for num_bin,i_op in enumerate(all_ops, start=1):
         QUAD_h.GetXaxis().SetBinLabel(num_bin,i_op)
-        if i_op in xsec_dict["QUAD"].keys(): QUAD_h.SetBinContent(num_bin, 1, xsec_dict["QUAD"][i_op])
+        if i_op in xsec_dict["QUAD"].keys(): QUAD_h.SetBinContent(num_bin, 1, round(xsec_dict["QUAD"][i_op],2))
     lu.save_plot(QUAD_h,plot_dir + "QUAD.pdf")
 
     CROSS_h = ROOT.TH2F("CROSS_h","CROSS_h", nbins,0,nbins,nbins,0,nbins)
@@ -206,8 +195,6 @@ if opts.runQUADAndCROSS=="yes":
     fracs_errors_quad2 = []
     fracs_errors_cross = []
     fracs_errors_ave = []
-    cutflow_plot_dir = plot_dir + "/cutflows_comp/"
-    if not os.path.exists(cutflow_plot_dir): os.makedirs(cutflow_plot_dir)
     for i_op1 in all_ops:
         if i_op1 not in xsec_dict["CROSS"].keys(): continue 
 
@@ -244,7 +231,7 @@ if opts.runQUADAndCROSS=="yes":
             else:
                 print("for i_op1 i_op2", i_op1, i_op2, "cannot do area sqrt in this case",den_with_cross2)
                 area_ratio = -99
-            CROSS_el_area_ratio_h.SetBinContent(bin_x, bin_y, round(area_ratio,2))
+            CROSS_el_area_ratio_h.SetBinContent(bin_x, bin_y, area_ratio)
             ##### fractions
             pair_str = lu.get_pair_str(i_op1,i_op2)
             pairs_str_avalaible.append(pair_str)
@@ -271,25 +258,10 @@ if opts.runQUADAndCROSS=="yes":
             fracs_errors_cross.append(i_frac_cross_unc)
             fracs_errors_ave.append(math.sqrt(i_frac_quad1_unc**2 + i_frac_quad2_unc**2 + i_frac_cross_unc**2))
             print("for pair", pair_str, "founds fracs errors q1 q2 cross", i_frac_quad1_unc, i_frac_quad2_unc, i_frac_cross_unc)
-            
-            ########### cutflow comparison
-            if opts.drawCutflow=="yes":
-                i_cutflow_quad1 = cutflow_file_dict["QUAD"][i_op1]
-                i_cutflow_quad2 = cutflow_file_dict["QUAD"][i_op2]
-                i_cutflow_cross = cutflow_file_dict["CROSS"][i_op1][i_op2]
-                #
-                cut_names, _, cut_incr_quad1 = lu.get_cutflow_arrays(i_cutflow_quad1)
-                _, _, cut_incr_quad2 = lu.get_cutflow_arrays(i_cutflow_quad2)
-                _, _, cut_incr_cross = lu.get_cutflow_arrays(i_cutflow_cross)
-                
-                lu.draw_cutflows(cut_names, [cut_incr_quad1,cut_incr_quad2,cut_incr_cross], 
-                                [f"incr {i_op1}",f"incr {i_op2}", f"incr {i_op1}vs{i_op2}"],
-                                cutflow_plot_dir+f"/cutflow_img_{i_op1}vs{i_op2}.pdf", prod_dec)
-
     # tables
     lu.save_plot(CROSS_h, plot_dir + "CROSS.pdf")
     lu.save_plot(CROSS_geom_QUAD_h, plot_dir + "CROSS_geom_QUAD.pdf")
-    lu.save_plot(CROSS_el_area_ratio_h, plot_dir + "CROSS_el_area_ratio_h.pdf", draw_option = "text colz")
+    lu.save_plot(CROSS_el_area_ratio_h, plot_dir + "CROSS_el_area_ratio_h.pdf", draw_option = "text45 colz")
 
     root_file = ROOT.TFile(plot_dir + "/el_area_ratio.root","UPDATE")  # to divide between ana
     CROSS_el_area_ratio_h.Write("", ROOT.TObject.kOverwrite)
@@ -353,11 +325,9 @@ if opts.runQUADAndCROSS=="yes":
     
     draw_efficiency(0.99)
     draw_efficiency(1.05)
-    
     ##########
-    # make plots kinematics
+    # make plots
     ###########
-
     def get_multihist_all_pairs(i_plot_name):
         plot_hist_cross_quads_sm={}
         quad_plot_ops = plots_dict["QUAD"][i_plot_name].keys()
@@ -387,6 +357,7 @@ if opts.runQUADAndCROSS=="yes":
         return plot_hist_cross_quads_sm
 
     # for each distrib draw on same plot QUAD1,QUAD2,CROSS - normalied to same area and with each xsec*filt
+    stacks_arr_per_pair = {} # key is pair
     stacks_arr_per_pair_normalized = {}
     for i_plot_name in plots_to_save:
         i_plot_hist_dict = get_multihist_all_pairs(i_plot_name)
@@ -395,33 +366,68 @@ if opts.runQUADAndCROSS=="yes":
             i_pair_hists = i_plot_hist_dict[i_pair]
             if len(i_pair_hists):
                 # rebin and maybe change bounds
-                display_params = plots_to_save_info_dict[i_plot_name]#lu.get_root_hist_param(i_plot_name)
+                display_params = lu.get_root_hist_param(i_plot_name)
                 for i_hist in i_pair_hists:
-                    if display_params[0]!=-1: i_hist.RebinX(display_params[0]) 
+                    if display_params[2]!=-1: i_hist.RebinX(display_params[2]) 
                 # save normalized
                 i_pair_plot_stack = lu.make_stack(i_pair_hists, title = i_plot_name,norm = 1)
                 if i_pair not in stacks_arr_per_pair_normalized.keys(): stacks_arr_per_pair_normalized[i_pair] = [i_pair_plot_stack]
                 else: stacks_arr_per_pair_normalized[i_pair].append(i_pair_plot_stack)
+                # same without normalization
+                i_pair_plot_stack_xsec = lu.make_stack(i_pair_hists, title = i_plot_name)
+                if i_pair not in stacks_arr_per_pair.keys(): stacks_arr_per_pair[i_pair] = [i_pair_plot_stack_xsec]
+                else: stacks_arr_per_pair[i_pair].append(i_pair_plot_stack_xsec)
                 
-    bookletdir = lu.get_bookletdir(plot_dir, normalized="yes")
-    for i_pair, stacks_pair in stacks_arr_per_pair_normalized.items():
-        i_pair_stack_batches = [stacks_pair[x:x + 10] for x in range(0, len(stacks_pair), 10)]
-        for i_batch, i_pair_stack_batch in enumerate(i_pair_stack_batches, start=1): 
+    def draw_booklets(stacks_arr, outdir):
+        for i_pair in stacks_arr.keys():
+            stacks_pair = stacks_arr[i_pair]
             c=ROOT.TCanvas()
-            c.Divide(5,2)
-            text = ROOT.TText(0.005, 0.005, {i_pair}_part{i_batch})
-            text.Draw()
-            for num_canvas, i_stack in enumerate(i_pair_stack_batch,start=1):
-                # display_params = lu.get_root_hist_param(i_stack.GetName().split("/")[0])
-                display_params = plots_to_save_info_dict[i_stack.GetName().split("/")[0]]
+            c.Divide(4,2)
+            for num_canvas, i_stack in enumerate(stacks_pair,start=1):
+                display_params = lu.get_root_hist_param(i_stack.GetName().split("/")[0])
                 c.cd(num_canvas)
                 i_stack.Draw("nostack")
-                if display_params[1]!=-1: i_stack.GetXaxis().SetRangeUser(display_params[1], display_params[2]) 
-                # ROOT.gPad.BuildLegend()
+                if display_params[0]!=-1: i_stack.GetXaxis().SetRangeUser(display_params[0], display_params[1]) 
+                ROOT.gPad.BuildLegend()
                 if i_stack.GetTitle()[:2]!="n_": ROOT.gPad.SetLogy() # for plots like n_jets don't need log scale
             c.Modified()
             c.Update()
             c.Show()
-            c.SaveAs(f"{bookletdir}/{i_pair}_part{i_batch}.pdf")
-            c.SaveAs(f"{bookletdir}/svg/{i_pair}_part{i_batch}.svg")
+            c.SaveAs(f"{outdir}/{i_pair}.pdf")
+            c.SaveAs(f"{outdir}/svg/{i_pair}.svg")
 
+    draw_booklets(stacks_arr_per_pair_normalized, lu.get_bookletdir(plot_dir, normalized="yes"))
+    draw_booklets(stacks_arr_per_pair, lu.get_bookletdir(plot_dir))
+    
+    stacks_arr_per_pair_normalized_big_pairs = {}
+    big_pairs = lu.get_big_pairs()
+    print("big pairs", big_pairs)
+    print("all pairs that have", stacks_arr_per_pair_normalized.keys())
+    for i_pair in stacks_arr_per_pair_normalized.keys():
+        print("print checking if pair", i_pair, "is big")
+        if i_pair in big_pairs: 
+            print("re-saved")
+            stacks_arr_per_pair_normalized_big_pairs[i_pair] = stacks_arr_per_pair_normalized[i_pair] 
+    print("big pairs re-saved", stacks_arr_per_pair_normalized_big_pairs.keys())
+    draw_booklets(stacks_arr_per_pair_normalized_big_pairs, lu.get_bookletdir(plot_dir, normalized="yes",big_pairs=True))
+
+    if opts.runWithCuts=="yes":
+        #also draw kinematics for cases where selection efficiencies are different >3% envelope
+        diff_q1_q2 = np.abs(np.array(fracs_quad1_big_c)-np.array(fracs_quad2_big_c))
+        diff_q1_c = np.abs(np.array(fracs_quad1_big_c)-np.array(fracs_cross_big_c))
+        diff_q2_c = np.abs(np.array(fracs_quad2_big_c)-np.array(fracs_cross_big_c))
+        eff_envelope =[max([diff_q1_q2[i],diff_q1_c[i],diff_q2_c[i]]) for i in range(len(diff_q1_q2))]
+
+        pairs_str_diff_eff=[pairs_str_big_c[i] for i in range(len(diff_q1_q2)) if eff_envelope[i]>=big_eff_envelope_cutoff]
+
+        stacks_arr_per_pair_normalized_big_pairs_big_eff = {}
+        print("big pairs big eff", pairs_str_diff_eff)
+        for i_pair in stacks_arr_per_pair_normalized.keys():
+            print("print checking if pair", i_pair, "is big and bif eff")
+            if i_pair in pairs_str_diff_eff: 
+                print("re-saved")
+                stacks_arr_per_pair_normalized_big_pairs_big_eff[i_pair] = stacks_arr_per_pair_normalized[i_pair] 
+        print("big pairs big eff re-saved", stacks_arr_per_pair_normalized_big_pairs_big_eff.keys())
+        draw_booklets(stacks_arr_per_pair_normalized_big_pairs_big_eff, lu.get_bookletdir(plot_dir, normalized="yes", big_pairs = True, big_diff_eff=True))
+
+    

@@ -9,8 +9,8 @@
   "eta_lepton_muon" : 2.5,
   "eta_tagjets": 4.4,
 
-  "pt_lepton2": 20.0,
   "pt_lepton1": 30.0,
+  "pt_lepton2": 20.0,
   "pt_photon": 25.0,
   "pt_tagjet1": 50.0,
   "pt_tagjet2": 50.0,
