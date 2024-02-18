@@ -8,6 +8,7 @@ plt.rcParams['text.usetex'] = True
 import pandas as pd
 import numpy as np
 import math
+import json
 
 def get_im_color(particle_name, for_distribution=False):
     color = "black"
@@ -133,10 +134,8 @@ def get_pair_str(op1,op2):
     mypair = sorted([op1,op2])
     return f"{mypair[0]}vs{mypair[1]}"
 
-def get_bookletdir(start_path, normalized="", big_pairs = False, big_diff_eff=False):
+def get_bookletdir(start_path, normalized=""):
     my_dir = start_path + "/booklets/"
-    if big_pairs: my_dir = my_dir[:-1] + "_big_pairs/"
-    if big_diff_eff: my_dir = my_dir[:-1] + "_big_eff_diff/"
     if len(normalized)>0: my_dir = my_dir[:-1] + "_normalized/"
     if not os.path.exists(my_dir): os.makedirs(my_dir)
     if not os.path.exists(my_dir + "/svg/"): os.makedirs(my_dir + "/svg/")
@@ -152,49 +151,84 @@ def get_ops(include_fs0_2):
     op_pairs = sorted(list(itertools.combinations(all_ops,2)))
     return all_ops, op_pairs
 
-def get_hists_to_draw(prod_dec):
-    hists_dict= {}
-    hists_dict["WmWm_lvlv"] =  ["pt_tagjet1", "m_tagjets", "deta_tagjets", "lepton_pt","lepton_eta","m_ll", "MET", "m_T"]
-    hists_dict["WpWm_lvlv"] =  ["pt_tagjet1", "m_tagjets", "deta_tagjets", "lepton_eta", "m_ll", "centrality", "jet3_centrality", "MET"]
-    hists_dict["ZZ_llll"] =  ["pt_tagjet1", "m_tagjets", "deta_tagjets", "dphi_tagjets", "lepton_eta", "lepton_pt", "all_lep_pairs_m_ll", "m_ll_of_pairs_best_quadruplet"]
-    # hists_dict["Zy_lly"] =  ["pt_tagjet1", "m_tagjets", "lepton_eta", "lepton_pt", "photon_iso_pt", "photon_iso_eta", "m_lly", "m_ll", "centrality_lly", "n_gap_jets", "cone_to_photon_frac"] # @TODO update properly
-    hists_dict["Zy_lly"] =  ["n_jet","pt_tagjet1", "pt_tagjet2", "m_tagjets","dy_tagjets", "lepton_eta", "lepton_pt", "photon_iso_pt", "m_lly", "m_ll"] # @TODO update properly
-    hists_dict["Zy_vvy"] =  ["pt_tagjet1", "m_tagjets"]
-    hists_dict["Wmy_lvy"] =  ["pt_tagjet1", "m_tagjets"]
-    hists_dict["Wpy_lvy"] =  ["pt_tagjet1", "m_tagjets"]
-    return hists_dict[prod_dec]
+def get_hists_bounds_cuts(prod_dec):
+    with open(f"{prod_dec}_hists.json") as fo: total_h = json.load(fo)
+    with open("jet_hists.json") as fo: jet_h = json.load(fo)
+    with open("photon_hists.json") as fo: photon_h = json.load(fo)
+    with open("lepton_hists.json") as fo: lepton_h = json.load(fo)
+    total_h.update(jet_h)
+    if prod_dec in ["Zy_lly"]:
+        total_h.update(lepton_h)
+        total_h.update(photon_h)
 
-def get_root_hist_param(plot_name):
-    params = {}
-    # params["pt_tagjet1"] = params["MET"] = params["lepton_pt"] =  [0, 2000, 10]
-    # params["photon_iso_pt"] = params["m_lly"] = [-1,-1,10]
-    # params["all_lep_pairs_m_ll"] = [0, 2500, 10] 
-    # params["m_ll_of_pairs_best_quadruplet"] = [0, 200, 1]
-    # params["m_ll"] = [-1,-1,10]
-    # params["pt_tagjet2"] = [0, 1000, 10]
-    # params["m_tagjets"] = [-1, -1, 10]
-    # params["deta_tagjets"] = params["dy_tagjets"]= [-1, -1, 5]
-    # params["dphi_tagjets"] = [0, 4, 5]
-    # params["m_T"] =[-1, -1, 15]
-    # params["lepton_eta"] = params["photon_iso_eta"]  = [-3.0, 3.0, 2]
-    params["pt_tagjet1"] = params["MET"] = params["lepton_pt"] =  [0, 50, 1]
-    params["photon_iso_pt"] = [0,25,1]
-    params["m_lly"] = [0,150,1]
-    # params["all_lep_pairs_m_ll"] = [0, 2500, 10] 
-    # params["m_ll_of_pairs_best_quadruplet"] = [0, 200, 1]
-    params["m_ll"] = [0,40,1]
-    params["pt_tagjet2"] = [0, 50, 1]
-    params["m_tagjets"] = [0, 500, 5]
-    params["deta_tagjets"] = params["dy_tagjets"]= [0, 1, 5]
-    params["dphi_tagjets"] = [0, 4, 5]
-    params["n_jet"] = [0, 2, 1]
-    # params["m_T"] =[-1, -1, 15]
-    params["lepton_eta"] = params["photon_iso_eta"]  = [-3.0, 3.0, 2]
+    # not using cuts in the end
+    with open(f"{prod_dec}_cuts.json") as fo: cuts_in = json.load(fo)
+    for hist_name in total_h.keys():
+        for cut_in_name in cuts_in.keys():
+            if  hist_name not in cut_in_name: continue
+            #
+            max_cut  = max(np.array([cuts_in[cut_in_name]]).flatten().tolist())
+            if hist_name==cut_in_name: 
+                total_h[hist_name].append(max_cut)
+            elif hist_name+"1"==cut_in_name or hist_name+"2"==cut_in_name or hist_name+"_" in cut_in_name:
+                # if want to plot pt_lepton by separate cuts pt_lepton1 and pt_lepton2
+                # in case coinc or plot eta_lepton but cut is eta_lepton_electron
+                if len(total_h[hist_name])==3:
+                    total_h[hist_name].append(max_cut)
+                else:
+                    total_h[hist_name][3]=max_cut # to overwite cut in case it is there already
+
+    # only keep the hists where have cut and add what is direction of cut
+    return_dict = {} # key is hist name, value[nbin,min,max,cut,cutdir="+,-"]
+    for i_hist, i_h_arr in total_h.items():
+        if len(i_h_arr)!=4: 
+            print("----were not able to find cut for",i_hist,"will not be there in kin plots")
+            continue
+        return_dict[i_hist]=i_h_arr
+    # replace original bin params with what want to have [rebin_x, x_low, x_up]
+    params={}
+    params["pt_tagjet1"]  = [10, 0, 2500]
+    params["pt_tagjet2"] = [10, 0, 1000]
+    params["eta_tagjets"] = [3, -1, -1]
+    params["m_tagjets"] = [10, -1, -1]
+    params["dy_tagjets"]= [5, 0, 9]
+    params["pt_lepton"]  = [10, 0, 2500]
+    params["eta_lepton"] = [3, -3, 3]
+    params["pt_photon"] = [10, 0, 4000]
+    params["eta_photon"] = [3, -3, 3]
+    params["m_ll"] = [10,0,300]
+    params["m_lly"] = [10,-1,1]
+    params["centrality_lly"] = [-1,0,0.5]
+    params["cone_frac_photon"] = [-1, 0, 0.1]
+    default_params = [-1,-1,-1]
+    for i_hist, i_h_arr in return_dict.items():
+        if i_hist in params.keys(): replace_params=params[i_hist]
+        else: replace_params = default_params
+        i_h_arr[0]=replace_params[0]
+        i_h_arr[1]=replace_params[1]
+        i_h_arr[2]=replace_params[2]
+
+    print("returning plotting dict")
+    return return_dict 
+
+
+# def get_root_hist_param(plot_name):
+#     params = {}
+#     params["MET"] = params["lepton_pt"] =  [0, 2000, 10]
+#     params["photon_iso_pt"] = params["m_lly"] = [-1,-1,10]
+#     params["all_lep_pairs_m_ll"] = [0, 2500, 10] 
+#     params["m_ll_of_pairs_best_quadruplet"] = [0, 200, 1]
+#     params["m_ll"] = [-1,-1,10]
     
-    if plot_name in params.keys():
-        return params[plot_name]
-    else:
-        return [-1,-1,-1]
+    
+#     params["dphi_tagjets"] = [0, 4, 5]
+#     params["m_T"] =[-1, -1, 15]
+#     params["lepton_eta"] = params["photon_iso_eta"]  = [-3.0, 3.0, 2]
+    
+#     if plot_name in params.keys():
+#         return params[plot_name]
+#     else:
+#         return [-1,-1,-1]
 
 def find_prod_dec_and_dir(conf):
     prod_temp = conf[conf.find("user.okurdysh.MadGraph_")+len("user.okurdysh.MadGraph_"):]
