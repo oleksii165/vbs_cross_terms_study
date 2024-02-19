@@ -18,6 +18,9 @@ def get_im_color(particle_name, for_distribution=False):
         color="red" if not for_distribution else "lightcoral"
     elif "photon" in particle_name: 
         color = "orange" if not for_distribution else "yellow"
+    elif "MET" in particle_name:
+        color = "dimgrey" if not for_distribution else "darkgrey"
+
     return color
 
 def latex_ana_str(prod_dec):
