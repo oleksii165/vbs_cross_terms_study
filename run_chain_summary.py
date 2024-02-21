@@ -321,9 +321,9 @@ if opts.runQUADAndCROSS=="yes":
         #
         plt.clf()        
         fig, (ax1, ax2) = plt.subplots(2, figsize=(16,9), gridspec_kw={'height_ratios': [2, 1]})
-        ax1.errorbar(new_ops_num, new_fracs_quad1, yerr=new_fracs_errors_quad1, fmt='o', mfc="blue", mec="blue", ecolor="blue", label="QUAD1", alpha=0.7)
-        ax1.errorbar(new_ops_num, new_fracs_quad2, yerr=new_fracs_errors_quad2, fmt='o', mfc="green", mec="green", ecolor="green", label="QUAD2", alpha=0.7)
-        ax1.errorbar(new_ops_num, new_fracs_cross, yerr=new_fracs_errors_cross, fmt='o', mfc="black", mec="black", ecolor="black", label="CROSS", alpha=0.7)
+        ax1.errorbar(new_ops_num, new_fracs_quad1, yerr=new_fracs_errors_quad1, fmt='v', mfc="blue", mec="blue", ecolor="blue", label="QUAD1", alpha=0.7)
+        ax1.errorbar(new_ops_num, new_fracs_quad2, yerr=new_fracs_errors_quad2, fmt='^', mfc="green", mec="green", ecolor="green", label="QUAD2", alpha=0.7)
+        ax1.errorbar(new_ops_num, new_fracs_cross, yerr=new_fracs_errors_cross, fmt='*', mfc="black", mec="black", ecolor="black", label="CROSS", alpha=0.7)
         ax1.set_ylabel('fraction of weights')
         ax1.set_title(r"$A_{cross}/A_{nocross}>$"+str(area_ratio_min))
         ax1.legend()
@@ -417,7 +417,7 @@ if opts.runQUADAndCROSS=="yes":
                 i_stack.Draw("nostack")
                 if display_params[1]!=-1: i_stack.GetXaxis().SetRangeUser(display_params[1], display_params[2]) 
                 # ROOT.gPad.BuildLegend()
-                if i_stack.GetTitle()[:2]!="n_": ROOT.gPad.SetLogy() # for plots like n_jets don't need log scale
+                if i_stack.GetTitle()[:2] not in ["n_","ph","dp","et","dy"]: ROOT.gPad.SetLogy() # for plots like n_jets don't need log scale
             c.Modified()
             c.Update()
             c.Show()
