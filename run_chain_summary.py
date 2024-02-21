@@ -32,6 +32,7 @@ docut_dir = "DOCUT_YES" if opts.runWithCuts=="yes" else "DOCUT_NO"
 
 plot_dir = lu.get_plotdir(prod_dec, docut_dir)
 big_pairs_cutoff = 1.05
+plots_no_logy=["n_","ph","dp","et","dy", "dR"]
 
 plots_to_save_info_dict = lu.get_hists_bounds_cuts(prod_dec) 
 plots_to_save = plots_to_save_info_dict.keys()
@@ -417,7 +418,7 @@ if opts.runQUADAndCROSS=="yes":
                 i_stack.Draw("nostack")
                 if display_params[1]!=-1: i_stack.GetXaxis().SetRangeUser(display_params[1], display_params[2]) 
                 # ROOT.gPad.BuildLegend()
-                if i_stack.GetTitle()[:2] not in ["n_","ph","dp","et","dy"]: ROOT.gPad.SetLogy() # for plots like n_jets don't need log scale
+                if i_stack.GetTitle()[:2] not in plots_no_logy: ROOT.gPad.SetLogy() # for plots like n_jets don't need log scale
             c.Modified()
             c.Update()
             c.Show()

@@ -179,15 +179,20 @@ def get_hists_bounds_cuts(prod_dec):
     params["phi_tagjets"] = [5, 0, 6]
     params["m_tagjets"] = [10, -1, -1]
     params["dy_tagjets"]= [5, 0, 9]
-    params["dphi_tagjets"]= params["dphi_MET_photon"] = params["dphi_MET_tagjet"] = [-1, 0, 3.5]
+    for i_dphi in ["dphi_tagjets","dphi_MET_photon", "dphi_MET_tagjet"]:
+        params[i_dphi]= [-1, 0, 3.5]
     params["pt_lepton"]  = [10, 0, 2500]
     params["eta_lepton"] = [3, -3, 3]
     params["pt_photon"]  = params["pt_MET"] = [10, 0, 4000]
     params["eta_photon"] = [3, -3, 3]
     params["m_ll"] = [10,0,300]
-    params["m_lly"] = [10,-1,1]
-    params["centrality_lly"] =params["centrality_jjy"] = [-1,0,0.8]
+    params["m_lly"] =  params["m_ly"] = [10,-1,1]
+    for i_cent in ["centrality_lly","centrality_jjy","centrality_jjly"]:
+        params[i_cent] = [-1,0,0.8]
     params["cone_frac_photon"] = [-1, 0, 0.1]
+    params["m_W_T"] = [3, 0, 150]
+    params["dR_lepton_photon"] = [2, 0, 6]
+    params["dR_tagjets"] = [2,0,10]
     default_params = [-1,-1,-1]
     for i_hist, i_h_arr in return_dict.items():
         if i_hist in params.keys(): replace_params=params[i_hist]
@@ -202,21 +207,10 @@ def get_hists_bounds_cuts(prod_dec):
 
 # def get_root_hist_param(plot_name):
 #     params = {}
-#     params["MET"] = params["lepton_pt"] =  [0, 2000, 10]
 #     params["photon_iso_pt"] = params["m_lly"] = [-1,-1,10]
 #     params["all_lep_pairs_m_ll"] = [0, 2500, 10] 
 #     params["m_ll_of_pairs_best_quadruplet"] = [0, 200, 1]
-#     params["m_ll"] = [-1,-1,10]
-    
-    
-#     params["dphi_tagjets"] = [0, 4, 5]
-#     params["m_T"] =[-1, -1, 15]
-#     params["lepton_eta"] = params["photon_iso_eta"]  = [-3.0, 3.0, 2]
-    
-#     if plot_name in params.keys():
-#         return params[plot_name]
-#     else:
-#         return [-1,-1,-1]
+
 
 def find_prod_dec_and_dir(conf):
     prod_temp = conf[conf.find("user.okurdysh.MadGraph_")+len("user.okurdysh.MadGraph_"):]
