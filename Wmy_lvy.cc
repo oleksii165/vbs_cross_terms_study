@@ -130,7 +130,7 @@ namespace Rivet {
       book(_c["neg_w_initial"],"neg_w_initial");
       book(_c["neg_w_final"],"neg_w_final");
 
-      // Cut-flows ???????????????
+      // Cut-flows
       _cutflows.addCutflow("Wmy_lvy_selections", {"one_lep","pt_MET","m_W_T","have_iso_photons_ok_pt_eta",
                           "m_ly_away_from_m_z","dR_lepton_photon","n_jets","no_b_jets","tagjets_pt_dR_j1j2", "dphi_MET_tagjets",
                           "m_tagjets","dy_tagjets","centrality_jjly", "n_gap_jets"});
