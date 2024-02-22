@@ -9,6 +9,10 @@
 #include "Rivet/Projections/TauFinder.hh"
 #include "Rivet/Projections/MissingMomentum.hh"
 #include "Rivet/Math/MathUtils.hh"
+#include "Rivet/Tools/Cutflow.hh"
+#include <fstream>
+#include <nlohmann/json.hpp>
+using json = nlohmann::json;
 
 namespace Rivet {
 
@@ -26,294 +30,322 @@ namespace Rivet {
 
     /// Book histograms and initialise projections before the run
     void init() {
+        std::string txt_dir = "/exp/atlas/kurdysh/vbs_cross_terms_study/plotting/";
+        
+        std::string out_dir = getOption("OUTDIR");
+        
+        _docut = 0; // most cuts on number of particles are always applied to avoid segfault
+        if (out_dir.find("DOCUT_YES") != string::npos) _docut = 1;
+        std::cout << "++++++received outidir" << out_dir << "meaning _docut is " << _docut << "\n";
 
-        _docut = 0;
-        if (getOption("DOCUT") =="YES") _docut = 1;
-        if (getOption("DOCUT") =="NO") _docut = 0;
-        std::cout << "received docut " << _docut <<"\n";
+        std::string jsonfilestr =  txt_dir + "ZZ_llll_cuts.json"; 
+        std::cout << "++++++assume .json for this ZZ_llll" << "is " << jsonfilestr << "\n";
+        std::ifstream json_file(jsonfilestr);
+        
+        _jcuts = json::parse(json_file);
+        std::cout << "++++++ to check json 1 var got photon pt min" << _jcuts["m_tagjets"] << "\n";
+        _electron_eta_cut = (Cuts::absetaIn(_jcuts["eta_lepton_electron"][0][0], _jcuts["eta_lepton_electron"][0][1])) || 
+                                (Cuts::absetaIn(_jcuts["eta_lepton_electron"][1][0], _jcuts["eta_lepton_electron"][1][1]));
+        _muon_eta_cut = Cuts::absetaIn(0.0, _jcuts["eta_lepton_muon"]);
+        _electron_pt_cut = Cuts::pT > dbl(_jcuts["pt_lepton_electron"])*GeV; 
+        _muon_pt_cut = Cuts::pT > dbl(_jcuts["pt_lepton_muon"])*GeV; 
 
         // The basic final-state projection:
         // all final-state particles within
         // the given eta acceptance
-        const FinalState fs(Cuts::abseta < 4.5);
+        const FinalState fs;
+
+        // FinalState of direct photons and bare muons and electrons in the event - ignore taus but if want to include use TauFinder
+        DirectFinalState bare_e(Cuts::abspid == PID::ELECTRON);
+        DirectFinalState bare_mu(Cuts::abspid == PID::MUON);
+        DirectFinalState photons_for_dressing(Cuts::abspid == PID::PHOTON);
+        // Dress the bare direct leptons with direct photons within dR < 0.1,
+        // and apply some fiducial cuts on the dressed leptons depending on param passed
+        DressedLeptons dressed_e(photons_for_dressing, bare_e, 0.1);
+        DressedLeptons dressed_mu(photons_for_dressing, bare_mu, 0.1);
+        // declare(dressed_leps, "leptons_stable");
+        declare(dressed_e, "e_stable");
+        declare(dressed_mu, "mu_stable");
 
         // The final-state particles declared above are clustered using FastJet with
         // the anti-kT algorithm and a jet-radius parameter 0.4
-        // muons and neutrinos are excluded from the clustering
-        FastJets jetfs(fs, FastJets::ANTIKT, 0.4, JetAlg::Muons::NONE, JetAlg::Invisibles::NONE);
-        declare(jetfs, "jets");
-        
-        // FinalState of direct photons and bare muons and electrons in the event - ignore taus but if want to include use TauFinder
-        DirectFinalState bare_leps(Cuts::abspid == PID::MUON || Cuts::abspid == PID::ELECTRON);
-        DirectFinalState photons(Cuts::abspid == PID::PHOTON);
-        // Dress the bare direct leptons with direct photons within dR < 0.1,
-        // and apply some fiducial cuts on the dressed leptons depending on param passed
-        Cut lepton_cuts;
-        if (_docut==1){lepton_cuts= Cuts::abseta < 2.5 && Cuts::abseta > 0.1 && Cuts::pT > 7.0*GeV;} 
-        else{lepton_cuts= Cuts::abseta < 10.0 && Cuts::pT > 0.001*GeV;}
-        
-        DressedLeptons dressed_leps(photons, bare_leps, 0.1, lepton_cuts);
-        declare(dressed_leps, "leptons_stable");
+        // muons and neutrinos are excluded from the clustering, also veto electrons(+muons but this is redundant) there
+        VetoedFinalState hadrons(FinalState(Cuts::absetaIn(0.0, _jcuts["eta_tagjets"])));
+        hadrons.addVetoOnThisFinalState(dressed_e);
+        hadrons.addVetoOnThisFinalState(dressed_mu);
+        declare(hadrons, "hadrons");
+        FastJets jetsfs(hadrons, FastJets::ANTIKT, 0.4, JetAlg::Muons::NONE, JetAlg::Invisibles::NONE);
+        declare(jetsfs, "jets");
 
         declare(MissingMomentum(), "METFinder");
 
-        // Book histograms
-        int n_nbins = 10;
-        int n_pt = 200;
-        double max_pt = 3000.0;
-        int n_rap = 60;
-        double max_rap = 6.0;
-        //jet plots
-        book(_h["n_jet"], "n_jet", n_nbins, 0.0, n_nbins);
-        book(_h["pt_tagjet1"], "pt_tagjet1", n_pt, 0.0, max_pt); 
-        book(_h["pt_tagjet2"], "pt_tagjet2", n_pt, 0.0, max_pt);
-        book(_h["m_tagjets"], "m_tagjets", n_pt, 0.0, max_pt);
-        book(_h["dy_tagjets"], "dy_tagjets", n_rap, 0, max_rap);
-        book(_h["eta_tagjets"], "eta_tagjets", n_rap, -1*max_rap, max_rap);
-        book(_h["deta_tagjets"], "deta_tagjets", n_rap, 0, max_rap);
-        book(_h["dphi_tagjets"], "dphi_tagjets", n_rap, 0, max_rap);
-        // //lepton plots
-        book(_h["leptons_sum_abs_pids"], "leptons_sum_abs_pids", n_nbins*6, 0, n_nbins*6);
-        book(_h["n_lepton_stable"], "n_lepton_stable", n_nbins, 0.0, n_nbins);
-        book(_h["lepton_pt"], "lepton_pt", int(n_pt), 0.0, max_pt);
-        book(_h["lepton_eta"], "lepton_eta", n_rap, -1*max_rap, max_rap);
-        book(_h["all_lep_pairs_m_ll"], "all_lep_pairs_m_ll", int(n_pt), 0.0, max_pt);
-        book(_h["m_ll_of_pairs_best_quadruplet"], "m_ll_of_pairs_best_quadruplet", int(n_pt), 0.0, max_pt);
-        book(_h["m_4l"], "m_4l", int(n_pt), 0.0, max_pt);
-        //other
-        book(_h["lep_pairs_dR"], "lep_pairs_dR", 10, 0.0, 1); 
-        book(_c["found_VBS_pair"],"found_VBS_pair");
+        // plots common with others
+        std::ifstream jet_hist_file(txt_dir + "/jet_hists.json");      
+        json jet_hist = json::parse(jet_hist_file);
+        for (json::iterator it = jet_hist.begin(); it != jet_hist.end(); ++it) {
+        book(_h[it.key()], it.key(), it.value()[0], it.value()[1], it.value()[2]);
+        _hist_names.push_back(it.key());
+        }
+        std::ifstream lep_hist_file(txt_dir + "/lepton_hists.json");      
+        json lep_hist = json::parse(lep_hist_file);
+        for (json::iterator it = lep_hist.begin(); it != lep_hist.end(); ++it) {
+        book(_h[it.key()], it.key(), it.value()[0], it.value()[1], it.value()[2]);
+        _hist_names.push_back(it.key());
+        }
+        // plots that are not in other ana
+        std::ifstream ana_hist_file(txt_dir + "/ZZ_llll_hists.json");      
+        json ana_hist = json::parse(ana_hist_file);
+        for (json::iterator it = ana_hist.begin(); it != ana_hist.end(); ++it) {
+            book(_h[it.key()], it.key(), it.value()[0], it.value()[1], it.value()[2]);
+            _hist_names.push_back(it.key());
+        }
+
+        //counter for efficiency
+        book(_c["pos_w_initial"],"pos_w_initial");
+        book(_c["pos_w_final"],"pos_w_final");
+        book(_c["neg_w_initial"],"neg_w_initial");
+        book(_c["neg_w_final"],"neg_w_final");
+
+        // Cut-flows
+        _cutflows.addCutflow("Wmy_lvy_selections", {"have_four_lep","pt_lep1_2","dR_all_pairs","SFOC_2pairs_min",
+                            "m_llll","n_jets","pt_tagjet1_2","m_tagjets","dy_tagjets","centrality_quadjj"});
+
+        // setup for  file used for drawing images
+        if (_docut==1){
+        std::vector<std::string> pic_particles = {"tagjet1", "tagjet2", "lepton1", "lepton2", "lepton3", "lepton4"};
+        std::ofstream pic_csv (out_dir + "/info_for_image.csv", std::ofstream::out);
+        for (auto & i_p : pic_particles){ 
+            pic_csv << "eta_" + i_p +";";
+            pic_csv << "phi_" + i_p +";";
+            pic_csv << "pt_" + i_p +";";
+        }
+        pic_csv << "\n";
+        pic_csv.close();
+        }
     }
 
 
     /// Perform the per-event analysis
     void analyze(const Event& event) {
-        double m_z = 91.18; 
+        // save weights before cuts
+        double ev_nominal_weight =  event.weights()[0];
+        if (ev_nominal_weight>=0){_c["pos_w_initial"]->fill();} // dont need anything in bracket as this will be weight on weight
+        else {_c["neg_w_initial"]->fill();}
+
+        _cutflows.fillinit();
+
         // Retrieve dressed leptons, sorted by pT
-        Particles leptons_stable = apply<FinalState>(event, "leptons_stable").particlesByPt();
-        int nlep_stable = leptons_stable.size();
-        if (nlep_stable!=4)  vetoEvent; // meaning all e,mu and not tau
-
-        const Particle& lep1 = leptons_stable[0];
-        const Particle& lep2 = leptons_stable[1]; 
-        const Particle& lep3 = leptons_stable[2]; 
-        const Particle& lep4 = leptons_stable[3];
-        // std::cout << "pt of leptons expect to be high-low" <<  lep1.pT() <<" " << lep2.pT() << " " << lep3.pT() << " " <<lep4.pT() <<"\n"; 
-        if (_docut==1 && (lep1.pT()<20.0 || lep2.pT()<20.0 || lep3.pT()<10.0)) vetoEvent; 
-        double m_4l = (lep1.mom() + lep2.mom() + lep3.mom() + lep4.mom()).mass()/GeV;
-
-        int sum_charges = lep1.charge() + lep2.charge() + lep3.charge() + lep4.charge();  
-        if (sum_charges!=0) vetoEvent; // want two opposiet-sign pairs
-
-        int sum_pids = lep1.pid() + lep2.pid() + lep3.pid() + lep4.pid();
-        if (sum_pids!=0) vetoEvent; // want two same flavour pairs (anitimuon negative pid)
-        int leptons_sum_abs_pids = fabs(lep1.pid()) + fabs(lep2.pid()) + fabs(lep3.pid()) + fabs(lep4.pid());
-        
-
-        // deltaR between leptons and m_ll against quarkonia
-        for (int i = 0; i < nlep_stable; i++) {
-            const Particle& i_lep = leptons_stable[i];
-            for (int j = 0; j < nlep_stable; j++) {
-                if (i!=j){
-                    const Particle& j_lep = leptons_stable[j];
-                    double i_dR = deltaR(i_lep.rap(),i_lep.phi(), j_lep.rap(),j_lep.phi());
-                    if (_docut==1 && i_dR<0.2) vetoEvent;
-                    if ((i_lep.pid() + j_lep.pid())==0){ 
-                        double i_m_ll = (i_lep.mom() + j_lep.mom()).mass()/GeV;
-                        if (_docut==1 && i_m_ll<10.0) vetoEvent;
-                    }
-                }
-            }
-        }
-        // save to plot all m_ll pairs and deltaR
-        for (int i = 0; i < nlep_stable; i++) {
-            const Particle& i_lep = leptons_stable[i];
-            for (int j = 0; j < nlep_stable; j++) {
-                if (i!=j){
-                    const Particle& j_lep = leptons_stable[j];
-                    double i_dR = deltaR(i_lep.rap(),i_lep.phi(), j_lep.rap(),j_lep.phi());
-                    _h["lep_pairs_dR"]->fill(i_dR);
-                    if ((i_lep.pid() + j_lep.pid())==0){ 
-                        double i_m_ll = (i_lep.mom() + j_lep.mom()).mass()/GeV;
-                        if (_docut==1 && i_m_ll<10.0) vetoEvent;
-                        _h["all_lep_pairs_m_ll"]->fill(i_m_ll);
-                    }
-
-                }
-            }
-        }
-        
-        ///////////
-        //make quadruplet with closest to two Z peaks
-        ///////////
-        std::vector<int> quadruplet1_pair1_indexes = {-1, -1};
-        for (int i = 0; i < nlep_stable; i++) {
-            int i_pid = leptons_stable[i].pid();
-            for (int j = 0; j < nlep_stable; j++) {
-                if(i==j) continue;
-                int j_pid = leptons_stable[j].pid();
-                if(i_pid+j_pid!=0) continue; // skip if e-e-
-                quadruplet1_pair1_indexes[0] = i;
-                quadruplet1_pair1_indexes[1] = j;
-                break;
-                }
-            }
-        // std::cout << "found 1/2 first pair l+l- pair indexes" << quadruplet1_pair1_indexes[0] <<" " << quadruplet1_pair1_indexes[1] << "\n"; 
-        if (quadruplet1_pair1_indexes[0]==-1 || quadruplet1_pair1_indexes[1]==-1) vetoEvent;
-        // std::cout << "these particles have pdg" << leptons_stable[quadruplet1_pair1_indexes[0]].pid() <<" " << leptons_stable[quadruplet1_pair1_indexes[1]].pid() << "\n"; 
-        std::vector<int> quadruplet1_pair2_indexes={};
-        for (int i = 0; i < nlep_stable; i++) {
-            if(i==quadruplet1_pair1_indexes[0] || i==quadruplet1_pair1_indexes[1]) continue;
-            quadruplet1_pair2_indexes.push_back(i);
-            } 
-        // std::cout << "found 1/2 second pair l+l- pair indexes" << quadruplet1_pair2_indexes[0] <<" " << quadruplet1_pair2_indexes[1] << "\n";
-        // std::cout << "these particles have pdg" << leptons_stable[quadruplet1_pair2_indexes[0]].pid() <<" " << leptons_stable[quadruplet1_pair2_indexes[1]].pid() << "\n"; 
-
-        double q_1_m_pair1 = (leptons_stable[quadruplet1_pair1_indexes[0]].mom() + leptons_stable[quadruplet1_pair1_indexes[1]].mom()).mass()/GeV;
-        double q_1_m_pair2 = (leptons_stable[quadruplet1_pair2_indexes[0]].mom() + leptons_stable[quadruplet1_pair2_indexes[1]].mom()).mass()/GeV;
-        double q_1_Z_dist = fabs(q_1_m_pair1-m_z) + fabs(q_1_m_pair2-m_z); 
-        // std::cout << "distance to Z in q1 "<< q_1_Z_dist << "\n";
-        // find second multiplet, if eeee or mmmm
-        std::vector<int> pair1_indexes={-1,-1};
-        std::vector<int> pair2_indexes={-1,-1};
-        if (leptons_sum_abs_pids!=48){ //for e+e mu+mu- there is only one quadruplet possible, here seach for two
-            int index_neg2_lep=-1; //start from same particle  index_pos1_lep but now find second pair where it can go
-            int pid_1 = leptons_stable[quadruplet1_pair1_indexes[0]].pid();
-            for (int i = 0; i < nlep_stable; i++) {
-                if(i==quadruplet1_pair1_indexes[0] || i==quadruplet1_pair1_indexes[1]) continue;
-                int pid_i = leptons_stable[i].pid();
-                if(pid_1+pid_i!=0) continue; // skip if l-l-, want opposite charges
-                index_neg2_lep = i;
-                }
-            if (index_neg2_lep==-1) vetoEvent;
-            std::vector<int> quadruplet2_pair1_indexes = {quadruplet1_pair1_indexes[0], index_neg2_lep};
-            // std::cout << "found 2/2 first pair l+l- pair indexes" << quadruplet2_pair1_indexes[0] <<" " << quadruplet2_pair1_indexes[1] << "\n";
-            // std::cout << "these particles have pdg" << leptons_stable[quadruplet2_pair1_indexes[0]].pid() <<" " << leptons_stable[quadruplet2_pair1_indexes[1]].pid() << "\n";
-            std::vector<int> quadruplet2_pair2_indexes={};
-            for (int i = 0; i < nlep_stable; i++) {
-                if (i==quadruplet2_pair1_indexes[0] || i==quadruplet2_pair1_indexes[1]) continue;
-                quadruplet2_pair2_indexes.push_back(i);
-                }
-            // std::cout << "found 2/2 second pair l+l- pair indexes" << quadruplet2_pair2_indexes[0] <<" " << quadruplet2_pair2_indexes[1] << "\n";
-            // std::cout << "these particles have pdg" << leptons_stable[quadruplet2_pair2_indexes[0]].pid() <<" " << leptons_stable[quadruplet2_pair2_indexes[1]].pid() << "\n";
-            double q_2_m_pair1 = (leptons_stable[quadruplet2_pair1_indexes[0]].mom() + leptons_stable[quadruplet2_pair1_indexes[1]].mom()).mass()/GeV;
-            double q_2_m_pair2 = (leptons_stable[quadruplet2_pair2_indexes[0]].mom() + leptons_stable[quadruplet2_pair2_indexes[1]].mom()).mass()/GeV;
-            double q_2_Z_dist = fabs(q_2_m_pair1-m_z) + fabs(q_2_m_pair2-m_z); 
-            // std::cout << "distance to Z in q1 "<< q_1_Z_dist<< "and q2   "<< q_2_Z_dist << "\n"; 
-            if (q_2_Z_dist < q_1_Z_dist){
-                pair1_indexes[0] = quadruplet2_pair1_indexes[0];
-                pair1_indexes[1] = quadruplet2_pair1_indexes[1];
-                pair2_indexes[0] = quadruplet2_pair2_indexes[0];
-                pair2_indexes[1] = quadruplet2_pair2_indexes[1];
-            } 
-            else {
-                pair1_indexes[0] = quadruplet1_pair1_indexes[0];
-                pair1_indexes[1] = quadruplet1_pair1_indexes[1];
-                pair2_indexes[0] = quadruplet1_pair2_indexes[0];
-                pair2_indexes[1] = quadruplet1_pair2_indexes[1];
-            }
+        Particles e_stable;
+        Particles mu_stable;
+        if (_docut==1){
+            e_stable = apply<FinalState>(event, "e_stable").particlesByPt(_electron_eta_cut && _electron_pt_cut);
+            mu_stable = apply<FinalState>(event, "mu_stable").particlesByPt(_muon_eta_cut && _muon_pt_cut);
         }
         else{
-            pair1_indexes[0] = quadruplet1_pair1_indexes[0];
-            pair1_indexes[1] = quadruplet1_pair1_indexes[1];
-            pair2_indexes[0] = quadruplet1_pair2_indexes[0];
-            pair2_indexes[1] = quadruplet1_pair2_indexes[1];
+            e_stable = apply<FinalState>(event, "e_stable").particlesByPt();
+            mu_stable = apply<FinalState>(event, "mu_stable").particlesByPt();
         }
-        // std::cout << "in the end indexes of first pair"<< pair1_indexes[0]<< " "<< pair1_indexes[1]<< "second pair"<< pair2_indexes[0]<< " "<< pair2_indexes[1] << "\n"; 
-        ////////////
-        ////// end of best quadruplet searching
-        //////////////
+        Particles leptons = e_stable + mu_stable; 
+        // sort by pt as not clear if e+m is in order invidually not but necessary together
+        std::sort(leptons.begin(), leptons.end(), [](Particle const &a, Particle const &b) {
+            return a.pT() > b.pT(); // biggest pT will be first in array
+            });
 
-        double m_pair1 = (leptons_stable[pair1_indexes[0]].mom() + leptons_stable[pair1_indexes[1]].mom()).mass()/GeV;
-        double m_pair2 = (leptons_stable[pair2_indexes[0]].mom() + leptons_stable[pair2_indexes[1]].mom()).mass()/GeV;
-        // std::cout << "m of best Z dist pair1 "<< m_pair1 << "of pair 2 " << m_pair2 << "\n";  
-        if (_docut==1 && (m_pair1<60.0 || m_pair1>120.0)) vetoEvent; 
-        if (_docut==1 && (m_pair2<60.0 || m_pair2>120.0)) vetoEvent; 
+        int nlep = leptons.size();
+        if (nlep<_jcuts["n_lepton_stable"])  vetoEvent; 
+        _cutflows.fillnext();
 
-        // Retrieve clustered jets, sorted by pT, with a minimum pT cut
-        Jets jets = apply<FastJets>(event, "jets").jetsByPt(Cuts::pT > 25*GeV);
-        // Remove all jets within dR < 0.2 of a dressed lepton
-        idiscardIfAnyDeltaRLess(jets, leptons_stable, 0.2);
-
-        int njets = jets.size();
-        if (njets < 2)  vetoEvent;  
-
-        bool foundVBSJetPair = false; // look in opposite hemispheres and pair should have highest mjj
-        double max_mjj = 0;
-        int tag1_jet_index = -1 ,tag2_jet_index = -1;
-        for (int i = 0; i < njets; i++) {
-        const Jet& i_jet = jets[i];
-            for (int j = 0; j < njets; j++) {
-                if (i!=j){
-                const Jet& j_jet = jets[j];
-                const double mjj = (i_jet.mom() + j_jet.mom()).mass()/GeV;
-                const double eta_prod = i_jet.eta()*j_jet.eta();
-                if  (eta_prod < 0.0 && mjj>max_mjj){
-                    max_mjj = mjj;
-                    foundVBSJetPair = true;
-                    tag1_jet_index = i;
-                    tag2_jet_index = j;
-                    }
-                }
+        if (_docut==1 && (leptons[0].pT()<_jcuts["pt_lepton1"] || leptons[1].pT()<_jcuts["pt_lepton2"])) vetoEvent;
+        _cutflows.fillnext();
+        
+        // deltaR between leptons for all pairs
+        int num_pair_bad_dR = 0;
+        for (int i = 0; i < nlep; i++) {
+            const Particle& i_lep = leptons[i];
+            for (int j = 0; j < nlep; j++) {
+                // to avoid comparing to itself and double couting like (i,j),(j,i) as two separate pairs
+                if (i==j || j>i) continue;
+                const Particle& j_lep = leptons[j];
+                double i_dR = deltaR(i_lep.rap(),i_lep.phi(), j_lep.rap(),j_lep.phi());
+                if (i_dR<_jcuts["dR_all_pairs"]) num_pair_bad_dR+=1;
             }
         }
-        if (tag2_jet_index < tag1_jet_index) swap(tag1_jet_index, tag2_jet_index); // organize tag jets by pt  
-        if (!foundVBSJetPair)  vetoEvent;
+        if (_docut==1 && num_pair_bad_dR>0) vetoEvent;
+        _cutflows.fillnext();
 
-        const FourMomentum tag1_jet = jets[tag1_jet_index].mom();
-        const FourMomentum tag2_jet = jets[tag2_jet_index].mom();
-        if (_docut==1 && (tag1_jet.pT()<40.0 || tag2_jet.pT()<40.0)) vetoEvent; 
+        // check SFOC and m_ll and save possible pairs
+        std::vector<std::vector<int>> pairs_ind;
+        for (int i = 0; i < nlep; i++) {
+            const Particle& i_lep = leptons[i];
+            for (int j = 0; j < nlep; j++) {
+                // to avoid comparing to itself and double couting like (i,j),(j,i) as two separate pairs
+                if (i==j || j>i) continue;
+                const Particle& j_lep = leptons[j];
+                int i_sum_pids = i_lep.pid() + j_lep.pid(); // to have SFOC will be 0
+                double i_m_ll = (i_lep.mom() + j_lep.mom()).mass()/GeV;
+                if (i_sum_pids==0 && i_m_ll>_jcuts["m_ll_all_pairs"]) pairs_ind.push_back({i,j});
+            }
+        }
+        if (pairs_ind.size()<2) vetoEvent;
+        _cutflows.fillnext();
+
+        // order found pairs by how close they are m_z
+        std::sort(pairs_ind.begin(), pairs_ind.end(), [this,leptons](std::vector<int> &ind_pair_1, std::vector<int> &ind_pair_2) {
+            double dist_pair_1 = pair_m_dist_m_z(leptons[ind_pair_1[0]], leptons[ind_pair_1[1]]);
+            double dist_pair_2 = pair_m_dist_m_z(leptons[ind_pair_2[0]], leptons[ind_pair_2[1]]);
+            return dist_pair_1 < dist_pair_2; // closest to m_z will be first
+            });
+        // define two pairs as the ones with smallest dist
+        const Particle& pair_1_lep_1 = leptons[pairs_ind[0][0]];
+        const Particle& pair_1_lep_2 = leptons[pairs_ind[0][1]];
+        const Particle& pair_2_lep_1 = leptons[pairs_ind[1][0]];
+        const Particle& pair_2_lep_2 = leptons[pairs_ind[1][1]];
+        int sum_abs_pids_quadruplet =  fabs(pair_1_lep_1.pid())+fabs(pair_1_lep_2.pid())+fabs(pair_2_lep_1.pid())+fabs(pair_2_lep_2.pid());
+        double m_ll_pair_1 = (pair_1_lep_1.mom()+pair_1_lep_2.mom()).mass()/GeV;
+        double m_ll_pair_2 = (pair_2_lep_1.mom()+pair_2_lep_2.mom()).mass()/GeV;
+
+        const FourMomentum fourvec_llll = pair_1_lep_1.mom() + pair_1_lep_2.mom() + pair_2_lep_1.mom() + pair_2_lep_2.mom();
+        double m_llll = fourvec_llll.mass()/GeV;
+        if (_docut==1 && m_llll<_jcuts["m_llll"]) vetoEvent; 
+        _cutflows.fillnext();
+
+        // // Retrieve clustered jets, sorted by pT, with a minimum pT cut
+        Jets jets = apply<FastJets>(event, "jets").jetsByPt(Cuts::pT > dbl(_jcuts["pt_jet"])*GeV);
+        idiscardIfAnyDeltaRLess(jets, leptons, 0.2);
+
+        int n_jets = jets.size();
+        if (n_jets < _jcuts["n_jets"])  vetoEvent;  
+        _cutflows.fillnext();
+
+        const FourMomentum tag1_jet = jets[0].mom();
+        const FourMomentum tag2_jet = jets[1].mom();
+        if (_docut==1 && (tag1_jet.pT()<dbl(_jcuts["pt_tagjet1"]) || tag2_jet.pT()<dbl(_jcuts["pt_tagjet2"]))) vetoEvent; 
+        _cutflows.fillnext();
 
         const double m_tagjets = (tag1_jet + tag2_jet).mass()/GeV;
-        if (_docut==1 && m_tagjets<300.0) vetoEvent;
+        if (_docut==1 && m_tagjets<_jcuts["m_tagjets"]) vetoEvent;
+        _cutflows.fillnext();
+        
+        const FourMomentum fourvec_jj = tag1_jet+tag2_jet;
+        const FourMomentum fourvec_lllljj = fourvec_llll + fourvec_jj;
 
         const double dy_tagjets = fabs(tag1_jet.rap() - tag2_jet.rap());
-        if (_docut==1 && dy_tagjets<2.0) vetoEvent;
-        
+        if (_docut==1 && dy_tagjets<_jcuts["dy_tagjets"]) vetoEvent;
+        if (_docut==1 && tag1_jet.eta()*tag2_jet.eta()>0) vetoEvent; 
+        _cutflows.fillnext();
+
+        const double centrality_quadjj = fabs(0.5 * (fourvec_llll.rap() - (tag1_jet.rap()+tag2_jet.rap())/2) / (tag1_jet.rap()-tag2_jet.rap()));
+        if (_docut==1 && centrality_quadjj > _jcuts["centrality_quadjj"])  vetoEvent;
+        _cutflows.fillnext();
+
+        int n_gap_jets = 0;
+        for (int i = 0; i < n_jets; i++) {
+            const double i_jet_rap = jets[i].rap();
+            if ((i_jet_rap < tag1_jet.rap() && i_jet_rap > tag2_jet.rap()) || (i_jet_rap < tag2_jet.rap() && i_jet_rap > tag1_jet.rap()))  ++n_gap_jets;
+        }
+
         //jet plots
-        _h["n_jet"]->fill(njets);
+        _h["n_jets"]->fill(n_jets);
         _h["pt_tagjet1"]->fill(tag1_jet.pt());
         _h["pt_tagjet2"]->fill(tag2_jet.pt());
-        // above this worked before
+        _h["eta_tagjets"]->fill(tag1_jet.eta()); _h["eta_tagjets"]->fill(tag2_jet.eta());
+        _h["phi_tagjets"]->fill(tag1_jet.phi()); _h["phi_tagjets"]->fill(tag2_jet.phi());
         _h["m_tagjets"]->fill(m_tagjets);
         _h["dy_tagjets"]->fill(dy_tagjets);
-        _h["eta_tagjets"]->fill(tag1_jet.eta()); _h["eta_tagjets"]->fill(tag2_jet.eta()); // fill both to the same hists
-        _h["deta_tagjets"]->fill(deltaEta(tag1_jet,tag2_jet));
         _h["dphi_tagjets"]->fill(deltaPhi(tag1_jet,tag2_jet));
         //lepton plots
-        _h["leptons_sum_abs_pids"]->fill(leptons_sum_abs_pids);
-        _h["n_lepton_stable"]->fill(nlep_stable);
-        _h["lepton_pt"]->fill(lep1.pT()); _h["lepton_pt"]->fill(lep2.pT());  _h["lepton_pt"]->fill(lep3.pT()); _h["lepton_pt"]->fill(lep4.pT());
-        _h["lepton_eta"]->fill(lep1.eta()); _h["lepton_eta"]->fill(lep2.eta()); _h["lepton_eta"]->fill(lep3.eta()); _h["lepton_eta"]->fill(lep4.eta());
-        // all_lep_pairs_m_ll filled in loop
-        _h["m_ll_of_pairs_best_quadruplet"]->fill(m_pair1); _h["m_ll_of_pairs_best_quadruplet"]->fill(m_pair2);
-        _h["m_4l"]->fill(m_4l);
-        // other
-        // lep_pairs_dR filled in loop
-        _c["found_VBS_pair"]->fill();
+        _h["n_lepton_stable"]->fill(nlep);
+        _h["pt_lepton"]->fill(pair_1_lep_1.pT()); _h["pt_lepton"]->fill(pair_1_lep_2.pT()); 
+        _h["pt_lepton"]->fill(pair_2_lep_1.pT()); _h["pt_lepton"]->fill(pair_2_lep_2.pT()); 
+        _h["eta_lepton"]->fill(pair_1_lep_1.eta()); _h["eta_lepton"]->fill(pair_1_lep_2.eta());    
+        _h["eta_lepton"]->fill(pair_2_lep_1.eta()); _h["eta_lepton"]->fill(pair_2_lep_2.eta());    
+        //ana-specific
+        _h["sum_abs_pids_quadruplet"]->fill(sum_abs_pids_quadruplet);
+        _h["m_ll_quadruplet"]->fill(m_ll_pair_1); _h["m_ll_quadruplet"]->fill(m_ll_pair_2);
+        _h["m_llll"]->fill(m_llll);
+        _h["n_gap_jets"]->fill(n_gap_jets);
+        _h["pt_tagjets"]->fill(fourvec_jj.pT());
+        _h["pt_llll"]->fill(fourvec_llll.pT());
+        _h["centrality_quadjj"]->fill(centrality_quadjj);
+        _h["pt_lllljj"]->fill(fourvec_lllljj.pT());
+
+        // save weights after cuts
+        if (ev_nominal_weight>=0){_c["pos_w_final"]->fill();}
+        else {_c["neg_w_final"]->fill();}
+
+        // file used for drawing images
+        if (_docut==1){
+            int ind_bigger_eta_tagjet = (tag1_jet.eta() >  tag2_jet.eta()) ? 0 : 1;
+            int ind_smaller_eta_tagjet = static_cast<int>(!static_cast<bool>(ind_bigger_eta_tagjet));
+            //
+            int ind_of_ind_bigger_eta_pair_1 = (pair_1_lep_1.eta() >  pair_1_lep_2.eta()) ? 0 : 1;
+            int ind_of_ind_smaller_eta_pair_1 = static_cast<int>(!static_cast<bool>(ind_of_ind_bigger_eta_pair_1));
+            int ind_bigger_eta_pair_1 = pairs_ind[0][ind_of_ind_bigger_eta_pair_1]; 
+            int ind_smaller_eta_pair_1 = pairs_ind[0][ind_of_ind_smaller_eta_pair_1]; 
+            //
+            int ind_of_ind_bigger_eta_pair_2 = (pair_2_lep_1.eta() >  pair_2_lep_2.eta()) ? 0 : 1;
+            int ind_of_ind_smaller_eta_pair_2 = static_cast<int>(!static_cast<bool>(ind_of_ind_bigger_eta_pair_2));
+            int ind_bigger_eta_pair_2 = pairs_ind[0][ind_of_ind_bigger_eta_pair_2]; 
+            int ind_smaller_eta_pair_2 = pairs_ind[0][ind_of_ind_smaller_eta_pair_2]; 
+            // pulling file into common with init() _fout didn't work so re-open
+            std::ofstream pic_csv (getOption("OUTDIR") + "/info_for_image.csv", std::ofstream::app); 
+            // tagjet1
+            pic_csv << jets[ind_bigger_eta_tagjet].eta() << ";";
+            pic_csv << jets[ind_bigger_eta_tagjet].phi() << ";";
+            pic_csv << jets[ind_bigger_eta_tagjet].pt() << ";";
+            //tagjet2
+            pic_csv << jets[ind_smaller_eta_tagjet].eta() << ";";
+            pic_csv << jets[ind_smaller_eta_tagjet].phi() << ";";
+            pic_csv << jets[ind_smaller_eta_tagjet].pt() << ";";
+            //
+            //pair 1 lepton 1        
+            pic_csv << leptons[ind_bigger_eta_pair_1].eta() << ";";
+            pic_csv << leptons[ind_bigger_eta_pair_1].phi() << ";";
+            pic_csv << leptons[ind_bigger_eta_pair_1].pt() << ";";
+            //pair 1 lepton 2        
+            pic_csv << leptons[ind_smaller_eta_pair_1].eta() << ";";
+            pic_csv << leptons[ind_smaller_eta_pair_1].phi() << ";";
+            pic_csv << leptons[ind_smaller_eta_pair_1].pt() << ";";
+            //
+            //pair 2 lepton 1        
+            pic_csv << leptons[ind_bigger_eta_pair_2].eta() << ";";
+            pic_csv << leptons[ind_bigger_eta_pair_2].phi() << ";";
+            pic_csv << leptons[ind_bigger_eta_pair_2].pt() << ";";
+            //pair 2 lepton 2        
+            pic_csv << leptons[ind_smaller_eta_pair_2].eta() << ";";
+            pic_csv << leptons[ind_smaller_eta_pair_2].phi() << ";";
+            pic_csv << leptons[ind_smaller_eta_pair_2].pt() << ";";
+            // terminate line
+            pic_csv << "\n";
+        }
     }
 
+    double pair_m_dist_m_z(const Particle& lep_1, const Particle& lep_2){
+        double i_m_ll = (lep_1.mom() + lep_2.mom()).mass()/GeV;
+        double i_m_ll_dist_m_z = fabs(i_m_ll-91.18);
+        return i_m_ll_dist_m_z;
+    }
 
     /// Normalise histograms etc., after the run
     void finalize() {
+        std::string cut_str = _cutflows.str();
+        std::string cutflow_file = getOption("OUTDIR") + "/cutflow.txt";
+        std::ofstream ofs (cutflow_file, std::ofstream::out); 
+        ofs << cut_str;
+        ofs.close();
 
-        double veto_survive_sumW = dbl(*_c["found_VBS_pair"]);
-        double veto_survive_frac = veto_survive_sumW / sumW();
-        std::cout << "survived veto, will norm to this: " << veto_survive_frac << "\n";
-        double norm_to = veto_survive_frac*crossSection()/picobarn; // norm to generated cross-section in pb (after cuts)
-        
-        std::vector<std::string> hist_names_1d = {"n_jet","pt_tagjet1","pt_tagjet2","m_tagjets",
-        // "dy_tagjets","eta_tagjet1","eta_tagjet2","eta_tagjets", "deta_tagjets", 
-        // "phi_tagjet1","phi_tagjet2","dphi_tagjets",
-        // "n_lepton_stable","lepton_pt","lepton_eta",
-        // "m_ll","MET","m_T","centrality","jet3_centrality","tagjet1_index","tagjet2_index","jet3_index"
-        };       
-        for (auto&& i_name : hist_names_1d){ normalize(_h[i_name], norm_to);}
-        // also norm few 2d
-        // normalize(_h2["m_dy_tagjets"], norm_to);
-        // normalize(_h2["leptons_pids"],norm_to);
-        // normalize(_h2["tagjets_index"],norm_to);
+        double pos_w_sum_initial = dbl(*_c["pos_w_initial"]); // from which also number of entries can be obtained
+        double neg_w_sum_initial = dbl(*_c["neg_w_initial"]);
+        double pos_w_sum_final = dbl(*_c["pos_w_final"]);
+        double neg_w_sum_final = dbl(*_c["neg_w_final"]);
+        MSG_INFO("\n pos weights initial final ratio " << pos_w_sum_initial <<" " << pos_w_sum_final <<" "<< pos_w_sum_final/pos_w_sum_initial << "\n" );
+        MSG_INFO("\n neg weights initial final ratio " << neg_w_sum_initial <<" " << neg_w_sum_final <<" "<< neg_w_sum_final/neg_w_sum_initial << "\n" );
 
+        // normalize all to 1 since in case of mostly negative weights not clear what it will do
+        for (auto & i_name : _hist_names){ 
+            std::cout << "normalizeing hist " << i_name <<" to 1; " ;
+            normalize(_h[i_name], 1.0);
+        }
     }
 
     /// @}
@@ -326,6 +358,13 @@ namespace Rivet {
     // map<string, Profile1DPtr> _p;
     map<string, CounterPtr> _c;
     int _docut;
+    Cut _electron_eta_cut;
+    Cut _muon_eta_cut;
+    Cut _electron_pt_cut;
+    Cut _muon_pt_cut;
+    json _jcuts;
+    Cutflows _cutflows;
+    std::vector<std::string> _hist_names;
     /// @}
 
 
