@@ -156,12 +156,16 @@ def get_ops(include_fs0_2):
 
 def get_hists_bounds_cuts(prod_dec):
     with open(f"{prod_dec}_hists.json") as fo: total_h = json.load(fo)
+    # always load analysis specific hists and jet ones
     with open("jet_hists.json") as fo: jet_h = json.load(fo)
     with open("photon_hists.json") as fo: photon_h = json.load(fo)
     with open("lepton_hists.json") as fo: lepton_h = json.load(fo)
     total_h.update(jet_h)
-    if prod_dec in ["Zy_lly"]:
+    # update others depending on ana
+    if prod_dec in ["Zy_lly", "Wmy_lvy"]:
         total_h.update(lepton_h)
+        total_h.update(photon_h)
+    elif prod_dec=="Zy_vvy":
         total_h.update(photon_h)
 
     # this loop is unncessecary
