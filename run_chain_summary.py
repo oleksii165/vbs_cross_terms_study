@@ -37,7 +37,7 @@ plots_no_logy=["n_","ph","dp","et","dy", "dR"]
 plots_to_save_info_dict = lu.get_hists_bounds_cuts(prod_dec) 
 plots_to_save = plots_to_save_info_dict.keys()
 
-tasks = c.get_tasks(limit=1000, days=30, username="Oleksii Kurdysh", status="done") # get already last try since only retry if it failed
+tasks = c.get_tasks(limit=100000000, days=13000, username="Oleksii Kurdysh", status="done") # get already last try since only retry if it failed
 task_names = [i_task['taskname'].replace("/","") for i_task in tasks if "MadGraph" in i_task['taskname'] and opts.tProd in i_task['taskname'] and opts.tDec in i_task['taskname']]
 all_ops, op_pairs = lu.get_ops(include_fs0_2=True)
 splitedSize = int(opts.numJobsParallel)
@@ -107,6 +107,9 @@ for op_dir in [i_obj for i_obj in os.listdir(top_files_dir) if os.path.isdir(top
     if not os.path.exists(product_file) or not os.path.exists(frac_file) or not os.path.exists(hists_file) or not os.path.exists(log_file):
         print("didnt find the txt xsec fid and/or root file or frac file or log file for", op_dir)
         continue 
+    if not os.path.exists(cutflow_file) or not os.path.exists(frac_er_file):
+        print("didnt find the txt cutflow  and/or frac error file", op_dir)
+        continue
 
     # xsec organization
     with open(product_file, 'r') as f: fid_xsec_fb = float(f.read())
@@ -423,10 +426,10 @@ if opts.runQUADAndCROSS=="yes":
             c.Update()
             c.Show()
             c.SaveAs(f"{bookletdir}/{i_pair}_part{i_batch}.pdf")
-            c.SaveAs(f"{bookletdir}/svg/{i_pair}_part{i_batch}.svg")
+            # c.SaveAs(f"{bookletdir}/svg/{i_pair}_part{i_batch}.svg")
 
 
-    # compare for each distribution quads shape   
+    # compare for each distribution quads shape
     quaddir = plot_dir + "/quad_kin/"
     if not os.path.exists(quaddir): os.makedirs(quaddir)
     if not os.path.exists(quaddir+"/svg/"): os.makedirs(quaddir+"/svg/")
@@ -442,10 +445,10 @@ if opts.runQUADAndCROSS=="yes":
             i_stack.Draw("nostack")
             if display_params[1]!=-1: i_stack.GetXaxis().SetRangeUser(display_params[1], display_params[2])
             ROOT.gPad.BuildLegend()
-            if i_stack.GetTitle()[:2]!="n_": ROOT.gPad.SetLogy() # for plots like n_jets don't need log scale        
+            if i_stack.GetTitle()[:2] not in plots_no_logy: ROOT.gPad.SetLogy() # for plots like n_jets don't need log scale
             c.Modified()
             c.Update()
             c.Show()
             c.SaveAs(f"{quaddir}/{i_plot_name}_many_quads.pdf") 
-            c.SaveAs(f"{quaddir}/svg/{i_plot_name}_many_quads.svg")
+            # c.SaveAs(f"{quaddir}/svg/{i_plot_name}_many_quads.svg")
 
