@@ -23,6 +23,16 @@ def get_im_color(particle_name, for_distribution=False):
 
     return color
 
+def get_fitted_plot(prod_dec):
+    mystr=""
+    if prod_dec=="Zy_vvy":mystr="pt_photon"
+    return mystr
+
+def get_var_latex(varname): # to be used with ROOT latex
+    latexstr=varname
+    if varname=="pt_photon": latexstr="p_{T}^{\gamma} [GeV]"
+    return latexstr
+
 def latex_ana_str(prod_dec):
     mystr=""
     if "Zy_lly" in prod_dec: mystr = "Z(" + r"$\rightarrow$" + f"ll)y"
@@ -126,12 +136,6 @@ def get_plotdir(prod_dec, DOCUT_str):
     my_dir = f"/exp/atlas/kurdysh/vbs_cross_terms_study/plots/{prod_dec}/{DOCUT_str}/" 
     if not os.path.exists(my_dir): os.makedirs(my_dir)
     return my_dir
-
-# @TODO is this func needed?
-def get_big_pairs():
-    return ["FM0vsFM1", "FM0vsFM7", "FM1vsFM7", "FM2vsFM3",  "FM4vsFM5", 
-            "FS0vsFS1", "FS0vsFS2", "FS1vsFS2",
-            "FT0vsFT1","FT0vsFT2", "FT1vsFT2","FT5vsFT6","FT5vsFT7","FT6vsFT7"]
 
 def get_pair_str(op1,op2):
     mypair = sorted([op1,op2])
@@ -360,7 +364,9 @@ def save_plot(plot,path_to_save, draw_option = "text45", log_scale = False, lege
     c=ROOT.TCanvas()
     plot.Draw(draw_option)
     if log_scale: ROOT.gPad.SetLogy()
-    if legend: ROOT.gPad.BuildLegend()
+    if legend: 
+        l=ROOT.gPad.BuildLegend()
+        l.SetFillColorAlpha(0, 0) # transparent label
     c.Modified()
     c.Update()
     c.Show()
@@ -384,15 +390,16 @@ def read_hists(root_file_name, h_names_arr):
 
 def dress_hist(my_hist, my_title, my_color, my_norm = 1.0):
     my_hist.SetTitle(my_title)
+    my_hist.SetName(my_title)
     my_hist.SetLineColor(my_color)
     my_hist.SetMarkerColor(my_color)
     hist_integ = my_hist.Integral()
-    print("normalize", my_hist.GetName(), my_hist.GetTitle(), "to", my_norm, "start from integ", hist_integ)
+    # print("normalize", my_hist.GetName(), my_hist.GetTitle(), "to", my_norm, "start from integ", hist_integ)
     if hist_integ!=0:
         my_hist.Scale(my_norm/hist_integ)
-        print("get back integ", my_hist.Integral())
-    else: 
-        print("dont normalize since integral is 0")
+        # print("get back integ", my_hist.Integral())
+    # else: 
+    #     print("dont normalize since integral is 0")
     return my_hist.Clone()
 
 def make_stack(hist_arr, title="",norm=-1):
@@ -404,4 +411,94 @@ def make_stack(hist_arr, title="",norm=-1):
     return my_stack.Clone()
 
 
+### for comparisons
+# title = "pt_photon"
+# rebin = 10
+# def get_hist(op_mode, color):
+#     root_file_name =  f"/exp/atlas/kurdysh/vbs_cross_terms_study/eft_files/Zy_vvy/user.okurdysh.MadGraph_Zy_vvy_{op_mode}_EXT0/DOCUT_YES/hists.root"
+#     root_file = ROOT.TFile.Open(root_file_name, "READ")
+#     hist_in = root_file.Get(title)
+#     hist = hist_in.Clone()
+#     hist.SetDirectory(0)
+#     hist.SetTitle(op_mode)
+#     hist.SetName(op_mode)
+#     hist.SetLineColor(color)
+#     hist.SetMarkerColor(color)
+#     hist.RebinX(rebin)
+#     hist.Sumw2()
+#     return hist
+# plot_q1 = get_hist("FT1_QUAD", 2)
+# plot_q2 = get_hist("FT2_QUAD", 3)
+# plot_c = get_hist("FT1vsFT2_CROSS", 1)
 
+
+def get_hist_dict(i_h):
+    dict_q1 = {}  # key is bin x-axis L edge, value is [bin content, error]
+    for ix in range(1, i_h.GetNbinsX() + 1):
+        l_edge = i_h.GetBinLowEdge(ix)
+        cont = i_h.GetBinContent(ix)
+        err = i_h.GetBinError(ix)
+        if cont != 0: dict_q1[l_edge] = [cont, err]
+    return dict_q1
+
+def get_ratio_plot_tests(hist_1, hist_2): # _2 is the one with to respect to which hist_1 is taken
+    dict_1 = get_hist_dict(hist_1)
+    dict_2 = get_hist_dict(hist_2)
+    bigger_xaxis_dict = dict_1 if len(dict_1) > len(dict_2) else dict_2
+    smaller_xaxis_dict = dict_2 if bigger_xaxis_dict == dict_1 else dict_1
+    ratio_hist_for_gr_range = ROOT.TH1F("dummy", "dummy", hist_1.GetNbinsX(), 
+                                        hist_1.GetXaxis().GetXmin(),hist_1.GetXaxis().GetXmax())
+    ratio_plot = ROOT.TGraphErrors(ratio_hist_for_gr_range)
+    ratio_test_points = []
+    for num_p,ix in enumerate(bigger_xaxis_dict.keys()):
+        if ix not in smaller_xaxis_dict.keys(): continue
+        i_1 = bigger_xaxis_dict[ix]
+        i_2 = smaller_xaxis_dict[ix]
+        ratio = i_1[0]/i_2[0]
+        ratio_plot.SetPoint(num_p, ix, ratio)
+        ratio_plot.SetPointError(num_p, 0, math.sqrt((i_1[1])**2+(i_2[1])**2))
+        if ratio>=1: 
+            ratio_test_points.append(ratio-1)
+        else:
+            ratio_test_points.append(1/ratio-1)
+    ratio_test = np.sum(ratio_test_points)/len(ratio_test_points)
+    rchi2 = hist_1.Chi2Test(hist_2, "CHI2/NDF")
+    print("from ratios", ratio_test_points, "get RT", ratio_test, "with chi2/ndf", rchi2)
+    ratio_name = f"{hist_1.GetName()}/{hist_2.GetName()} RT={ratio_test:.2f} rChi2={rchi2:.2f}"
+    ratio_plot.SetName(ratio_name)
+    ratio_plot.SetTitle(ratio_name)
+    ratio_color = hist_1.GetLineColor() # notice it's hist_1 where color is taken
+    ratio_plot.SetMarkerColor(ratio_color)
+    ratio_plot.SetLineColor(ratio_color)
+    return ratio_plot.Clone(), ratio_test, rchi2
+
+def draw_stack_with_ratio(my_stack, mg_ratios, xtitle, outname, stack_x_range=[]):
+    c = ROOT.TCanvas()
+    y_divide = 0.4
+    pad_1 = ROOT.TPad("pad1","pad1", 0.0, y_divide, 1.0, 1.0)
+    pad_2 = ROOT.TPad("pad1","pad1", 0.0, 0.0, 1.0, y_divide)
+    pad_1.Draw()
+    pad_2.Draw()
+
+    pad_1.cd()
+    my_stack.Draw("nostack")
+    if len(stack_x_range)!=0: 
+        my_stack.GetXaxis().SetRangeUser(stack_x_range[0], stack_x_range[1])
+    ROOT.gPad.SetLogy()
+    my_stack.GetXaxis().SetTitle(xtitle)
+    l = ROOT.gPad.BuildLegend()
+    l.SetFillColorAlpha(0, 0)
+
+    pad_2.cd()
+    mg_ratios.Draw("AP")
+    # without range can be slight visual different in range wrt to top plot
+    if len(stack_x_range)==0:
+        mg_ratios.GetXaxis().SetRangeUser(my_stack.GetXaxis().GetXmin(),my_stack.GetXaxis().GetXmax())
+    else:
+        mg_ratios.GetXaxis().SetRangeUser(stack_x_range[0], stack_x_range[1])
+    l = ROOT.gPad.BuildLegend()
+    l.SetFillColorAlpha(0, 0)
+    c.Modified()
+    c.Update()
+    c.Show()
+    c.SaveAs(outname)
