@@ -13,14 +13,15 @@ import os
 import lib_utils as lu
 import matplotlib.pyplot as plt
 from statistics import mean
-plt.rcParams.update({'text.usetex': True})
+plt.rcParams.update({'text.usetex': True,
+                     "backend": 'PDF'})
+from matplotlib.backends.backend_pdf import PdfPages
 import math
 import numpy as np
 import pandas as pd
 from pandas.plotting import table
 import subprocess
-from pandaclient import panda_api
-c = panda_api.get_api()
+
 from optparse import OptionParser
 parser = OptionParser()
 parser.add_option("--tProd", default = "WmWm")
@@ -46,6 +47,11 @@ plots_no_logy=["n_","ph","dp","et","dy", "dR"]
 plots_to_save_info_dict = lu.get_hists_bounds_cuts(prod_dec) 
 plots_to_save = plots_to_save_info_dict.keys()
 
+#######
+# those parts cannot run from pycharm with debugger - remove
+# #########
+from pandaclient import panda_api
+c = panda_api.get_api()
 tasks = c.get_tasks(limit=100000000, days=13000, username="Oleksii Kurdysh", status="done") # get already last try since only retry if it failed
 task_names = [i_task['taskname'].replace("/","") for i_task in tasks if "MadGraph" in i_task['taskname'] and opts.tProd in i_task['taskname'] and opts.tDec in i_task['taskname']]
 all_ops, op_pairs = lu.get_ops(include_fs0_2=True)
@@ -75,16 +81,16 @@ def call_bloc_proc(op_blocks, eft_config):
                 else: print("-------------- did not find done in both orders for", i_job_order_1, i_job_order_2)
         procs = [subprocess.Popen(i_bash, shell=True) for i_bash in i_block_bashcoms]
         # wait until all processes are finished
-        if len(procs)>0: 
+        if len(procs)>0:
             for p in procs: p.wait()
         print (f"############## \n ####finished with block ops num {i_num_block} out of {len(op_blocks)}")
 
 if opts.sumPlotsOnly!="yes":
-    if opts.runSMAndFULL=="yes": 
+    if opts.runSMAndFULL=="yes":
         call_bloc_proc([["FM0"]], "SM")
         call_bloc_proc(blocks_of_single_ops, "FULL")
         
-    if opts.runQUADAndCROSS=="yes": 
+    if opts.runQUADAndCROSS=="yes":
         call_bloc_proc(blocks_of_single_ops, "QUAD")
         call_bloc_proc(blocks_of_op_pairs, "CROSS")
 
@@ -364,7 +370,7 @@ if opts.runQUADAndCROSS=="yes":
     #     fig.savefig(plot_dir + f"/frac_w_after_cuts_above_{area_ratio_min}.pdf")
     
     # draw_efficiency(0.99)
-    # draw_efficiency(1.05)
+    # draw_efficiency(big_pairs_cutoff)
     
     # ##########
     # # make plots kinematics
@@ -441,53 +447,134 @@ if opts.runQUADAndCROSS=="yes":
     # check what can use to replace pair
     fit_plot_str = lu.get_fitted_plot(prod_dec)
     display_params_fitv = plots_to_save_info_dict[fit_plot_str]
-    quad_ops_fit = list(plots_dict["QUAD"][fit_plot_str].keys())
+    quad_ops_fit = sorted(list(plots_dict["QUAD"][fit_plot_str].keys()))
+    fidxsec_dict = {"QUAD": {}}
+    for iop in quad_ops_fit:
+        fidxsec_dict["QUAD"][iop] = abs(xsec_dict["QUAD"][iop]*frac_dict["QUAD"][iop])
     quadpairsdir = plot_dir + "/quad_pair_ratios/"
     if not os.path.exists(quadpairsdir): os.makedirs(quadpairsdir)
+    quadpairsdir_fidxsec = plot_dir + "/quad_pair_ratios_fidxsec_norm/"
+    if not os.path.exists(quadpairsdir_fidxsec): os.makedirs(quadpairsdir_fidxsec)
+    def get_quad_pair_stack(i_key1, i_key2, norm1, norm2):
+        i_quad1 = lu.dress_hist(plots_dict["QUAD"][fit_plot_str][i_key1], f"QUAD_{i_key1}", 2, norm1)
+        i_quad2 = lu.dress_hist(plots_dict["QUAD"][fit_plot_str][i_key2], f"QUAD_{i_key2}", 3, norm2)
+        if display_params_fitv[0] != -1:
+            i_quad1.RebinX(display_params_fitv[0])
+            i_quad2.RebinX(display_params_fitv[0])
+        i_stack = lu.make_stack([i_quad1, i_quad2], title = fit_plot_str)
+        return i_quad1.Clone(), i_quad2.Clone(), i_stack.Clone()
+
     rt_arr = []
     rchi2_arr = []
+    ks_arr = []
     pairs_arr = []
     for i_key1 in quad_ops_fit:
         for i_key2 in quad_ops_fit:
-            if i_key1==i_key2 or quad_ops_fit.index(i_key1)>quad_ops_fit.index(i_key2): continue
-            i_quad1 = lu.dress_hist(plots_dict["QUAD"][fit_plot_str][i_key1], f"QUAD_{i_key1}", 2)
-            i_quad2 = lu.dress_hist(plots_dict["QUAD"][fit_plot_str][i_key2], f"QUAD_{i_key2}", 3)
-            if display_params_fitv[0]!=-1: 
-                i_quad1.RebinX(display_params_fitv[0])
-                i_quad2.RebinX(display_params_fitv[0])
-            i_stack = lu.make_stack([i_quad1, i_quad2], title=fit_plot_str)
-            ratio_plot, rt, rchi2 = lu.get_ratio_plot_tests(i_quad1, i_quad2)
+            if i_key1==i_key2: continue # "AvsB, BvsA both will be saved intentionally for easier latex batch plotting
+            pair_str = f"{i_key1}vs{i_key2}"
+            pairs_arr.append(pair_str)
+            stack_x_range = [] if display_params_fitv[1]==-1 else [display_params_fitv[1],display_params_fitv[2]]
+            # save to see xsec how different areas are
+            _,_,i_stack_fidxsec = get_quad_pair_stack(i_key1, i_key2,
+                                                    fidxsec_dict["QUAD"][i_key1],fidxsec_dict["QUAD"][i_key2])
+            lu.draw_stack_with_ratio(i_stack_fidxsec, -1,
+                                     lu.get_var_latex(fit_plot_str), quadpairsdir_fidxsec+f"/{pair_str}.pdf",
+                                     stack_x_range)
+            # with same normalization derive test
+            i_quad1, i_quad2, i_stack = get_quad_pair_stack(i_key1, i_key2,
+                                                            1, 1)
+            ratio_plot, rt, rchi2, ks = lu.get_ratio_plot_tests(i_quad1, i_quad2)
             rt_arr.append(rt)
             rchi2_arr.append(rchi2)
-            sorted_keys = sorted([i_key1, i_key2])
-            pair_str = f"{sorted_keys[0]}vs{sorted_keys[1]}"
-            pairs_arr.append(pair_str)
-            i_plot_path = quadpairsdir + f"/{pair_str}.pdf"
-            stack_x_range=[] if display_params_fitv[1]==-1 else [display_params_fitv[1],display_params_fitv[2]]
-            lu.draw_stack_with_ratio(i_stack, ratio_plot, 
-                                    lu.get_var_latex(fit_plot_str), i_plot_path, stack_x_range)
-    # save custom RT vs chi2 
+            ks_arr.append(ks)
+            lu.draw_stack_with_ratio(i_stack, ratio_plot,
+                                    lu.get_var_latex(fit_plot_str), quadpairsdir+f"/{pair_str}.pdf",
+                                     stack_x_range)
+    # save custom RT vs chi2  and RT vs KS
+    # "AvsB and BvsA should be the same point and don't create dublication on these plot
     plt.clf()
     plt.plot(rchi2_arr,rt_arr, "o", color="black")
     plt.xlabel('chi2/ndf')
     plt.ylabel('custom ratio test')
-    plt.savefig(plot_dir + "/quads_rt_vs_chi2.png")
-    # save table for tests
-    df = pd.DataFrame(index = quad_ops_fit, columns = quad_ops_fit)
-    for i_pair, i_rt, i_rchi2 in zip(pairs_arr, rt_arr, rchi2_arr):
-        print("filling table with", i_pair)
+    plt.savefig(plot_dir + "/quads_rt_vs_chi2.pdf")
+    #
+    plt.clf()
+    plt.plot(ks_arr, rt_arr, "o", color="black")
+    plt.xlabel('KS test')
+    plt.ylabel('custom ratio test')
+    plt.savefig(plot_dir + "/quads_rt_vs_ks.pdf")
+    # save table with RT for all pairs
+    df = pd.DataFrame(index=quad_ops_fit, columns=quad_ops_fit)
+    for i_pair, i_rt, i_rchi2, i_ks in zip(pairs_arr, rt_arr, rchi2_arr, ks_arr):
         i_op1 = i_pair[:i_pair.find("vs")]
-        i_op2 = i_pair[i_pair.find("vs")+2:]
-        df.at[i_op1, i_op2] = f"{i_rt:.2f};{i_rchi2:.2f}"
+        i_op2 = i_pair[i_pair.find("vs") + 2:]
+        df.at[i_op1, i_op2] = f"{i_rt:.2f}; {i_rchi2:.2f}; {i_ks:.2f}"
     df = df.fillna('')
     plt.clf()
-    ax = plt.subplot(111, frame_on=False)  # no visible frame
-    ax.xaxis.set_visible(False)  # hide the x axis
-    ax.yaxis.set_visible(False)  # hide the y axis
-    table=table(ax, df, loc="center")
-    table.set_fontsize(14)
-    plt.savefig(plot_dir + "/quads_tests_table.pdf")
-    # for latex
-    print("got pairs for quads", pairs_arr)
+    fig, ax = plt.subplots(figsize=(19, 8))  # no visible frame
+    ax.axis('tight')
+    ax.axis('off')
+    table_quad_pairs = ax.table(cellText = df.values, rowLabels = df.index,
+                                colLabels = df.columns, loc='center')
+    with PdfPages(plot_dir + "/quads_tests_table.pdf") as pdf:
+        pdf.savefig(fig, bbox_inches='tight')
+        plt.close()
+    # save tables with conversion factor and which op to use
+    missing_ops = lu.get_missing_ops(prod_dec)
+    RT_replacements, RT_conv_factors = [], []
+    Chi2_replacements, Chi2_conv_factors = [], []
+    KS_replacements, KS_conv_factors = [], []
+    for op, row in df.iterrows():
+        op_fidxsec = fidxsec_dict["QUAD"][op]
+        RT_min, Chi2_min, KS_max = 10000000.0, 10000000.0, 0.0
+        RT_replacement, Chi2_replacement, KS_replacement = "", "", ""
+        # for i_op_replacement, i_RT in dict(row).items():
+        for i_op_replacement, i_tests_str in dict(row).items():
+            if i_op_replacement == op or i_op_replacement in missing_ops: continue
+            i_str_vec = [float(i) for i in i_tests_str.split(";")]
+            i_RT, i_Chi2, i_KS = i_str_vec[0], i_str_vec[1], i_str_vec[2]
+            if i_RT < RT_min: RT_min, RT_replacement = i_RT, i_op_replacement
+            if i_Chi2 < Chi2_min: Chi2_min, Chi2_replacement = i_Chi2, i_op_replacement
+            if i_KS > KS_max: KS_max, KS_replacement = i_KS, i_op_replacement
+        RT_replacements.append(RT_replacement)
+        Chi2_replacements.append(Chi2_replacement)
+        KS_replacements.append(KS_replacement)
+        RT_factor = op_fidxsec / fidxsec_dict["QUAD"][RT_replacement] if RT_replacement != "" else ""
+        Chi2_factor = op_fidxsec / fidxsec_dict["QUAD"][Chi2_replacement] if Chi2_replacement != "" else ""
+        KS_factor = op_fidxsec / fidxsec_dict["QUAD"][KS_replacement] if KS_replacement != "" else ""
+        RT_conv_factors.append(RT_factor)
+        Chi2_conv_factors.append(Chi2_factor)
+        KS_conv_factors.append(KS_factor)
+    #
+    replacement_df = pd.DataFrame(index=quad_ops_fit, columns=["RTreplacement", "RTfactor",
+                                                               "Chi2replacement", "Chi2factor",
+                                                               "KSreplacement", "KSfactor"])
+    replacement_df["RTreplacement"], replacement_df["RTfactor"] = RT_replacements, RT_conv_factors
+    replacement_df["Chi2replacement"], replacement_df["Chi2factor"] = Chi2_replacements, Chi2_conv_factors
+    replacement_df["KSreplacement"], replacement_df["KSfactor"] = KS_replacements, KS_conv_factors
+    # save table with inclusion of ops that should not be replaced and three methods
+    plt.clf()
+    fig, ax = plt.subplots()  # no visible frame
+    ax.axis('tight')
+    ax.axis('off')
+    table_r_extended = ax.table(cellText = replacement_df.values, rowLabels = replacement_df.index,
+                                colLabels = replacement_df.columns, loc='center')
+    with PdfPages(plot_dir + "/quads_extended_replacement_table.pdf") as pdf:
+        pdf.savefig(fig, bbox_inches='tight')
+        plt.close()
+    # save table with only RT and only ops missing
+    present_ops = [i_op for i_op in quad_ops_fit if i_op not in missing_ops]
+    for i_present_op in present_ops:
+        replacement_df.drop(i_present_op, axis=0, inplace=True)
+    for i_nonKS_col in ["Chi2replacement", "Chi2factor", "KSreplacement", "KSfactor"]:
+        replacement_df.drop(i_nonKS_col, axis=1, inplace=True)
+    plt.clf()
+    fig, ax = plt.subplots()  # no visible frame
+    ax.axis('tight')
+    ax.axis('off')
+    table_r = table(ax, replacement_df, loc="center")
+    with PdfPages(plot_dir + "/quads_replacement_table.pdf") as pdf:
+        pdf.savefig(fig, bbox_inches='tight')
+        plt.close()
 
-
+    print("hi")

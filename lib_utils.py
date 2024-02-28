@@ -28,6 +28,21 @@ def get_fitted_plot(prod_dec):
     if prod_dec=="Zy_vvy":mystr="pt_photon"
     return mystr
 
+def get_missing_ops(prod_dec):
+    if prod_dec=="Zy_vvy":
+        ops = ["FS0", "FS1", "FS2", "FS02",
+                       "FM7",
+                       "FM3", "FM4", "FM5",
+                       "FT1", "FT2",
+                       "FT6", "FT7"]
+    elif prod_dec in ["WpZ_lllv","WmZ_lllv"]:
+        ops = ["FM2", "FM3", "FM4", "FM5",
+               "FT5", "FT6", "FT7",
+               "FT8", "FT9"]
+    else:
+        ops=[]
+    return ops
+
 def get_var_latex(varname): # to be used with ROOT latex
     latexstr=varname
     if varname=="pt_photon": latexstr="p_{T}^{\gamma} [GeV]"
@@ -463,18 +478,19 @@ def get_ratio_plot_tests(hist_1, hist_2): # _2 is the one with to respect to whi
             ratio_test_points.append(1/ratio-1)
     ratio_test = np.sum(ratio_test_points)/len(ratio_test_points)
     rchi2 = hist_1.Chi2Test(hist_2, "CHI2/NDF")
-    print("from ratios", ratio_test_points, "get RT", ratio_test, "with chi2/ndf", rchi2)
-    ratio_name = f"{hist_1.GetName()}/{hist_2.GetName()} RT={ratio_test:.2f} rChi2={rchi2:.2f}"
+    ks = hist_2.KolmogorovTest(hist_1)
+    # print("from ratios", ratio_test_points, "get RT", ratio_test, "with chi2/ndf", rchi2)
+    ratio_name = f"{hist_1.GetName()}/{hist_2.GetName()} RT={ratio_test:.2f} rChi2={rchi2:.2f} KS={ks:.2f}"
     ratio_plot.SetName(ratio_name)
     ratio_plot.SetTitle(ratio_name)
     ratio_color = hist_1.GetLineColor() # notice it's hist_1 where color is taken
     ratio_plot.SetMarkerColor(ratio_color)
     ratio_plot.SetLineColor(ratio_color)
-    return ratio_plot.Clone(), ratio_test, rchi2
+    return ratio_plot.Clone(), ratio_test, rchi2, ks
 
 def draw_stack_with_ratio(my_stack, mg_ratios, xtitle, outname, stack_x_range=[]):
     c = ROOT.TCanvas()
-    y_divide = 0.4
+    y_divide = 0.4 if mg_ratios!=-1 else 0.0
     pad_1 = ROOT.TPad("pad1","pad1", 0.0, y_divide, 1.0, 1.0)
     pad_2 = ROOT.TPad("pad1","pad1", 0.0, 0.0, 1.0, y_divide)
     pad_1.Draw()
@@ -489,15 +505,17 @@ def draw_stack_with_ratio(my_stack, mg_ratios, xtitle, outname, stack_x_range=[]
     l = ROOT.gPad.BuildLegend()
     l.SetFillColorAlpha(0, 0)
 
-    pad_2.cd()
-    mg_ratios.Draw("AP")
-    # without range can be slight visual different in range wrt to top plot
-    if len(stack_x_range)==0:
-        mg_ratios.GetXaxis().SetRangeUser(my_stack.GetXaxis().GetXmin(),my_stack.GetXaxis().GetXmax())
-    else:
-        mg_ratios.GetXaxis().SetRangeUser(stack_x_range[0], stack_x_range[1])
-    l = ROOT.gPad.BuildLegend()
-    l.SetFillColorAlpha(0, 0)
+    if mg_ratios!=-1:
+        pad_2.cd()
+        mg_ratios.Draw("AP")
+        # without range can be slight visual different in range wrt to top plot
+        if len(stack_x_range)==0:
+            mg_ratios.GetXaxis().SetRangeUser(my_stack.GetXaxis().GetXmin(),my_stack.GetXaxis().GetXmax())
+        else:
+            mg_ratios.GetXaxis().SetRangeUser(stack_x_range[0], stack_x_range[1])
+        l = ROOT.gPad.BuildLegend()
+        l.SetFillColorAlpha(0, 0)
+
     c.Modified()
     c.Update()
     c.Show()
