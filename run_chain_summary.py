@@ -89,7 +89,7 @@ if opts.sumPlotsOnly!="yes":
     if opts.runSMAndFULL=="yes":
         call_bloc_proc([["FM0"]], "SM")
         call_bloc_proc(blocks_of_single_ops, "FULL")
-        
+
     if opts.runQUADAndCROSS=="yes":
         call_bloc_proc(blocks_of_single_ops, "QUAD")
         call_bloc_proc(blocks_of_op_pairs, "CROSS")
@@ -566,8 +566,6 @@ if opts.runQUADAndCROSS=="yes":
     present_ops = [i_op for i_op in quad_ops_fit if i_op not in missing_ops]
     for i_present_op in present_ops:
         replacement_df.drop(i_present_op, axis=0, inplace=True)
-    for i_nonKS_col in ["Chi2replacement", "Chi2factor", "KSreplacement", "KSfactor"]:
-        replacement_df.drop(i_nonKS_col, axis=1, inplace=True)
     plt.clf()
     fig, ax = plt.subplots()  # no visible frame
     ax.axis('tight')

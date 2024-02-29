@@ -471,11 +471,14 @@ def get_ratio_plot_tests(hist_1, hist_2): # _2 is the one with to respect to whi
         i_2 = smaller_xaxis_dict[ix]
         ratio = i_1[0]/i_2[0]
         ratio_plot.SetPoint(num_p, ix, ratio)
-        ratio_plot.SetPointError(num_p, 0, math.sqrt((i_1[1])**2+(i_2[1])**2))
+        uncert =  math.sqrt((i_1[1]) ** 2 + (i_2[1]) ** 2)
+        ratio_plot.SetPointError(num_p, 0, uncert)
         if ratio>=1: 
             ratio_test_points.append(ratio-1)
-        else:
+        elif ratio>0:
             ratio_test_points.append(1/ratio-1)
+        else:
+            ratio_test_points.append(0)
     ratio_test = np.sum(ratio_test_points)/len(ratio_test_points)
     rchi2 = hist_1.Chi2Test(hist_2, "CHI2/NDF")
     ks = hist_2.KolmogorovTest(hist_1)
