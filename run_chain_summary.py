@@ -50,49 +50,49 @@ plots_to_save = plots_to_save_info_dict.keys()
 #######
 # those parts cannot run from pycharm with debugger - remove
 # #########
-from pandaclient import panda_api
-c = panda_api.get_api()
-tasks = c.get_tasks(limit=100000000, days=13000, username="Oleksii Kurdysh", status="done") # get already last try since only retry if it failed
-task_names = [i_task['taskname'].replace("/","") for i_task in tasks if "MadGraph" in i_task['taskname'] and opts.tProd in i_task['taskname'] and opts.tDec in i_task['taskname']]
-all_ops, op_pairs = lu.get_ops(include_fs0_2=True)
-splitedSize = int(opts.numJobsParallel)
-blocks_of_single_ops = [all_ops[x:x + splitedSize] for x in range(0, len(all_ops), splitedSize)]
-blocks_of_op_pairs = [op_pairs[x:x + splitedSize] for x in range(0, len(op_pairs), splitedSize)]
+# from pandaclient import panda_api
+# c = panda_api.get_api()
+# tasks = c.get_tasks(limit=100000000, days=13000, username="Oleksii Kurdysh", status="done") # get already last try since only retry if it failed
+# task_names = [i_task['taskname'].replace("/","") for i_task in tasks if "MadGraph" in i_task['taskname'] and opts.tProd in i_task['taskname'] and opts.tDec in i_task['taskname']]
+# all_ops, op_pairs = lu.get_ops(include_fs0_2=True)
+# splitedSize = int(opts.numJobsParallel)
+# blocks_of_single_ops = [all_ops[x:x + splitedSize] for x in range(0, len(all_ops), splitedSize)]
+# blocks_of_op_pairs = [op_pairs[x:x + splitedSize] for x in range(0, len(op_pairs), splitedSize)]
 ############
 # get xsec*frac and save hists to root
 ##############
-def get_com(jobname):
-    return f'python run_chain.py --jobName "{jobname}" --runAgain "{opts.runAgain}" --runWithCuts "{opts.runWithCuts}"'
-
-def call_bloc_proc(op_blocks, eft_config):
-    for i_num_block,i_ops_block in enumerate(op_blocks,start=1): # loops over blocks of 5
-        print ("############## \n ####calling processing of ops", i_ops_block, f"block {i_num_block} out of {len(op_blocks)}")
-        i_block_bashcoms = []
-        for i_op in i_ops_block:
-            if eft_config!="CROSS":
-                i_job = lu.find_last_match_job(task_names, f"{i_op}_{eft_config}")
-                if i_job!=-1: i_block_bashcoms.append(get_com(i_job))
-                else: print("-------------- did not find done job for", i_job)
-            else:
-                i_job_order_1 = lu.find_last_match_job(task_names, f"{i_op[0]}vs{i_op[1]}_{eft_config}")
-                i_job_order_2 = lu.find_last_match_job(task_names, f"{i_op[1]}vs{i_op[0]}_{eft_config}")
-                if i_job_order_1!=-1: i_block_bashcoms.append(get_com(i_job_order_1))
-                elif i_job_order_2!=-1: i_block_bashcoms.append(get_com(i_job_order_2))
-                else: print("-------------- did not find done in both orders for", i_job_order_1, i_job_order_2)
-        procs = [subprocess.Popen(i_bash, shell=True) for i_bash in i_block_bashcoms]
-        # wait until all processes are finished
-        if len(procs)>0:
-            for p in procs: p.wait()
-        print (f"############## \n ####finished with block ops num {i_num_block} out of {len(op_blocks)}")
-
-if opts.sumPlotsOnly!="yes":
-    if opts.runSMAndFULL=="yes":
-        call_bloc_proc([["FM0"]], "SM")
-        call_bloc_proc(blocks_of_single_ops, "FULL")
-
-    if opts.runQUADAndCROSS=="yes":
-        call_bloc_proc(blocks_of_single_ops, "QUAD")
-        call_bloc_proc(blocks_of_op_pairs, "CROSS")
+# def get_com(jobname):
+#     return f'python run_chain.py --jobName "{jobname}" --runAgain "{opts.runAgain}" --runWithCuts "{opts.runWithCuts}"'
+#
+# def call_bloc_proc(op_blocks, eft_config):
+#     for i_num_block,i_ops_block in enumerate(op_blocks,start=1): # loops over blocks of 5
+#         print ("############## \n ####calling processing of ops", i_ops_block, f"block {i_num_block} out of {len(op_blocks)}")
+#         i_block_bashcoms = []
+#         for i_op in i_ops_block:
+#             if eft_config!="CROSS":
+#                 i_job = lu.find_last_match_job(task_names, f"{i_op}_{eft_config}")
+#                 if i_job!=-1: i_block_bashcoms.append(get_com(i_job))
+#                 else: print("-------------- did not find done job for", i_job)
+#             else:
+#                 i_job_order_1 = lu.find_last_match_job(task_names, f"{i_op[0]}vs{i_op[1]}_{eft_config}")
+#                 i_job_order_2 = lu.find_last_match_job(task_names, f"{i_op[1]}vs{i_op[0]}_{eft_config}")
+#                 if i_job_order_1!=-1: i_block_bashcoms.append(get_com(i_job_order_1))
+#                 elif i_job_order_2!=-1: i_block_bashcoms.append(get_com(i_job_order_2))
+#                 else: print("-------------- did not find done in both orders for", i_job_order_1, i_job_order_2)
+#         procs = [subprocess.Popen(i_bash, shell=True) for i_bash in i_block_bashcoms]
+#         # wait until all processes are finished
+#         if len(procs)>0:
+#             for p in procs: p.wait()
+#         print (f"############## \n ####finished with block ops num {i_num_block} out of {len(op_blocks)}")
+#
+# if opts.sumPlotsOnly!="yes":
+#     if opts.runSMAndFULL=="yes":
+#         call_bloc_proc([["FM0"]], "SM")
+#         call_bloc_proc(blocks_of_single_ops, "FULL")
+#
+#     if opts.runQUADAndCROSS=="yes":
+#         call_bloc_proc(blocks_of_single_ops, "QUAD")
+#         call_bloc_proc(blocks_of_op_pairs, "CROSS")
 
 ###########
 # build summary plots out of files created above
@@ -464,7 +464,6 @@ if opts.runQUADAndCROSS=="yes":
         i_stack = lu.make_stack([i_quad1, i_quad2], title = fit_plot_str)
         return i_quad1.Clone(), i_quad2.Clone(), i_stack.Clone()
 
-    rt_arr = []
     rchi2_arr = []
     ks_arr = []
     pairs_arr = []
@@ -483,8 +482,7 @@ if opts.runQUADAndCROSS=="yes":
             # with same normalization derive test
             i_quad1, i_quad2, i_stack = get_quad_pair_stack(i_key1, i_key2,
                                                             1, 1)
-            ratio_plot, rt, rchi2, ks = lu.get_ratio_plot_tests(i_quad1, i_quad2)
-            rt_arr.append(rt)
+            ratio_plot, rchi2, ks = lu.get_ratio_plot_tests(i_quad1, i_quad2)
             rchi2_arr.append(rchi2)
             ks_arr.append(ks)
             lu.draw_stack_with_ratio(i_stack, ratio_plot,
@@ -493,22 +491,16 @@ if opts.runQUADAndCROSS=="yes":
     # save custom RT vs chi2  and RT vs KS
     # "AvsB and BvsA should be the same point and don't create dublication on these plot
     plt.clf()
-    plt.plot(rchi2_arr,rt_arr, "o", color="black")
-    plt.xlabel('chi2/ndf')
-    plt.ylabel('custom ratio test')
-    plt.savefig(plot_dir + "/quads_rt_vs_chi2.pdf")
-    #
-    plt.clf()
-    plt.plot(ks_arr, rt_arr, "o", color="black")
+    plt.plot(ks_arr, rchi2_arr, "o", color="black")
     plt.xlabel('KS test')
-    plt.ylabel('custom ratio test')
-    plt.savefig(plot_dir + "/quads_rt_vs_ks.pdf")
+    plt.ylabel('chi2/ndf')
+    plt.savefig(plot_dir + "/quads_ks_vs_chi2.pdf")
     # save table with RT for all pairs
     df = pd.DataFrame(index=quad_ops_fit, columns=quad_ops_fit)
-    for i_pair, i_rt, i_rchi2, i_ks in zip(pairs_arr, rt_arr, rchi2_arr, ks_arr):
+    for i_pair, i_rchi2, i_ks in zip(pairs_arr, rchi2_arr, ks_arr):
         i_op1 = i_pair[:i_pair.find("vs")]
         i_op2 = i_pair[i_pair.find("vs") + 2:]
-        df.at[i_op1, i_op2] = f"{i_rt:.2f}; {i_rchi2:.2f}; {i_ks:.2f}"
+        df.at[i_op1, i_op2] = f"{i_rchi2:.2f}; {i_ks:.2f}"
     df = df.fillna('')
     plt.clf()
     fig, ax = plt.subplots(figsize=(19, 8))  # no visible frame
@@ -521,35 +513,28 @@ if opts.runQUADAndCROSS=="yes":
         plt.close()
     # save tables with conversion factor and which op to use
     missing_ops = lu.get_missing_ops(prod_dec)
-    RT_replacements, RT_conv_factors = [], []
     Chi2_replacements, Chi2_conv_factors = [], []
     KS_replacements, KS_conv_factors = [], []
     for op, row in df.iterrows():
         op_fidxsec = fidxsec_dict["QUAD"][op]
-        RT_min, Chi2_min, KS_max = 10000000.0, 10000000.0, 0.0
-        RT_replacement, Chi2_replacement, KS_replacement = "", "", ""
+        Chi2_min, KS_max = 10000000.0, 0.0
+        Chi2_replacement, KS_replacement = "", ""
         # for i_op_replacement, i_RT in dict(row).items():
         for i_op_replacement, i_tests_str in dict(row).items():
             if i_op_replacement == op or i_op_replacement in missing_ops: continue
             i_str_vec = [float(i) for i in i_tests_str.split(";")]
-            i_RT, i_Chi2, i_KS = i_str_vec[0], i_str_vec[1], i_str_vec[2]
-            if i_RT < RT_min: RT_min, RT_replacement = i_RT, i_op_replacement
+            i_Chi2, i_KS = i_str_vec[0], i_str_vec[1]
             if i_Chi2 < Chi2_min: Chi2_min, Chi2_replacement = i_Chi2, i_op_replacement
             if i_KS > KS_max: KS_max, KS_replacement = i_KS, i_op_replacement
-        RT_replacements.append(RT_replacement)
         Chi2_replacements.append(Chi2_replacement)
         KS_replacements.append(KS_replacement)
-        RT_factor = op_fidxsec / fidxsec_dict["QUAD"][RT_replacement] if RT_replacement != "" else ""
         Chi2_factor = op_fidxsec / fidxsec_dict["QUAD"][Chi2_replacement] if Chi2_replacement != "" else ""
         KS_factor = op_fidxsec / fidxsec_dict["QUAD"][KS_replacement] if KS_replacement != "" else ""
-        RT_conv_factors.append(RT_factor)
         Chi2_conv_factors.append(Chi2_factor)
         KS_conv_factors.append(KS_factor)
     #
-    replacement_df = pd.DataFrame(index=quad_ops_fit, columns=["RTreplacement", "RTfactor",
-                                                               "Chi2replacement", "Chi2factor",
+    replacement_df = pd.DataFrame(index=quad_ops_fit, columns=["Chi2replacement", "Chi2factor",
                                                                "KSreplacement", "KSfactor"])
-    replacement_df["RTreplacement"], replacement_df["RTfactor"] = RT_replacements, RT_conv_factors
     replacement_df["Chi2replacement"], replacement_df["Chi2factor"] = Chi2_replacements, Chi2_conv_factors
     replacement_df["KSreplacement"], replacement_df["KSfactor"] = KS_replacements, KS_conv_factors
     # save table with inclusion of ops that should not be replaced and three methods

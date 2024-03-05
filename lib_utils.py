@@ -473,23 +473,16 @@ def get_ratio_plot_tests(hist_1, hist_2): # _2 is the one with to respect to whi
         ratio_plot.SetPoint(num_p, ix, ratio)
         uncert =  math.sqrt((i_1[1]) ** 2 + (i_2[1]) ** 2)
         ratio_plot.SetPointError(num_p, 0, uncert)
-        if ratio>=1: 
-            ratio_test_points.append(ratio-1)
-        elif ratio>0:
-            ratio_test_points.append(1/ratio-1)
-        else:
-            ratio_test_points.append(0)
-    ratio_test = np.sum(ratio_test_points)/len(ratio_test_points)
-    rchi2 = hist_1.Chi2Test(hist_2, "CHI2/NDF")
+    rchi2 = hist_1.Chi2Test(hist_2, "WW CHI2/NDF")
     ks = hist_2.KolmogorovTest(hist_1)
     # print("from ratios", ratio_test_points, "get RT", ratio_test, "with chi2/ndf", rchi2)
-    ratio_name = f"{hist_1.GetName()}/{hist_2.GetName()} RT={ratio_test:.2f} rChi2={rchi2:.2f} KS={ks:.2f}"
+    ratio_name = f"{hist_1.GetName()}/{hist_2.GetName()} rChi2={rchi2:.2f} KS={ks:.2f}"
     ratio_plot.SetName(ratio_name)
     ratio_plot.SetTitle(ratio_name)
     ratio_color = hist_1.GetLineColor() # notice it's hist_1 where color is taken
     ratio_plot.SetMarkerColor(ratio_color)
     ratio_plot.SetLineColor(ratio_color)
-    return ratio_plot.Clone(), ratio_test, rchi2, ks
+    return ratio_plot.Clone(), rchi2, ks
 
 def draw_stack_with_ratio(my_stack, mg_ratios, xtitle, outname, stack_x_range=[]):
     c = ROOT.TCanvas()
