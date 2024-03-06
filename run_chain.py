@@ -65,21 +65,21 @@ def save_job_infos(DOCUT_str, mydir, xsec_fb, prod_dec):
     # save fid xsec
     rivet_dir_name = f"/{prod_dec}:OUTDIR=/{mydir}".replace("//","/")
     print("looking for prefix in counter",rivet_dir_name)
-    pos_n_in = yoda_f[f"{rivet_dir_name}/pos_w_initial"].numEntries()
-    neg_n_in = yoda_f[f"{rivet_dir_name}/neg_w_initial"].numEntries()
-    pos_n_f = yoda_f[f"{rivet_dir_name}/pos_w_final"].numEntries()
-    neg_n_f = yoda_f[f"{rivet_dir_name}/neg_w_final"].numEntries()
+    pos_n_in = yoda_f[f"{rivet_dir_name}pos_w_initial"].numEntries()
+    neg_n_in = yoda_f[f"{rivet_dir_name}neg_w_initial"].numEntries()
+    pos_n_f = yoda_f[f"{rivet_dir_name}pos_w_final"].numEntries()
+    neg_n_f = yoda_f[f"{rivet_dir_name}neg_w_final"].numEntries()
     #
     frac_cut = (pos_n_f+neg_n_f) / (pos_n_in+neg_n_in) 
-    frac_pos = pos_n_f / pos_n_in 
-    frac_neg = neg_n_f / neg_n_in
+    frac_pos = pos_n_f / pos_n_in if pos_n_in!=0 else 0
+    frac_neg = neg_n_f / neg_n_in if neg_n_in!=0 else 0
     frac_cut_er_bar = 1/(pos_n_in+neg_n_in) * math.sqrt(pos_n_in*frac_pos*(1-frac_pos) + neg_n_in*frac_neg*(1-frac_neg))
     # frac_cut_er_bar = frac_cut_unc / 2 
     #
-    pos_w_in = yoda_f[f"{rivet_dir_name}/pos_w_initial"].sumW()
-    neg_w_in = yoda_f[f"{rivet_dir_name}/neg_w_initial"].sumW()
-    pos_w_f = yoda_f[f"{rivet_dir_name}/pos_w_final"].sumW()
-    neg_w_f = yoda_f[f"{rivet_dir_name}/neg_w_final"].sumW()
+    pos_w_in = yoda_f[f"{rivet_dir_name}pos_w_initial"].sumW()
+    neg_w_in = yoda_f[f"{rivet_dir_name}neg_w_initial"].sumW()
+    pos_w_f = yoda_f[f"{rivet_dir_name}pos_w_final"].sumW()
+    neg_w_f = yoda_f[f"{rivet_dir_name}neg_w_final"].sumW()
     #
     lu.save_xsec_frac_prod(mydir,xsec_fb,
                             frac_cut, frac_pos, frac_neg, frac_cut_er_bar,
