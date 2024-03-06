@@ -42,6 +42,8 @@ docut_dir = "DOCUT_YES" if opts.runWithCuts=="yes" else "DOCUT_NO"
 
 plot_dir = lu.get_plotdir(prod_dec, docut_dir)
 big_pairs_cutoff = 1.05
+ks_cut = 0.6
+chi2_cut = 2.0
 plots_no_logy=["n_","ph","dp","et","dy", "dR"]
 
 plots_to_save_info_dict = lu.get_hists_bounds_cuts(prod_dec) 
@@ -50,49 +52,49 @@ plots_to_save = plots_to_save_info_dict.keys()
 #######
 # those parts cannot run from pycharm with debugger - remove
 # #########
-# from pandaclient import panda_api
-# c = panda_api.get_api()
-# tasks = c.get_tasks(limit=100000000, days=13000, username="Oleksii Kurdysh", status="done") # get already last try since only retry if it failed
-# task_names = [i_task['taskname'].replace("/","") for i_task in tasks if "MadGraph" in i_task['taskname'] and opts.tProd in i_task['taskname'] and opts.tDec in i_task['taskname']]
-# all_ops, op_pairs = lu.get_ops(include_fs0_2=True)
-# splitedSize = int(opts.numJobsParallel)
-# blocks_of_single_ops = [all_ops[x:x + splitedSize] for x in range(0, len(all_ops), splitedSize)]
-# blocks_of_op_pairs = [op_pairs[x:x + splitedSize] for x in range(0, len(op_pairs), splitedSize)]
-############
+from pandaclient import panda_api
+c = panda_api.get_api()
+tasks = c.get_tasks(limit=100000000, days=13000, username="Oleksii Kurdysh", status="done") # get already last try since only retry if it failed
+task_names = [i_task['taskname'].replace("/","") for i_task in tasks if "MadGraph" in i_task['taskname'] and opts.tProd in i_task['taskname'] and opts.tDec in i_task['taskname']]
+all_ops, op_pairs = lu.get_ops(include_fs0_2=True)
+splitedSize = int(opts.numJobsParallel)
+blocks_of_single_ops = [all_ops[x:x + splitedSize] for x in range(0, len(all_ops), splitedSize)]
+blocks_of_op_pairs = [op_pairs[x:x + splitedSize] for x in range(0, len(op_pairs), splitedSize)]
+###########
 # get xsec*frac and save hists to root
-##############
-# def get_com(jobname):
-#     return f'python run_chain.py --jobName "{jobname}" --runAgain "{opts.runAgain}" --runWithCuts "{opts.runWithCuts}"'
-#
-# def call_bloc_proc(op_blocks, eft_config):
-#     for i_num_block,i_ops_block in enumerate(op_blocks,start=1): # loops over blocks of 5
-#         print ("############## \n ####calling processing of ops", i_ops_block, f"block {i_num_block} out of {len(op_blocks)}")
-#         i_block_bashcoms = []
-#         for i_op in i_ops_block:
-#             if eft_config!="CROSS":
-#                 i_job = lu.find_last_match_job(task_names, f"{i_op}_{eft_config}")
-#                 if i_job!=-1: i_block_bashcoms.append(get_com(i_job))
-#                 else: print("-------------- did not find done job for", i_job)
-#             else:
-#                 i_job_order_1 = lu.find_last_match_job(task_names, f"{i_op[0]}vs{i_op[1]}_{eft_config}")
-#                 i_job_order_2 = lu.find_last_match_job(task_names, f"{i_op[1]}vs{i_op[0]}_{eft_config}")
-#                 if i_job_order_1!=-1: i_block_bashcoms.append(get_com(i_job_order_1))
-#                 elif i_job_order_2!=-1: i_block_bashcoms.append(get_com(i_job_order_2))
-#                 else: print("-------------- did not find done in both orders for", i_job_order_1, i_job_order_2)
-#         procs = [subprocess.Popen(i_bash, shell=True) for i_bash in i_block_bashcoms]
-#         # wait until all processes are finished
-#         if len(procs)>0:
-#             for p in procs: p.wait()
-#         print (f"############## \n ####finished with block ops num {i_num_block} out of {len(op_blocks)}")
-#
-# if opts.sumPlotsOnly!="yes":
-#     if opts.runSMAndFULL=="yes":
-#         call_bloc_proc([["FM0"]], "SM")
-#         call_bloc_proc(blocks_of_single_ops, "FULL")
-#
-#     if opts.runQUADAndCROSS=="yes":
-#         call_bloc_proc(blocks_of_single_ops, "QUAD")
-#         call_bloc_proc(blocks_of_op_pairs, "CROSS")
+#############
+def get_com(jobname):
+    return f'python run_chain.py --jobName "{jobname}" --runAgain "{opts.runAgain}" --runWithCuts "{opts.runWithCuts}"'
+
+def call_bloc_proc(op_blocks, eft_config):
+    for i_num_block,i_ops_block in enumerate(op_blocks,start=1): # loops over blocks of 5
+        print ("############## \n ####calling processing of ops", i_ops_block, f"block {i_num_block} out of {len(op_blocks)}")
+        i_block_bashcoms = []
+        for i_op in i_ops_block:
+            if eft_config!="CROSS":
+                i_job = lu.find_last_match_job(task_names, f"{i_op}_{eft_config}")
+                if i_job!=-1: i_block_bashcoms.append(get_com(i_job))
+                else: print("-------------- did not find done job for", i_job)
+            else:
+                i_job_order_1 = lu.find_last_match_job(task_names, f"{i_op[0]}vs{i_op[1]}_{eft_config}")
+                i_job_order_2 = lu.find_last_match_job(task_names, f"{i_op[1]}vs{i_op[0]}_{eft_config}")
+                if i_job_order_1!=-1: i_block_bashcoms.append(get_com(i_job_order_1))
+                elif i_job_order_2!=-1: i_block_bashcoms.append(get_com(i_job_order_2))
+                else: print("-------------- did not find done in both orders for", i_job_order_1, i_job_order_2)
+        procs = [subprocess.Popen(i_bash, shell=True) for i_bash in i_block_bashcoms]
+        # wait until all processes are finished
+        if len(procs)>0:
+            for p in procs: p.wait()
+        print (f"############## \n ####finished with block ops num {i_num_block} out of {len(op_blocks)}")
+
+if opts.sumPlotsOnly!="yes":
+    if opts.runSMAndFULL=="yes":
+        call_bloc_proc([["FM0"]], "SM")
+        call_bloc_proc(blocks_of_single_ops, "FULL")
+
+    if opts.runQUADAndCROSS=="yes":
+        call_bloc_proc(blocks_of_single_ops, "QUAD")
+        call_bloc_proc(blocks_of_op_pairs, "CROSS")
 
 ###########
 # build summary plots out of files created above
@@ -317,132 +319,132 @@ if opts.runQUADAndCROSS=="yes":
     for i_pair, i_frac_quad1, i_frac_quad2, i_frac_cross in zip(pairs_str_avalaible,fracs_quad1,fracs_quad2,fracs_cross):
         print(f"for pair {i_pair} q1 q2 c fractions are {i_frac_quad1}, {i_frac_quad2}, {i_frac_cross}")
     
-    # def draw_efficiency(area_ratio_min):
-    #     new_pairs_str = []
-    #     new_fracs_quad1, new_fracs_errors_quad1 = [], []
-    #     new_fracs_quad2, new_fracs_errors_quad2 = [], []
-    #     new_fracs_cross, new_fracs_errors_cross = [], []
-    #     new_fracs_ave, new_fracs_errors_ave = [], []
-    #     new_fracs_envelope = []
-    #     for i,i_ratio in enumerate(area_ratios):
-    #         if i_ratio < area_ratio_min: continue
-    #         new_pairs_str.append(pairs_str_avalaible[i])
-    #         new_fracs_quad1.append(fracs_quad1[i])
-    #         new_fracs_errors_quad1.append(fracs_errors_quad1[i])
-    #         new_fracs_quad2.append(fracs_quad2[i])
-    #         new_fracs_errors_quad2.append(fracs_errors_quad2[i])
-    #         new_fracs_cross.append(fracs_cross[i])
-    #         new_fracs_errors_cross.append(fracs_errors_cross[i])
-    #         new_fracs_ave.append(fracs_ave[i])
-    #         new_fracs_errors_ave.append(fracs_errors_ave[i])
-    #         new_fracs_envelope.append(fracs_envelope[i])
-    #     new_ops_num = range(len(new_pairs_str))
-    #     #
-    #     plt.clf()        
-    #     fig, (ax1, ax2) = plt.subplots(2, figsize=(16,9), gridspec_kw={'height_ratios': [2, 1]})
-    #     ax1.errorbar(new_ops_num, new_fracs_quad1, yerr=new_fracs_errors_quad1, fmt='v', mfc="blue", mec="blue", ecolor="blue", label="QUAD1", alpha=0.7)
-    #     ax1.errorbar(new_ops_num, new_fracs_quad2, yerr=new_fracs_errors_quad2, fmt='^', mfc="green", mec="green", ecolor="green", label="QUAD2", alpha=0.7)
-    #     ax1.errorbar(new_ops_num, new_fracs_cross, yerr=new_fracs_errors_cross, fmt='*', mfc="black", mec="black", ecolor="black", label="CROSS", alpha=0.7)
-    #     ax1.set_ylabel('fraction of weights')
-    #     ax1.set_title(r"$A_{cross}/A_{nocross}>$"+str(area_ratio_min))
-    #     ax1.legend()
-    #     ax1.set_xticks(new_ops_num, minor=False)
-    #     ax1.set_xticklabels(new_pairs_str, fontdict=None, minor=False,fontsize = 9)
-    #     ax1.tick_params(axis='x', labelrotation=90)
-    #     #
-    #     color_ave = 'teal'
-    #     ax2.set_ylabel(r"$C /<Q1,Q2>$", color=color_ave)
-    #     ax2.errorbar(new_ops_num, new_fracs_ave, yerr=new_fracs_errors_ave, mfc=color_ave, mec=color_ave, ecolor=color_ave, fmt='o')
-    #     ax2.tick_params(axis='y', labelcolor=color_ave)
-    #     ax2.set_xticks(new_ops_num, minor=False)
-    #     plt.setp(ax2.get_xticklabels(), visible=False)
-    #     ax2.set_xlabel('operator pair')
-    #     #
-    #     ax3 = ax2.twinx()
-    #     color_env = 'purple'
-    #     ax3.set_ylabel('envelope', color=color_env)
-    #     ax3.scatter(new_ops_num, new_fracs_envelope, color=color_env)
-    #     ax3.tick_params(axis='y', labelcolor=color_env)
-    #     #
-    #     for i_ax in [ax1,ax2]:
-    #         for xc in new_ops_num: i_ax.axvline(x=xc, color='0.3', linestyle='--', linewidth=0.3)
-    #     fig.tight_layout()
-    #     fig.savefig(plot_dir + f"/frac_w_after_cuts_above_{area_ratio_min}.pdf")
+    def draw_efficiency(area_ratio_min):
+        new_pairs_str = []
+        new_fracs_quad1, new_fracs_errors_quad1 = [], []
+        new_fracs_quad2, new_fracs_errors_quad2 = [], []
+        new_fracs_cross, new_fracs_errors_cross = [], []
+        new_fracs_ave, new_fracs_errors_ave = [], []
+        new_fracs_envelope = []
+        for i,i_ratio in enumerate(area_ratios):
+            if i_ratio < area_ratio_min: continue
+            new_pairs_str.append(pairs_str_avalaible[i])
+            new_fracs_quad1.append(fracs_quad1[i])
+            new_fracs_errors_quad1.append(fracs_errors_quad1[i])
+            new_fracs_quad2.append(fracs_quad2[i])
+            new_fracs_errors_quad2.append(fracs_errors_quad2[i])
+            new_fracs_cross.append(fracs_cross[i])
+            new_fracs_errors_cross.append(fracs_errors_cross[i])
+            new_fracs_ave.append(fracs_ave[i])
+            new_fracs_errors_ave.append(fracs_errors_ave[i])
+            new_fracs_envelope.append(fracs_envelope[i])
+        new_ops_num = range(len(new_pairs_str))
+        #
+        plt.clf()
+        fig, (ax1, ax2) = plt.subplots(2, figsize=(16,9), gridspec_kw={'height_ratios': [2, 1]})
+        ax1.errorbar(new_ops_num, new_fracs_quad1, yerr=new_fracs_errors_quad1, fmt='v', mfc="blue", mec="blue", ecolor="blue", label="QUAD1", alpha=0.7)
+        ax1.errorbar(new_ops_num, new_fracs_quad2, yerr=new_fracs_errors_quad2, fmt='^', mfc="green", mec="green", ecolor="green", label="QUAD2", alpha=0.7)
+        ax1.errorbar(new_ops_num, new_fracs_cross, yerr=new_fracs_errors_cross, fmt='*', mfc="black", mec="black", ecolor="black", label="CROSS", alpha=0.7)
+        ax1.set_ylabel('fraction of weights')
+        ax1.set_title(r"$A_{cross}/A_{nocross}>$"+str(area_ratio_min))
+        ax1.legend()
+        ax1.set_xticks(new_ops_num, minor=False)
+        ax1.set_xticklabels(new_pairs_str, fontdict=None, minor=False,fontsize = 9)
+        ax1.tick_params(axis='x', labelrotation=90)
+        #
+        color_ave = 'teal'
+        ax2.set_ylabel(r"$C /<Q1,Q2>$", color=color_ave)
+        ax2.errorbar(new_ops_num, new_fracs_ave, yerr=new_fracs_errors_ave, mfc=color_ave, mec=color_ave, ecolor=color_ave, fmt='o')
+        ax2.tick_params(axis='y', labelcolor=color_ave)
+        ax2.set_xticks(new_ops_num, minor=False)
+        plt.setp(ax2.get_xticklabels(), visible=False)
+        ax2.set_xlabel('operator pair')
+        #
+        ax3 = ax2.twinx()
+        color_env = 'purple'
+        ax3.set_ylabel('envelope', color=color_env)
+        ax3.scatter(new_ops_num, new_fracs_envelope, color=color_env)
+        ax3.tick_params(axis='y', labelcolor=color_env)
+        #
+        for i_ax in [ax1,ax2]:
+            for xc in new_ops_num: i_ax.axvline(x=xc, color='0.3', linestyle='--', linewidth=0.3)
+        fig.tight_layout()
+        fig.savefig(plot_dir + f"/frac_w_after_cuts_above_{area_ratio_min}.pdf")
     
-    # draw_efficiency(0.99)
-    # draw_efficiency(big_pairs_cutoff)
+    draw_efficiency(0.99)
+    draw_efficiency(big_pairs_cutoff)
     
-    # ##########
-    # # make plots kinematics
-    # ###########
+    ##########
+    # make plots kinematics
+    ###########
 
-    # # for each distrib draw on same plot QUAD1,QUAD2,CROSS - normalied to same area and with each xsec*filt
-    # # stacks_arr_per_pair_normalized = {}
-    # bookdirbase = lu.get_bookletdir(plot_dir, normalized="yes")
-    # for i_plot_name in plots_to_save:
-    #     display_params = plots_to_save_info_dict[i_plot_name]
-    #     quad_plot_ops = plots_dict["QUAD"][i_plot_name].keys()
-    #     for i_key1 in plots_dict["CROSS"][i_plot_name]:
-    #         i_key1_keys2 = plots_dict["CROSS"][i_plot_name][i_key1].keys()
-    #         if len(i_key1_keys2)==0: continue
-    #         for i_key2 in i_key1_keys2:
-    #             # for each pairs with this plot - get array (q,q,c,?sm)
-    #             print("have hist", i_plot_name, "for CROSS pair", [i_key1,i_key2])
-    #             if i_key1 not in quad_plot_ops or i_key2 not in quad_plot_ops: continue
-    #             print("also have CROSS plot", i_plot_name, "for both of these ops")
-    #             i_plot_cross = plots_dict["CROSS"][i_plot_name][i_key1][i_key2]
-    #             i_plot_cross = lu.dress_hist(i_plot_cross, f"CROSS_{i_key1}_{i_key2}", 1, xsec_dict["CROSS"][i_key1][i_key2])
-    #             #
-    #             i_plot_quad1 = plots_dict["QUAD"][i_plot_name][i_key1]
-    #             i_plot_quad1 = lu.dress_hist(i_plot_quad1, f"QUAD_{i_key1}", 2, xsec_dict["QUAD"][i_key1])
-    #             #
-    #             i_plot_quad2 = plots_dict["QUAD"][i_plot_name][i_key2]
-    #             i_plot_quad2 = lu.dress_hist(i_plot_quad2, f"QUAD_{i_key2}", 3, xsec_dict["QUAD"][i_key2])
-    #             #
-    #             i_op_pair = lu.get_pair_str(i_key1,i_key2)
-    #             i_plot_hist_cross_quads_sm = [i_plot_cross.Clone(), i_plot_quad1.Clone(), i_plot_quad2.Clone()]
-    #             if "FM0" in plots_dict["SM"][i_plot_name].keys() and opts.SMOnSumPlots=="yes":
-    #                 i_plot_sm = plots_dict["SM"][i_plot_name]["FM0"]
-    #                 i_plot_sm = lu.dress_hist(i_plot_sm, f"SM", 4, xsec_dict["SM"]["FM0"])
-    #                 i_plot_hist_cross_quads_sm.append(i_plot_sm)
-    #             # convert this array to stack and draw individual plot
-    #             for i_hist in i_plot_hist_cross_quads_sm:
-    #                 if display_params[0]!=-1: i_hist.RebinX(display_params[0]) 
-    #             i_pair_plot_stack = lu.make_stack(i_plot_hist_cross_quads_sm, title = i_plot_name,norm = 1)
-    #             c=ROOT.TCanvas()
-    #             i_pair_plot_stack.Draw("nostack")
-    #             if display_params[1]!=-1: i_pair_plot_stack.GetXaxis().SetRangeUser(display_params[1], display_params[2]) 
-    #             l=ROOT.gPad.BuildLegend()
-    #             l.SetFillColorAlpha(0, 0) # transparent background
-    #             if i_pair_plot_stack.GetTitle()[:2] not in plots_no_logy: ROOT.gPad.SetLogy()
-    #             c.Modified()
-    #             c.Update()
-    #             c.Show()
-    #             i_pair_dir = f"{bookdirbase}/{i_op_pair}/" 
-    #             if not os.path.exists(i_pair_dir): os.makedirs(i_pair_dir)
-    #             c.SaveAs(f"{i_pair_dir}/{i_plot_name}.pdf")
+    # for each distrib draw on same plot QUAD1,QUAD2,CROSS - normalied to same area and with each xsec*filt
+    # stacks_arr_per_pair_normalized = {}
+    bookdirbase = lu.get_bookletdir(plot_dir, normalized="yes")
+    for i_plot_name in plots_to_save:
+        display_params = plots_to_save_info_dict[i_plot_name]
+        quad_plot_ops = plots_dict["QUAD"][i_plot_name].keys()
+        for i_key1 in plots_dict["CROSS"][i_plot_name]:
+            i_key1_keys2 = plots_dict["CROSS"][i_plot_name][i_key1].keys()
+            if len(i_key1_keys2)==0: continue
+            for i_key2 in i_key1_keys2:
+                # for each pairs with this plot - get array (q,q,c,?sm)
+                print("have hist", i_plot_name, "for CROSS pair", [i_key1,i_key2])
+                if i_key1 not in quad_plot_ops or i_key2 not in quad_plot_ops: continue
+                print("also have CROSS plot", i_plot_name, "for both of these ops")
+                i_plot_cross = plots_dict["CROSS"][i_plot_name][i_key1][i_key2]
+                i_plot_cross = lu.dress_hist(i_plot_cross, f"CROSS_{i_key1}_{i_key2}", 1, xsec_dict["CROSS"][i_key1][i_key2])
+                #
+                i_plot_quad1 = plots_dict["QUAD"][i_plot_name][i_key1]
+                i_plot_quad1 = lu.dress_hist(i_plot_quad1, f"QUAD_{i_key1}", 2, xsec_dict["QUAD"][i_key1])
+                #
+                i_plot_quad2 = plots_dict["QUAD"][i_plot_name][i_key2]
+                i_plot_quad2 = lu.dress_hist(i_plot_quad2, f"QUAD_{i_key2}", 3, xsec_dict["QUAD"][i_key2])
+                #
+                i_op_pair = lu.get_pair_str(i_key1,i_key2)
+                i_plot_hist_cross_quads_sm = [i_plot_cross.Clone(), i_plot_quad1.Clone(), i_plot_quad2.Clone()]
+                if "FM0" in plots_dict["SM"][i_plot_name].keys() and opts.SMOnSumPlots=="yes":
+                    i_plot_sm = plots_dict["SM"][i_plot_name]["FM0"]
+                    i_plot_sm = lu.dress_hist(i_plot_sm, f"SM", 4, xsec_dict["SM"]["FM0"])
+                    i_plot_hist_cross_quads_sm.append(i_plot_sm)
+                # convert this array to stack and draw individual plot
+                for i_hist in i_plot_hist_cross_quads_sm:
+                    if display_params[0]!=-1: i_hist.RebinX(display_params[0])
+                i_pair_plot_stack = lu.make_stack(i_plot_hist_cross_quads_sm, title = i_plot_name,norm = 1)
+                c=ROOT.TCanvas()
+                i_pair_plot_stack.Draw("nostack")
+                if display_params[1]!=-1: i_pair_plot_stack.GetXaxis().SetRangeUser(display_params[1], display_params[2])
+                l=ROOT.gPad.BuildLegend()
+                l.SetFillColorAlpha(0, 0) # transparent background
+                if i_pair_plot_stack.GetTitle()[:2] not in plots_no_logy: ROOT.gPad.SetLogy()
+                c.Modified()
+                c.Update()
+                c.Show()
+                i_pair_dir = f"{bookdirbase}/{i_op_pair}/"
+                if not os.path.exists(i_pair_dir): os.makedirs(i_pair_dir)
+                c.SaveAs(f"{i_pair_dir}/{i_plot_name}.pdf")
                 
-    # # compare for each distribution quads shape
-    # quaddir = plot_dir + "/quad_kin/"
-    # if not os.path.exists(quaddir): os.makedirs(quaddir)
-    # for i_plot_name in plots_to_save:
-    #     display_params = plots_to_save_info_dict[i_plot_name]
-    #     i_plot_ops_arr =[]
-    #     for col, (quad_plot_op, quad_plot_in) in enumerate(plots_dict["QUAD"][i_plot_name].items(),start=1):
-    #         quad_plot = lu.dress_hist(quad_plot_in, f"QUAD_{quad_plot_op}", col)
-    #         if display_params[0]!=-1: quad_plot.RebinX(display_params[0])
-    #         i_plot_ops_arr.append(quad_plot)
-    #         i_stack = lu.make_stack(i_plot_ops_arr, title=i_plot_name)
-    #         c=ROOT.TCanvas()
-    #         i_stack.Draw("nostack")
-    #         if display_params[1]!=-1: i_stack.GetXaxis().SetRangeUser(display_params[1], display_params[2])
-    #         l=ROOT.gPad.BuildLegend()
-    #         l.SetFillColorAlpha(0, 0) # transparent background
-    #         if i_stack.GetTitle()[:2] not in plots_no_logy: ROOT.gPad.SetLogy() # for plots like n_jets don't need log scale
-    #         c.Modified()
-    #         c.Update()
-    #         c.Show()
-    #         c.SaveAs(f"{quaddir}/{i_plot_name}.pdf")
+    # compare for each distribution quads shape
+    quaddir = plot_dir + "/quad_kin/"
+    if not os.path.exists(quaddir): os.makedirs(quaddir)
+    for i_plot_name in plots_to_save:
+        display_params = plots_to_save_info_dict[i_plot_name]
+        i_plot_ops_arr =[]
+        for col, (quad_plot_op, quad_plot_in) in enumerate(plots_dict["QUAD"][i_plot_name].items(),start=1):
+            quad_plot = lu.dress_hist(quad_plot_in, f"QUAD_{quad_plot_op}", col)
+            if display_params[0]!=-1: quad_plot.RebinX(display_params[0])
+            i_plot_ops_arr.append(quad_plot)
+            i_stack = lu.make_stack(i_plot_ops_arr, title=i_plot_name)
+            c=ROOT.TCanvas()
+            i_stack.Draw("nostack")
+            if display_params[1]!=-1: i_stack.GetXaxis().SetRangeUser(display_params[1], display_params[2])
+            l=ROOT.gPad.BuildLegend()
+            l.SetFillColorAlpha(0, 0) # transparent background
+            if i_stack.GetTitle()[:2] not in plots_no_logy: ROOT.gPad.SetLogy() # for plots like n_jets don't need log scale
+            c.Modified()
+            c.Update()
+            c.Show()
+            c.SaveAs(f"{quaddir}/{i_plot_name}.pdf")
 
     # check what can use to replace pair
     fit_plot_str = lu.get_fitted_plot(prod_dec)
@@ -513,30 +515,54 @@ if opts.runQUADAndCROSS=="yes":
         plt.close()
     # save tables with conversion factor and which op to use
     missing_ops = lu.get_missing_ops(prod_dec)
-    Chi2_replacements, Chi2_conv_factors = [], []
-    KS_replacements, KS_conv_factors = [], []
-    for op, row in df.iterrows():
-        op_fidxsec = fidxsec_dict["QUAD"][op]
-        Chi2_min, KS_max = 10000000.0, 0.0
-        Chi2_replacement, KS_replacement = "", ""
-        # for i_op_replacement, i_RT in dict(row).items():
-        for i_op_replacement, i_tests_str in dict(row).items():
-            if i_op_replacement == op or i_op_replacement in missing_ops: continue
-            i_str_vec = [float(i) for i in i_tests_str.split(";")]
-            i_Chi2, i_KS = i_str_vec[0], i_str_vec[1]
-            if i_Chi2 < Chi2_min: Chi2_min, Chi2_replacement = i_Chi2, i_op_replacement
-            if i_KS > KS_max: KS_max, KS_replacement = i_KS, i_op_replacement
-        Chi2_replacements.append(Chi2_replacement)
-        KS_replacements.append(KS_replacement)
-        Chi2_factor = op_fidxsec / fidxsec_dict["QUAD"][Chi2_replacement] if Chi2_replacement != "" else ""
-        KS_factor = op_fidxsec / fidxsec_dict["QUAD"][KS_replacement] if KS_replacement != "" else ""
-        Chi2_conv_factors.append(Chi2_factor)
-        KS_conv_factors.append(KS_factor)
-    #
-    replacement_df = pd.DataFrame(index=quad_ops_fit, columns=["Chi2replacement", "Chi2factor",
-                                                               "KSreplacement", "KSfactor"])
-    replacement_df["Chi2replacement"], replacement_df["Chi2factor"] = Chi2_replacements, Chi2_conv_factors
-    replacement_df["KSreplacement"], replacement_df["KSfactor"] = KS_replacements, KS_conv_factors
+    # can drop rows with missing operators - searching within column for highest/lowest score will not give index missing col
+    missing_ops_present_df = [i_op for i_op in missing_ops if i_op in list(df.keys())] # like can miss because irrelevant for process
+    for i_miss in missing_ops_present_df:
+        df.drop(i_miss, axis=0, inplace=True)
+    # get best KS and 3 best Chi2 to maybe fall back to eye
+    df["replacement"] = pd.Series(dtype=str)
+    df["repmethod"] = pd.Series(dtype=str)
+    df["repscore"] = pd.Series(dtype=str)
+    for op in missing_ops_present_df:  # here work with columns
+        df[[op + '_rChi2', op + '_KS']] = df[op].str.split(';', expand=True)
+        # chi2 and KS go in different direction on what is better
+        # want to fill missing values for sorting with different values
+        df.replace(to_replace=[None, ""], value=np.nan)
+        df[op + '_rChi2'], df[op + '_KS'] = df[op + '_rChi2'].fillna(100000), df[op + '_KS'].fillna(-1)
+        df[op + '_rChi2'], df[op + '_KS'] = df[op + '_rChi2'].astype(float), df[op + '_KS'].astype(float)
+        ks_val = df[op + "_KS"].sort_values(ascending=False).values[0]
+        ks_op = df[op + "_KS"].sort_values(ascending=False).index[0]
+        # print("KS for", op, "best op is ", ks_op, "with val", ks_val)
+        if ks_val > ks_cut:
+            df.at[op, "replacement"] = ks_op
+            df.at[op, "repmethod"] = "KS"
+            df.at[op, "repscore"] = f"{ks_val:.2f}"
+            continue
+        chi2_val = df[op + "_rChi2"].sort_values(ascending=True).values[:3]
+        chi2_op = df[op + "_rChi2"].sort_values(ascending=True).index[:3]
+        # print("Chi2 for", op, "best op is ", chi2_val, "with val", chi2_op)
+        if chi2_val[0] < chi2_cut:
+            best_op, best_score, best_method = chi2_op[0], chi2_val[0], "Chi2"
+        else:
+            best_op = "-".join(chi2_op)
+            best_score = "-".join([f"{i_val:.2f}" for i_val in chi2_val])
+            best_method = "eye"
+        df.at[op, "replacement"] = best_op
+        df.at[op, "repmethod"] = best_method
+        df.at[op, "repscore"] = best_score
+
+    # select cols
+    replacement_df = df[df.columns.intersection(["replacement", "repmethod", "repscore"])]
+    # select rows - for some reason they were not quite dropped above
+    replacement_df = replacement_df.loc[replacement_df.index.intersection(missing_ops_present_df)]
+    replacement_df["repnorm"] = pd.Series(dtype=str)
+    for missing_op, row in replacement_df.iterrows():
+        op_fidxsec = fidxsec_dict["QUAD"][missing_op]
+        norm_arr = []  # in case fallback to eye will have seleral candidates
+        for i_rep in row["replacement"].split("-"):
+            norm_arr.append(op_fidxsec / fidxsec_dict["QUAD"][i_rep])
+        print("factors for", missing_op, norm_arr)
+        row["repnorm"] = "-".join([f"{i_norm:.3f}" for i_norm in norm_arr])
     # save table with inclusion of ops that should not be replaced and three methods
     plt.clf()
     fig, ax = plt.subplots()  # no visible frame
@@ -544,18 +570,6 @@ if opts.runQUADAndCROSS=="yes":
     ax.axis('off')
     table_r_extended = ax.table(cellText = replacement_df.values, rowLabels = replacement_df.index,
                                 colLabels = replacement_df.columns, loc='center')
-    with PdfPages(plot_dir + "/quads_extended_replacement_table.pdf") as pdf:
-        pdf.savefig(fig, bbox_inches='tight')
-        plt.close()
-    # save table with only RT and only ops missing
-    present_ops = [i_op for i_op in quad_ops_fit if i_op not in missing_ops]
-    for i_present_op in present_ops:
-        replacement_df.drop(i_present_op, axis=0, inplace=True)
-    plt.clf()
-    fig, ax = plt.subplots()  # no visible frame
-    ax.axis('tight')
-    ax.axis('off')
-    table_r = table(ax, replacement_df, loc="center")
     with PdfPages(plot_dir + "/quads_replacement_table.pdf") as pdf:
         pdf.savefig(fig, bbox_inches='tight')
         plt.close()
