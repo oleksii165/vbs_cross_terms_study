@@ -49,9 +49,9 @@ plots_no_logy=["n_","ph","dp","et","dy", "dR"]
 plots_to_save_info_dict = lu.get_hists_bounds_cuts(prod_dec) 
 plots_to_save = plots_to_save_info_dict.keys()
 
-#######
+######
 # those parts cannot run from pycharm with debugger - remove
-# #########
+#########
 from pandaclient import panda_api
 c = panda_api.get_api()
 tasks = c.get_tasks(limit=100000000, days=13000, username="Oleksii Kurdysh", status="done") # get already last try since only retry if it failed
@@ -370,10 +370,10 @@ if opts.runQUADAndCROSS=="yes":
             for xc in new_ops_num: i_ax.axvline(x=xc, color='0.3', linestyle='--', linewidth=0.3)
         fig.tight_layout()
         fig.savefig(plot_dir + f"/frac_w_after_cuts_above_{area_ratio_min}.pdf")
-    
+
     draw_efficiency(0.99)
     draw_efficiency(big_pairs_cutoff)
-    
+
     ##########
     # make plots kinematics
     ###########
@@ -424,7 +424,7 @@ if opts.runQUADAndCROSS=="yes":
                 if not os.path.exists(i_pair_dir): os.makedirs(i_pair_dir)
                 c.SaveAs(f"{i_pair_dir}/{i_plot_name}.pdf")
                 
-    # compare for each distribution quads shape
+    compare for each distribution quads shape
     quaddir = plot_dir + "/quad_kin/"
     if not os.path.exists(quaddir): os.makedirs(quaddir)
     for i_plot_name in plots_to_save:
@@ -447,7 +447,7 @@ if opts.runQUADAndCROSS=="yes":
             c.SaveAs(f"{quaddir}/{i_plot_name}.pdf")
 
     # check what can use to replace pair
-    fit_plot_str = lu.get_fitted_plot(prod_dec)
+    fit_plot_str, fit_plot_bins = lu.get_fitted_plot(prod_dec)
     display_params_fitv = plots_to_save_info_dict[fit_plot_str]
     quad_ops_fit = sorted(list(plots_dict["QUAD"][fit_plot_str].keys()))
     fidxsec_dict = {"QUAD": {}}
@@ -458,8 +458,10 @@ if opts.runQUADAndCROSS=="yes":
     quadpairsdir_fidxsec = plot_dir + "/quad_pair_ratios_fidxsec_norm/"
     if not os.path.exists(quadpairsdir_fidxsec): os.makedirs(quadpairsdir_fidxsec)
     def get_quad_pair_stack(i_key1, i_key2, norm1, norm2):
-        i_quad1 = lu.dress_hist(plots_dict["QUAD"][fit_plot_str][i_key1], f"QUAD_{i_key1}", 2, norm1)
-        i_quad2 = lu.dress_hist(plots_dict["QUAD"][fit_plot_str][i_key2], f"QUAD_{i_key2}", 3, norm2)
+        i_quad1 = lu.dress_hist(plots_dict["QUAD"][fit_plot_str][i_key1],
+                                f"QUAD_{i_key1}", 2, norm1, re_bins=fit_plot_bins)
+        i_quad2 = lu.dress_hist(plots_dict["QUAD"][fit_plot_str][i_key2],
+                                f"QUAD_{i_key2}", 3, norm2, re_bins=fit_plot_bins)
         if display_params_fitv[0] != -1:
             i_quad1.RebinX(display_params_fitv[0])
             i_quad2.RebinX(display_params_fitv[0])
@@ -484,7 +486,10 @@ if opts.runQUADAndCROSS=="yes":
             # with same normalization derive test
             i_quad1, i_quad2, i_stack = get_quad_pair_stack(i_key1, i_key2,
                                                             1, 1)
-            ratio_plot, rchi2, ks = lu.get_ratio_plot_tests(i_quad1, i_quad2)
+            if len(stack_x_range)>0:
+                ratio_plot, rchi2, ks = lu.get_ratio_plot_tests(i_quad1, i_quad2)
+            else:
+                ratio_plot, rchi2, ks = lu.get_ratio_plot_tests(i_quad1, i_quad2)
             rchi2_arr.append(rchi2)
             ks_arr.append(ks)
             lu.draw_stack_with_ratio(i_stack, ratio_plot,
@@ -563,6 +568,8 @@ if opts.runQUADAndCROSS=="yes":
             norm_arr.append(op_fidxsec / fidxsec_dict["QUAD"][i_rep])
         print("factors for", missing_op, norm_arr)
         row["repnorm"] = "-".join([f"{i_norm:.3f}" for i_norm in norm_arr])
+
+    replacement_df.to_csv(plot_dir + "/quads_replacement_table.csv",sep=";")
     # save table with inclusion of ops that should not be replaced and three methods
     plt.clf()
     fig, ax = plt.subplots()  # no visible frame

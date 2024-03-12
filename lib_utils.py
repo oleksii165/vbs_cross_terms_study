@@ -24,9 +24,14 @@ def get_im_color(particle_name, for_distribution=False):
     return color
 
 def get_fitted_plot(prod_dec):
-    mystr=""
-    if prod_dec=="Zy_vvy":mystr="pt_photon"
-    return mystr
+    mystr,bins="",[]
+    if prod_dec=="Zy_vvy":
+        mystr = "pt_photon"
+        bins = array('d', [150,300,450,600,750,900,1050,1200,2000])
+    elif prod_dec in ["WmZ_lllv","WpZ_lllv"]:
+        mystr="m_WZ_T"
+        bins = array('d', [0,400,750,1050,1350,4000])
+    return mystr, bins
 
 def get_missing_ops(prod_dec):
     if prod_dec=="Zy_vvy":
@@ -46,6 +51,7 @@ def get_missing_ops(prod_dec):
 def get_var_latex(varname): # to be used with ROOT latex
     latexstr=varname
     if varname=="pt_photon": latexstr="p_{T}^{\gamma} [GeV]"
+    elif varname=="m_WZ_T": latexstr="m_{T}^{WZ} [GeV]"
     return latexstr
 
 def latex_ana_str(prod_dec):
@@ -186,6 +192,9 @@ def get_hists_bounds_cuts(prod_dec):
         total_h.update(photon_h)
     elif prod_dec=="Zy_vvy":
         total_h.update(photon_h)
+    if prod_dec in ["WmZ_lllv", "WpZ_lllv"]:
+        total_h.update(lepton_h)
+    
 
     # this loop is unncessecary
     return_dict = {} # key is hist name, value[nbin,min,max,cut,cutdir="+,-"]
@@ -206,7 +215,8 @@ def get_hists_bounds_cuts(prod_dec):
         params[i_dphi]= [-1, 0, 3.5]
     params["pt_lepton"]  = [10, 0, 2500]
     params["eta_lepton"] = [3, -3, 3]
-    params["pt_photon"]  = params["pt_MET"] = [10, 0, 4000]
+    # params["pt_photon"]  = params["pt_MET"] = [10, 1200, 4000]
+    params["pt_MET"] = [10, 1200, 4000]
     params["eta_photon"] = [3, -3, 3]
     params["m_ll"] = [10,0,300]
     params["m_lly"] =  params["m_ly"] = [10,-1,1]
@@ -214,6 +224,7 @@ def get_hists_bounds_cuts(prod_dec):
         params[i_cent] = [-1,0,0.8]
     params["cone_frac_photon"] = [-1, 0, 0.1]
     params["m_W_T"] = [3, 0, 150]
+    # params["m_WZ_T"] = [10, 0, 4000]
     params["dR_lepton_photon"] = [2, 0, 6]
     params["dR_tagjets"] = [2,0,10]
     default_params = [-1,-1,-1]
@@ -226,14 +237,6 @@ def get_hists_bounds_cuts(prod_dec):
 
     print("returning plotting dict")
     return return_dict 
-
-
-# def get_root_hist_param(plot_name):
-#     params = {}
-#     params["photon_iso_pt"] = params["m_lly"] = [-1,-1,10]
-#     params["all_lep_pairs_m_ll"] = [0, 2500, 10] 
-#     params["m_ll_of_pairs_best_quadruplet"] = [0, 200, 1]
-
 
 def find_prod_dec_and_dir(conf):
     prod_temp = conf[conf.find("user.okurdysh.MadGraph_")+len("user.okurdysh.MadGraph_"):]
@@ -403,18 +406,16 @@ def read_hists(root_file_name, h_names_arr):
         h_file.Close()
     return hists
 
-def dress_hist(my_hist, my_title, my_color, my_norm = 1.0):
+def dress_hist(my_hist, my_title, my_color, my_norm = 1.0, re_bins=-1):
     my_hist.SetTitle(my_title)
     my_hist.SetName(my_title)
     my_hist.SetLineColor(my_color)
     my_hist.SetMarkerColor(my_color)
     hist_integ = my_hist.Integral()
-    # print("normalize", my_hist.GetName(), my_hist.GetTitle(), "to", my_norm, "start from integ", hist_integ)
     if hist_integ!=0:
         my_hist.Scale(my_norm/hist_integ)
-        # print("get back integ", my_hist.Integral())
-    # else: 
-    #     print("dont normalize since integral is 0")
+    if re_bins!=-1:
+        my_hist = my_hist.Rebin(len(re_bins) - 1, my_hist.GetName(), re_bins)
     return my_hist.Clone()
 
 def make_stack(hist_arr, title="",norm=-1):
@@ -425,64 +426,32 @@ def make_stack(hist_arr, title="",norm=-1):
         my_stack.Add(plot_copy)
     return my_stack.Clone()
 
-
-### for comparisons
-# title = "pt_photon"
-# rebin = 10
-# def get_hist(op_mode, color):
-#     root_file_name =  f"/exp/atlas/kurdysh/vbs_cross_terms_study/eft_files/Zy_vvy/user.okurdysh.MadGraph_Zy_vvy_{op_mode}_EXT0/DOCUT_YES/hists.root"
-#     root_file = ROOT.TFile.Open(root_file_name, "READ")
-#     hist_in = root_file.Get(title)
-#     hist = hist_in.Clone()
-#     hist.SetDirectory(0)
-#     hist.SetTitle(op_mode)
-#     hist.SetName(op_mode)
-#     hist.SetLineColor(color)
-#     hist.SetMarkerColor(color)
-#     hist.RebinX(rebin)
-#     hist.Sumw2()
-#     return hist
-# plot_q1 = get_hist("FT1_QUAD", 2)
-# plot_q2 = get_hist("FT2_QUAD", 3)
-# plot_c = get_hist("FT1vsFT2_CROSS", 1)
-
-
-def get_hist_dict(i_h):
-    dict_q1 = {}  # key is bin x-axis L edge, value is [bin content, error]
-    for ix in range(1, i_h.GetNbinsX() + 1):
-        l_edge = i_h.GetBinLowEdge(ix)
-        cont = i_h.GetBinContent(ix)
-        err = i_h.GetBinError(ix)
-        if cont != 0: dict_q1[l_edge] = [cont, err]
-    return dict_q1
-
-def get_ratio_plot_tests(hist_1, hist_2): # _2 is the one with to respect to which hist_1 is taken
-    dict_1 = get_hist_dict(hist_1)
-    dict_2 = get_hist_dict(hist_2)
-    bigger_xaxis_dict = dict_1 if len(dict_1) > len(dict_2) else dict_2
-    smaller_xaxis_dict = dict_2 if bigger_xaxis_dict == dict_1 else dict_1
-    ratio_hist_for_gr_range = ROOT.TH1F("dummy", "dummy", hist_1.GetNbinsX(), 
+def get_ratio_plot_tests(hist_1_in, hist_2_in): # _2 is the one with to respect to which hist_1 is taken
+    hist_1 = hist_1_in
+    hist_2 = hist_2_in
+    ratio_hist_for_gr_range = ROOT.TH1F("dummy", "dummy", hist_1.GetNbinsX(),
                                         hist_1.GetXaxis().GetXmin(),hist_1.GetXaxis().GetXmax())
-    ratio_plot = ROOT.TGraphErrors(ratio_hist_for_gr_range)
-    ratio_test_points = []
-    for num_p,ix in enumerate(bigger_xaxis_dict.keys()):
-        if ix not in smaller_xaxis_dict.keys(): continue
-        i_1 = bigger_xaxis_dict[ix]
-        i_2 = smaller_xaxis_dict[ix]
-        ratio = i_1[0]/i_2[0]
-        ratio_plot.SetPoint(num_p, ix, ratio)
-        uncert =  math.sqrt((i_1[1]) ** 2 + (i_2[1]) ** 2)
-        ratio_plot.SetPointError(num_p, 0, uncert)
+    for binx in range(1, ratio_hist_for_gr_range.GetNbinsX() + 1):
+        i_1 = hist_1.GetBinContent(binx)
+        i_2 = hist_2.GetBinContent(binx)
+        if i_1 <= 0 or i_2 <= 0: continue
+        err_1 = hist_1.GetBinError(binx)
+        err_2 = hist_2.GetBinError(binx)
+        ratio = i_1 / i_2
+        rel_err_1 = err_1 / i_1
+        rel_err_2 = err_2 / i_2
+        uncert = abs(ratio) * math.sqrt(rel_err_1 ** 2 + rel_err_2 ** 2)
+        ratio_hist_for_gr_range.SetBinContent(binx, ratio)
+        ratio_hist_for_gr_range.SetBinError(binx, uncert)
     rchi2 = hist_1.Chi2Test(hist_2, "WW CHI2/NDF")
     ks = hist_2.KolmogorovTest(hist_1)
-    # print("from ratios", ratio_test_points, "get RT", ratio_test, "with chi2/ndf", rchi2)
-    ratio_name = f"{hist_1.GetName()}/{hist_2.GetName()} rChi2={rchi2:.2f} KS={ks:.2f}"
-    ratio_plot.SetName(ratio_name)
-    ratio_plot.SetTitle(ratio_name)
-    ratio_color = hist_1.GetLineColor() # notice it's hist_1 where color is taken
-    ratio_plot.SetMarkerColor(ratio_color)
-    ratio_plot.SetLineColor(ratio_color)
-    return ratio_plot.Clone(), rchi2, ks
+    ratio_name = f"{hist_1_in.GetName()}/{hist_2_in.GetName()} rChi2={rchi2:.2f} KS={ks:.2f}"
+    ratio_hist_for_gr_range.SetName(ratio_name)
+    ratio_hist_for_gr_range.SetTitle(ratio_name)
+    ratio_color = hist_1_in.GetLineColor() # notice it's hist_1 where color is taken
+    ratio_hist_for_gr_range.SetMarkerColor(ratio_color)
+    ratio_hist_for_gr_range.SetLineColor(ratio_color)
+    return ratio_hist_for_gr_range.Clone(), rchi2, ks
 
 def draw_stack_with_ratio(my_stack, mg_ratios, xtitle, outname, stack_x_range=[]):
     c = ROOT.TCanvas()
@@ -503,16 +472,15 @@ def draw_stack_with_ratio(my_stack, mg_ratios, xtitle, outname, stack_x_range=[]
 
     if mg_ratios!=-1:
         pad_2.cd()
-        mg_ratios.Draw("AP")
-        # without range can be slight visual different in range wrt to top plot
-        if len(stack_x_range)==0:
-            mg_ratios.GetXaxis().SetRangeUser(my_stack.GetXaxis().GetXmin(),my_stack.GetXaxis().GetXmax())
-        else:
+        mg_ratios.Draw("")
+        if len(stack_x_range) != 0:
             mg_ratios.GetXaxis().SetRangeUser(stack_x_range[0], stack_x_range[1])
         l = ROOT.gPad.BuildLegend()
         l.SetFillColorAlpha(0, 0)
+        ROOT.gPad.SetLogy()
 
     c.Modified()
     c.Update()
     c.Show()
     c.SaveAs(outname)
+    print("hi")
