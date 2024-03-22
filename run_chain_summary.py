@@ -230,7 +230,7 @@ if opts.runQUADAndCROSS=="yes":
     cutflow_plot_dir = plot_dir + "/cutflows_comp/"
     if not os.path.exists(cutflow_plot_dir): os.makedirs(cutflow_plot_dir)
     for i_op1 in all_ops:
-        if i_op1 not in xsec_dict["CROSS"].keys(): continue 
+        if i_op1 not in xsec_dict["CROSS"].keys(): continue
 
         bin_x = all_ops.index(i_op1) + 1
         CROSS_h.GetXaxis().SetBinLabel(bin_x,i_op1)
@@ -277,22 +277,22 @@ if opts.runQUADAndCROSS=="yes":
             fracs_quad2.append(i_frac_quad2)
             fracs_cross.append(i_frac_cross)
             mean_quads = mean([i_frac_quad1, i_frac_quad2])
-            geo_ave = i_frac_cross/mean_quads if mean_quads>0 else 0.0 
+            geo_ave = i_frac_cross/mean_quads if mean_quads>0 else 0.0
             fracs_ave.append(geo_ave)
-            fracs_envelope.append(max([abs(i_frac_quad1-i_frac_quad2), 
-                                        abs(i_frac_quad1-i_frac_cross), 
+            fracs_envelope.append(max([abs(i_frac_quad1-i_frac_quad2),
+                                        abs(i_frac_quad1-i_frac_cross),
                                         abs(i_frac_quad2-i_frac_cross)]))
             print("for pair", pair_str, "founds fracs q1 q2 cross", i_frac_quad1, i_frac_quad2, i_frac_cross)
             print(f"and mean of q1 q2 {mean_quads} then c/ave is {geo_ave}")
-            i_frac_quad1_unc = frac_er_dict["QUAD"][i_op1] 
+            i_frac_quad1_unc = frac_er_dict["QUAD"][i_op1]
             i_frac_quad2_unc = frac_er_dict["QUAD"][i_op2]
-            i_frac_cross_unc = frac_er_dict["CROSS"][i_op1][i_op2] 
+            i_frac_cross_unc = frac_er_dict["CROSS"][i_op1][i_op2]
             fracs_errors_quad1.append(i_frac_quad1_unc)
             fracs_errors_quad2.append(i_frac_quad2_unc)
             fracs_errors_cross.append(i_frac_cross_unc)
             fracs_errors_ave.append(math.sqrt(i_frac_quad1_unc**2 + i_frac_quad2_unc**2 + i_frac_cross_unc**2))
             print("for pair", pair_str, "founds fracs errors q1 q2 cross", i_frac_quad1_unc, i_frac_quad2_unc, i_frac_cross_unc)
-            
+
             ########### cutflow comparison
             if opts.drawCutflow=="yes":
                 i_cutflow_quad1 = cutflow_file_dict["QUAD"][i_op1]
@@ -302,8 +302,8 @@ if opts.runQUADAndCROSS=="yes":
                 cut_names, _, cut_incr_quad1 = lu.get_cutflow_arrays(i_cutflow_quad1)
                 _, _, cut_incr_quad2 = lu.get_cutflow_arrays(i_cutflow_quad2)
                 _, _, cut_incr_cross = lu.get_cutflow_arrays(i_cutflow_cross)
-                
-                lu.draw_cutflows(cut_names, [cut_incr_quad1,cut_incr_quad2,cut_incr_cross], 
+
+                lu.draw_cutflows(cut_names, [cut_incr_quad1,cut_incr_quad2,cut_incr_cross],
                                 [f"incr {i_op1}",f"incr {i_op2}", f"incr {i_op1}vs{i_op2}"],
                                 cutflow_plot_dir+f"/{i_op1}vs{i_op2}.pdf", prod_dec)
 
@@ -315,10 +315,10 @@ if opts.runQUADAndCROSS=="yes":
     root_file = ROOT.TFile(plot_dir + "/el_area_ratio.root","UPDATE")  # to divide between ana
     CROSS_el_area_ratio_h.Write("", ROOT.TObject.kOverwrite)
     root_file.Close()
-    # fractions 
+    # fractions
     for i_pair, i_frac_quad1, i_frac_quad2, i_frac_cross in zip(pairs_str_avalaible,fracs_quad1,fracs_quad2,fracs_cross):
         print(f"for pair {i_pair} q1 q2 c fractions are {i_frac_quad1}, {i_frac_quad2}, {i_frac_cross}")
-    
+
     def draw_efficiency(area_ratio_min):
         new_pairs_str = []
         new_fracs_quad1, new_fracs_errors_quad1 = [], []
@@ -424,7 +424,7 @@ if opts.runQUADAndCROSS=="yes":
                 if not os.path.exists(i_pair_dir): os.makedirs(i_pair_dir)
                 c.SaveAs(f"{i_pair_dir}/{i_plot_name}.pdf")
                 
-    compare for each distribution quads shape
+    # compare for each distribution quads shape
     quaddir = plot_dir + "/quad_kin/"
     if not os.path.exists(quaddir): os.makedirs(quaddir)
     for i_plot_name in plots_to_save:
@@ -522,63 +522,31 @@ if opts.runQUADAndCROSS=="yes":
     missing_ops = lu.get_missing_ops(prod_dec)
     # can drop rows with missing operators - searching within column for highest/lowest score will not give index missing col
     missing_ops_present_df = [i_op for i_op in missing_ops if i_op in list(df.keys())] # like can miss because irrelevant for process
-    for i_miss in missing_ops_present_df:
-        df.drop(i_miss, axis=0, inplace=True)
-    # get best KS and 3 best Chi2 to maybe fall back to eye
-    df["replacement"] = pd.Series(dtype=str)
-    df["repmethod"] = pd.Series(dtype=str)
-    df["repscore"] = pd.Series(dtype=str)
-    for op in missing_ops_present_df:  # here work with columns
-        df[[op + '_rChi2', op + '_KS']] = df[op].str.split(';', expand=True)
-        # chi2 and KS go in different direction on what is better
-        # want to fill missing values for sorting with different values
-        df.replace(to_replace=[None, ""], value=np.nan)
-        df[op + '_rChi2'], df[op + '_KS'] = df[op + '_rChi2'].fillna(100000), df[op + '_KS'].fillna(-1)
-        df[op + '_rChi2'], df[op + '_KS'] = df[op + '_rChi2'].astype(float), df[op + '_KS'].astype(float)
-        ks_val = df[op + "_KS"].sort_values(ascending=False).values[0]
-        ks_op = df[op + "_KS"].sort_values(ascending=False).index[0]
-        # print("KS for", op, "best op is ", ks_op, "with val", ks_val)
-        if ks_val > ks_cut:
-            df.at[op, "replacement"] = ks_op
-            df.at[op, "repmethod"] = "KS"
-            df.at[op, "repscore"] = f"{ks_val:.2f}"
-            continue
-        chi2_val = df[op + "_rChi2"].sort_values(ascending=True).values[:3]
-        chi2_op = df[op + "_rChi2"].sort_values(ascending=True).index[:3]
-        # print("Chi2 for", op, "best op is ", chi2_val, "with val", chi2_op)
-        if chi2_val[0] < chi2_cut:
-            best_op, best_score, best_method = chi2_op[0], chi2_val[0], "Chi2"
-        else:
-            best_op = "-".join(chi2_op)
-            best_score = "-".join([f"{i_val:.2f}" for i_val in chi2_val])
-            best_method = "eye"
-        df.at[op, "replacement"] = best_op
-        df.at[op, "repmethod"] = best_method
-        df.at[op, "repscore"] = best_score
+    existing_ops_present_df = [i_op for i_op in list(df.keys()) if i_op not in missing_ops_present_df]
 
-    # select cols
-    replacement_df = df[df.columns.intersection(["replacement", "repmethod", "repscore"])]
-    # select rows - for some reason they were not quite dropped above
-    replacement_df = replacement_df.loc[replacement_df.index.intersection(missing_ops_present_df)]
-    replacement_df["repnorm"] = pd.Series(dtype=str)
-    for missing_op, row in replacement_df.iterrows():
-        op_fidxsec = fidxsec_dict["QUAD"][missing_op]
-        norm_arr = []  # in case fallback to eye will have seleral candidates
-        for i_rep in row["replacement"].split("-"):
-            norm_arr.append(op_fidxsec / fidxsec_dict["QUAD"][i_rep])
-        print("factors for", missing_op, norm_arr)
-        row["repnorm"] = "-".join([f"{i_norm:.3f}" for i_norm in norm_arr])
+    def make_rep_table(missing_ops, out_name, take_worse=False):
+        arr_miss, arr_rep, arr_rep_m, arr_rep_norm = [], [], [], []
+        for i_miss in missing_ops:
+            replacement, repmethod, repnorm, _ = lu.get_replacement(df, i_miss, existing_ops_present_df,
+                                                                          fidxsec_dict, ks_cut, chi2_cut,take_worse)
+            if replacement != "":
+                arr_miss.append(i_miss)
+                arr_rep.append(replacement)
+                arr_rep_m.append(repmethod)
+                arr_rep_norm.append(repnorm)
 
-    replacement_df.to_csv(plot_dir + "/quads_replacement_table.csv",sep=";")
-    # save table with inclusion of ops that should not be replaced and three methods
-    plt.clf()
-    fig, ax = plt.subplots()  # no visible frame
-    ax.axis('tight')
-    ax.axis('off')
-    table_r_extended = ax.table(cellText = replacement_df.values, rowLabels = replacement_df.index,
-                                colLabels = replacement_df.columns, loc='center')
-    with PdfPages(plot_dir + "/quads_replacement_table.pdf") as pdf:
-        pdf.savefig(fig, bbox_inches='tight')
-        plt.close()
+        df_save = pd.DataFrame({'start': arr_miss, 'replacement': arr_rep, 'repmethod': arr_rep_m, "repnorm": arr_rep_norm})
+        df_save.to_csv(plot_dir + f"/{out_name}.csv", sep=";")
+        plt.clf()
+        fig, ax = plt.subplots()  # no visible frame
+        ax.axis('tight')
+        ax.axis('off')
+        table = ax.table(cellText=df_save.values, rowLabels=df_save.index, colLabels=df_save.columns, loc='center')
+        with PdfPages(plot_dir + f"/{out_name}.pdf") as pdf:
+            pdf.savefig(fig, bbox_inches='tight')
+            plt.close()
 
+    make_rep_table(missing_ops_present_df, "quads_replacement_table")
+    make_rep_table(existing_ops_present_df, "quads_reshuffling_table")
+    make_rep_table(existing_ops_present_df, "quads_reshuffling_bad_choice_table", take_worse=True)
     print("hi")

@@ -154,7 +154,7 @@ def get_evnt_log_files(base_dir,i_job_name):
     return evnt_file, log_file
 
 def get_plotdir(prod_dec, DOCUT_str):
-    my_dir = f"/exp/atlas/kurdysh/vbs_cross_terms_study/plots/{prod_dec}/{DOCUT_str}/" 
+    my_dir = f"/exp/atlas/kurdysh/vbs_cross_terms_study/plots/{prod_dec}/{DOCUT_str}/"
     if not os.path.exists(my_dir): os.makedirs(my_dir)
     return my_dir
 
@@ -243,7 +243,7 @@ def find_prod_dec_and_dir(conf):
     print("start from string", prod_temp)
     prod_dec = prod_temp[:prod_temp.find("_F")]
     print("from conf found production dec", prod_dec)
-    conf_dir = f"/exp/atlas/kurdysh/vbs_cross_terms_study/eft_files/{prod_dec}/"
+    conf_dir = f"/sps/atlas/kurdysh/vbs_cross_terms_study/eft_files/{prod_dec}/"
     print("dir would be", conf_dir)
     return prod_dec, conf_dir
 
@@ -484,3 +484,52 @@ def draw_stack_with_ratio(my_stack, mg_ratios, xtitle, outname, stack_x_range=[]
     c.Show()
     c.SaveAs(outname)
     print("hi")
+
+
+def get_replacement(df_in, miss_op, list_to_search_in,
+                    fidxsec_dict,ks_cut, chi2_cut, take_worse=False):
+    temp_df = df_in.loc[list_to_search_in, [miss_op]]
+    if miss_op in temp_df.index:
+        temp_df.drop(miss_op, axis=0, inplace=True)
+    chi_name, ks_name = miss_op + '_rChi2', miss_op + '_KS'
+    temp_df[[chi_name, ks_name]] = temp_df[miss_op].str.split(';', expand=True)
+    temp_df[chi_name], temp_df[ks_name] = temp_df[chi_name].astype(float), temp_df[ks_name].astype(float)
+    ks_val, ks_op = 0, ""
+    if not take_worse:
+        chi_val, chi_op = 100000, ""
+    else:
+        chi_val, chi_op = 0, ""
+
+    for ind_op, row in temp_df.iterrows():
+        i_chi, i_ks = row[chi_name], row[ks_name]
+        if not take_worse:
+            if i_ks > ks_val:
+                ks_val = i_ks
+                ks_op = ind_op
+            if i_chi < chi_val:
+                chi_val = i_chi
+                chi_op = ind_op
+        else:
+            if i_chi > chi_val:
+                chi_val = i_chi
+                chi_op = ind_op
+
+    # make final decision
+    miss_op_fidxsec = fidxsec_dict["QUAD"][miss_op]
+    if not take_worse:
+        if ks_val > ks_cut:
+            replacement = ks_op
+            repnorm = miss_op_fidxsec / fidxsec_dict["QUAD"][replacement]
+            repmethod = "KS"
+        elif chi_val < chi2_cut:
+            replacement = chi_op
+            repnorm = miss_op_fidxsec / fidxsec_dict["QUAD"][replacement]
+            repmethod = "Chi2"
+        else:
+            replacement, repnorm,repmethod = "", -1, ""
+    else:
+        replacement = chi_op
+        repnorm = miss_op_fidxsec / fidxsec_dict["QUAD"][replacement]
+        repmethod = "Chi2"
+
+    return replacement,repmethod, repnorm, temp_df
