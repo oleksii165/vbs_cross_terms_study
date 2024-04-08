@@ -53,9 +53,9 @@ def save_job_infos(DOCUT_str, mydir, xsec_fb, prod_dec):
         if yoda_f[i_name].type()=="Histo1D": hists_1h_in_yoda.append(i_name)  
     print("have 1d hists to be saved in root:", hists_1h_in_yoda, "in yoda file", yoda_f_str)
 
-    root_file = mydir + "/hists.root"
-    if not os.path.exists(root_file) or not os.path.exists(mydir + "xsec_fb.txt"): proceed = 1
-    elif (os.path.exists(root_file) or os.path.exists(mydir + "xsec_fb.txt")) and opts.runAgain=="yes": proceed = 1
+    root_file_name = mydir + "/hists.root"
+    if not os.path.exists(root_file_name) or not os.path.exists(mydir + "xsec_fb.txt"): proceed = 1
+    elif (os.path.exists(root_file_name) or os.path.exists(mydir + "xsec_fb.txt")) and opts.runAgain=="yes": proceed = 1
     else: proceed = 0
 
     if not proceed:
@@ -65,28 +65,33 @@ def save_job_infos(DOCUT_str, mydir, xsec_fb, prod_dec):
     # save fid xsec
     rivet_dir_name = f"/{prod_dec}:OUTDIR=/{mydir}".replace("//","/") + "/"
     print("looking for prefix in counter",rivet_dir_name)
-    pos_n_in = yoda_f[f"{rivet_dir_name}pos_w_initial"].numEntries()
-    neg_n_in = yoda_f[f"{rivet_dir_name}neg_w_initial"].numEntries()
-    pos_n_f = yoda_f[f"{rivet_dir_name}pos_w_final"].numEntries()
-    neg_n_f = yoda_f[f"{rivet_dir_name}neg_w_final"].numEntries()
+    pos_n_in, pos_w_in = yoda_f[f"{rivet_dir_name}pos_w_initial"].numEntries(), yoda_f[f"{rivet_dir_name}pos_w_initial"].sumW()
+    neg_n_in, neg_w_in= yoda_f[f"{rivet_dir_name}neg_w_initial"].numEntries(), yoda_f[f"{rivet_dir_name}neg_w_initial"].sumW()
+    pos_n_f, pos_w_f = yoda_f[f"{rivet_dir_name}pos_w_final"].numEntries(), yoda_f[f"{rivet_dir_name}pos_w_final"].sumW()
+    neg_n_f, neg_w_f = yoda_f[f"{rivet_dir_name}neg_w_final"].numEntries(), yoda_f[f"{rivet_dir_name}neg_w_final"].sumW()
     #
-    frac_cut = (pos_n_f+neg_n_f) / (pos_n_in+neg_n_in) 
+    frac_cut = (pos_w_f+neg_w_f) / (pos_w_in+neg_w_in) # (pos_n_f+neg_n_f) / (pos_n_in+neg_n_in) 
     frac_pos = pos_n_f / pos_n_in if pos_n_in!=0 else 0
     frac_neg = neg_n_f / neg_n_in if neg_n_in!=0 else 0
     frac_cut_er_bar = 1/(pos_n_in+neg_n_in) * math.sqrt(pos_n_in*frac_pos*(1-frac_pos) + neg_n_in*frac_neg*(1-frac_neg))
-    # frac_cut_er_bar = frac_cut_unc / 2 
-    #
-    pos_w_in = yoda_f[f"{rivet_dir_name}pos_w_initial"].sumW()
-    neg_w_in = yoda_f[f"{rivet_dir_name}neg_w_initial"].sumW()
-    pos_w_f = yoda_f[f"{rivet_dir_name}pos_w_final"].sumW()
-    neg_w_f = yoda_f[f"{rivet_dir_name}neg_w_final"].sumW()
-    #
-    lu.save_xsec_frac_prod(mydir,xsec_fb,
-                            frac_cut, frac_pos, frac_neg, frac_cut_er_bar,
-                            pos_w_in, neg_w_in, pos_w_f, neg_w_f,
-                            pos_n_in, neg_n_in, pos_n_f, neg_n_f)
+    
+    print("for unclip num neg and pos w after cuts", pos_w_f, neg_w_f, "sum", pos_w_f+neg_w_f)
+    # save res to txt
+    lu.write_to_f(mydir + "xsec_fb.txt", xsec_fb)
+    lu.write_to_f(mydir + "xsec_times_frac_fb.txt",xsec_fb*frac_cut)
+    lu.write_to_f(mydir + "frac_after_cuts.txt",frac_cut)
+    lu.write_to_f(mydir + "frac_after_cuts_error_bar.txt", frac_cut_er_bar)
+    # similarly for clipping
+    for i_clip in ["700", "1000", "1500", "2000", "3000"]:
+        i_pos_w_f = yoda_f[f"{rivet_dir_name}pos_w_final_clip{i_clip}"].sumW()
+        i_neg_w_f = yoda_f[f"{rivet_dir_name}neg_w_final_clip{i_clip}"].sumW()
+        print("for clip", i_clip, "num neg and pos w after cuts", i_pos_w_f, i_neg_w_f, "sum", i_pos_w_f+i_neg_w_f)
+        i_frac_cut = (i_pos_w_f+i_neg_w_f) / (pos_w_in+neg_w_in) #(i_pos_n_f+i_neg_n_f) / (pos_n_in+neg_n_in) 
+        lu.write_to_f(mydir + f"xsec_times_frac_fb_clip{i_clip}.txt", xsec_fb*i_frac_cut)
+        lu.write_to_f(mydir + f"frac_after_cuts_clip{i_clip}.txt", i_frac_cut)
+
     # save hists in root for further plotting
-    root_file = ROOT.TFile(root_file,"UPDATE")
+    root_file = ROOT.TFile(root_file_name,"UPDATE")
     for i_hist in hists_1h_in_yoda: # they are in format '/WpWm_lvlv:DOCUT=YES/leptons_pids'
         h_yoda =  yoda_f[i_hist]
         h_root = lu.yoda_to_root_1d(h_yoda, i_hist.split("/")[-1])
@@ -103,8 +108,7 @@ def save_job_infos(DOCUT_str, mydir, xsec_fb, prod_dec):
         cutflow_file = mydir + "cutflow.txt"
         if os.path.exists(cutflow_file):
             cut_names, cut_cumu, cut_incr = lu.get_cutflow_arrays(cutflow_file)
-            lu.draw_cutflows(cut_names, [cut_incr,cut_cumu], ["incremental","cumulative"],
-                            mydir+"/cutflow_img.png", prod_dec)
+            lu.draw_cutflows(cut_names, [cut_incr,cut_cumu], ["incremental","cumulative"], mydir+"/cutflow_img.png", prod_dec)
             
 def main():
     parser = OptionParser()

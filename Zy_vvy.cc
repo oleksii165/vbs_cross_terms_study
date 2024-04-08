@@ -126,9 +126,21 @@ namespace Rivet {
       
       //counter for efficiency
       book(_c["pos_w_initial"],"pos_w_initial");
-      book(_c["pos_w_final"],"pos_w_final");
       book(_c["neg_w_initial"],"neg_w_initial");
-      book(_c["neg_w_final"],"neg_w_final");
+      //
+      book(_c["pos_w_final"], "pos_w_final");
+      book(_c["pos_w_final_clip700"], "pos_w_final_clip700");
+      book(_c["pos_w_final_clip1000"], "pos_w_final_clip1000");
+      book(_c["pos_w_final_clip1500"], "pos_w_final_clip1500");
+      book(_c["pos_w_final_clip2000"], "pos_w_final_clip2000");
+      book(_c["pos_w_final_clip3000"], "pos_w_final_clip3000");
+      //
+      book(_c["neg_w_final"], "neg_w_final");
+      book(_c["neg_w_final_clip700"], "neg_w_final_clip700");
+      book(_c["neg_w_final_clip1000"], "neg_w_final_clip1000");
+      book(_c["neg_w_final_clip1500"], "neg_w_final_clip1500");
+      book(_c["neg_w_final_clip2000"], "neg_w_final_clip2000");
+      book(_c["neg_w_final_clip3000"], "neg_w_final_clip3000");
 
       // Cut-flows 
       _cutflows.addCutflow("Zy_vvy_selections", {"no_leptons", "have_iso_photons_ok_pt_eta",
@@ -286,11 +298,31 @@ namespace Rivet {
         }
       if (!have_two_hs_bosons) vetoEvent; // just in case reject events where dont have z+y
       _h["m_Zy"]->fill(hs_diboson_mass);
-      if (hs_diboson_mass < 700.0) {_h["pt_photon_clip700"]->fill(iso_photon.pT());}
-      else if (hs_diboson_mass < 1000.0) {_h["pt_photon_clip1000"]->fill(iso_photon.pT());}
-      else if (hs_diboson_mass < 1500.0) {_h["pt_photon_clip1500"]->fill(iso_photon.pT());}
-      else if (hs_diboson_mass < 2000.0) {_h["pt_photon_clip2000"]->fill(iso_photon.pT());}
-      else if (hs_diboson_mass < 3000.0) {_h["pt_photon_clip3000"]->fill(iso_photon.pT());}
+      if (hs_diboson_mass < 700.0) {
+        _h["pt_photon_clip700"]->fill(iso_photon.pT());
+        if (ev_nominal_weight>=0){_c["pos_w_final_clip700"]->fill();}
+        else {_c["neg_w_final_clip700"]->fill();}
+        }
+      else if (hs_diboson_mass < 1000.0) {
+        _h["pt_photon_clip1000"]->fill(iso_photon.pT());
+        if (ev_nominal_weight>=0){_c["pos_w_final_clip1000"]->fill();}
+        else {_c["neg_w_final_clip1000"]->fill();}
+        }
+      else if (hs_diboson_mass < 1500.0) {
+        _h["pt_photon_clip1500"]->fill(iso_photon.pT());
+        if (ev_nominal_weight>=0){_c["pos_w_final_clip1500"]->fill();}
+        else {_c["neg_w_final_clip1500"]->fill();}
+        }
+      else if (hs_diboson_mass < 2000.0) {
+        _h["pt_photon_clip2000"]->fill(iso_photon.pT());
+        if (ev_nominal_weight>=0){_c["pos_w_final_clip2000"]->fill();}
+        else {_c["neg_w_final_clip2000"]->fill();}
+        }
+      else if (hs_diboson_mass < 3000.0) {
+        _h["pt_photon_clip3000"]->fill(iso_photon.pT());
+        if (ev_nominal_weight>=0){_c["pos_w_final_clip3000"]->fill();}
+        else {_c["neg_w_final_clip3000"]->fill();}
+        }
 
       // save weights after cuts
       if (ev_nominal_weight>=0){_c["pos_w_final"]->fill();}

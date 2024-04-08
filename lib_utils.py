@@ -317,30 +317,6 @@ def get_sumw_initial(log_file):
     print(f"found sumw_in: {sumw_in} build from sumw_neg, pos and filt_ef: {sumw_neg}, {sumw_pos}, {filt_ef}")
     return sumw_in
 
-def save_xsec_frac_prod(savedir,xsec_fb,
-                        frac,frac_pos,frac_neg, frac_er_bar, 
-                        pos_w_in, neg_w_in, pos_w_f, neg_w_f,
-                        pos_n_in, neg_n_in, pos_n_f, neg_n_f):
-    write_to_f(savedir + "xsec_fb.txt",xsec_fb)
-    #
-    write_to_f(savedir + "frac_after_cuts.txt",frac)
-    write_to_f(savedir + "frac_after_cuts_pos.txt",frac_pos)
-    write_to_f(savedir + "frac_after_cuts_neg.txt",frac_neg)
-    write_to_f(savedir + "frac_after_cuts_error_bar.txt", frac_er_bar)
-    #
-    write_to_f(savedir + "xsec_times_frac_fb.txt",xsec_fb*frac)
-    #
-    write_to_f(savedir + "pos_sumw_in.txt", pos_w_in)
-    write_to_f(savedir + "neg_sumw_in.txt", neg_w_in)
-    write_to_f(savedir + "pos_sumw_f.txt", pos_w_f)
-    write_to_f(savedir + "neg_sumw_f.txt", neg_w_f)
-    #
-    write_to_f(savedir + "pos_w_n_in.txt", pos_n_in)
-    write_to_f(savedir + "neg_w_n_in.txt", neg_n_in)
-    write_to_f(savedir + "pos_w_n_f.txt", pos_n_f)
-    write_to_f(savedir + "neg_w_n_f.txt", neg_n_f)
-    
-
 def write_to_f(product_file,product):
     f = open(product_file, "w") #since opening yoda a bit slow for 50 configs save when have it
     f.write(str(product))
