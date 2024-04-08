@@ -262,7 +262,36 @@ namespace Rivet {
       _h["dphi_MET_photon"]->fill(dphi_MET_photon);
       _h["dphi_MET_tagjet"]->fill(dphi_MET_tagjet1); _h["dphi_MET_tagjet"]->fill(dphi_MET_tagjet2);
       _h["centrality_jjy"]->fill(centrality_jjy);
-    
+
+      // do clipping - sometimes there are two Z and one gamma - in this case to avoid much work take Z with highest pt and gamma
+      std::vector<FourMomentum> hs_bosons_z = {};
+      std::vector<FourMomentum> hs_bosons_y = {};
+      for(const Particle& p_rivet : event.allParticles()){
+          ConstGenParticlePtr p_hepmc = p_rivet.genParticle();
+          int status = p_hepmc->status();
+          if (abs(status)==23 or abs(status)==22){
+            int i_pid = p_hepmc->pid();
+            FourMomentum i_mom = p_hepmc->momentum();
+            if (abs(i_pid) == 23){hs_bosons_z.push_back(i_mom);}
+            else if (abs(i_pid) == 22){hs_bosons_y.push_back(i_mom);}
+          }
+        }
+      std::sort(hs_bosons_z.begin(), hs_bosons_z.end(), [](FourMomentum const &a, FourMomentum const &b) {return a.pT() > b.pT(); }); // biggest pT will be first in array
+      std::sort(hs_bosons_y.begin(), hs_bosons_y.end(), [](FourMomentum const &a, FourMomentum const &b) {return a.pT() > b.pT(); });
+      bool have_two_hs_bosons = false;
+      double hs_diboson_mass = 0.0;
+      if (hs_bosons_z.size()>0 && hs_bosons_y.size()>0){
+        hs_diboson_mass = (hs_bosons_z[0]+hs_bosons_y[0]).mass()/GeV;
+        have_two_hs_bosons = true;
+        }
+      if (!have_two_hs_bosons) vetoEvent; // just in case reject events where dont have z+y
+      _h["m_Zy"]->fill(hs_diboson_mass);
+      if (hs_diboson_mass < 700.0) {_h["pt_photon_clip700"]->fill(iso_photon.pT());}
+      else if (hs_diboson_mass < 1000.0) {_h["pt_photon_clip1000"]->fill(iso_photon.pT());}
+      else if (hs_diboson_mass < 1500.0) {_h["pt_photon_clip1500"]->fill(iso_photon.pT());}
+      else if (hs_diboson_mass < 2000.0) {_h["pt_photon_clip2000"]->fill(iso_photon.pT());}
+      else if (hs_diboson_mass < 3000.0) {_h["pt_photon_clip3000"]->fill(iso_photon.pT());}
+
       // save weights after cuts
       if (ev_nominal_weight>=0){_c["pos_w_final"]->fill();}
       else {_c["neg_w_final"]->fill();}
@@ -292,7 +321,8 @@ namespace Rivet {
         // terminate line
         pic_csv << "\n";
       }
-    }
+
+    } // end of analyze()
 
     /// Normalise histograms etc., after the run
     void finalize() {

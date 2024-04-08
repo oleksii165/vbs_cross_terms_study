@@ -63,7 +63,7 @@ def save_job_infos(DOCUT_str, mydir, xsec_fb, prod_dec):
         return  
 
     # save fid xsec
-    rivet_dir_name = f"/{prod_dec}:OUTDIR=/{mydir}".replace("//","/")
+    rivet_dir_name = f"/{prod_dec}:OUTDIR=/{mydir}".replace("//","/") + "/"
     print("looking for prefix in counter",rivet_dir_name)
     pos_n_in = yoda_f[f"{rivet_dir_name}pos_w_initial"].numEntries()
     neg_n_in = yoda_f[f"{rivet_dir_name}neg_w_initial"].numEntries()
@@ -141,7 +141,6 @@ def main():
     # get xsec after cuts
     evnt_dir = os.path.dirname(evnt_file)
     xsec_fb = lu.get_xsec(log_file)
-    # prod_dec, _ = lu.find_prod_dec_and_dir(job_name)
     if opts.runWithCuts=="yes": 
         save_job_infos("DOCUT=YES",evnt_dir + "/DOCUT_YES/", xsec_fb, prod_dec)
     else: 
