@@ -65,7 +65,6 @@ def draw_average_event(files_dir, average_im=True):
     print("found op and prod_dec", op, prod_dec)
 
     f_str = files_dir + "info_for_image.csv" 
-    # "/exp/atlas/kurdysh/vbs_cross_terms_study/eft_files/Zy_lly/user.okurdysh.MadGraph_Zy_lly_FT7vsFT8_CROSS_EXT0/DOCUT_YES/Rivet.csv"
     df = pd.read_csv(f_str,delimiter=";")
     particles = set([i_col[i_col.find("_")+1:] for i_col in  list(df.head()) if "Unnamed" not in i_col])
     print("found particles", particles, "in file", f_str)
@@ -195,7 +194,6 @@ def get_hists_bounds_cuts(prod_dec):
     if prod_dec in ["WmZ_lllv", "WpZ_lllv"]:
         total_h.update(lepton_h)
     
-
     # this loop is unncessecary
     return_dict = {} # key is hist name, value[nbin,min,max,cut,cutdir="+,-"]
     for i_hist, i_h_arr in total_h.items():
