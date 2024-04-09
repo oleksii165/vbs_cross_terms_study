@@ -128,25 +128,24 @@ namespace Rivet {
       book(_c["pos_w_initial"],"pos_w_initial");
       book(_c["neg_w_initial"],"neg_w_initial");
       //
-      book(_c["pos_w_final"], "pos_w_final");
-      book(_c["pos_w_final_clip700"], "pos_w_final_clip700");
-      book(_c["pos_w_final_clip1000"], "pos_w_final_clip1000");
-      book(_c["pos_w_final_clip1500"], "pos_w_final_clip1500");
-      book(_c["pos_w_final_clip2000"], "pos_w_final_clip2000");
-      book(_c["pos_w_final_clip3000"], "pos_w_final_clip3000");
+      book(_c["pos_w_final_clip_700"], "pos_w_final_clip_700");
+      book(_c["pos_w_final_clip_1000"], "pos_w_final_clip_1000");
+      book(_c["pos_w_final_clip_1500"], "pos_w_final_clip_1500");
+      book(_c["pos_w_final_clip_2000"], "pos_w_final_clip_2000");
+      book(_c["pos_w_final_clip_3000"], "pos_w_final_clip_3000");
+      book(_c["pos_w_final_clip_inf"], "pos_w_final_clip_inf");
       //
-      book(_c["neg_w_final"], "neg_w_final");
-      book(_c["neg_w_final_clip700"], "neg_w_final_clip700");
-      book(_c["neg_w_final_clip1000"], "neg_w_final_clip1000");
-      book(_c["neg_w_final_clip1500"], "neg_w_final_clip1500");
-      book(_c["neg_w_final_clip2000"], "neg_w_final_clip2000");
-      book(_c["neg_w_final_clip3000"], "neg_w_final_clip3000");
+      book(_c["neg_w_final_clip_700"], "neg_w_final_clip_700");
+      book(_c["neg_w_final_clip_1000"], "neg_w_final_clip_1000");
+      book(_c["neg_w_final_clip_1500"], "neg_w_final_clip_1500");
+      book(_c["neg_w_final_clip_2000"], "neg_w_final_clip_2000");
+      book(_c["neg_w_final_clip_3000"], "neg_w_final_clip_3000");
+      book(_c["neg_w_final_clip_inf"], "neg_w_final_clip_inf");
 
       // Cut-flows 
       _cutflows.addCutflow("Zy_vvy_selections", {"no_leptons", "have_iso_photons_ok_pt_eta",
                             "n_jets","pt_tagjet1_2","m_tagjets","centrality_jjy", 
                             "pt_MET", "dphi_MET_photon", "dphi_MET_tagjet"});
-
 
       // setup for  file used for drawing images
       if (_docut==1){
@@ -253,28 +252,6 @@ namespace Rivet {
       if (_docut==1 && (dphi_MET_tagjet1<_jcuts["dphi_MET_tagjet"] || dphi_MET_tagjet2<_jcuts["dphi_MET_tagjet"])) vetoEvent;
       _cutflows.fillnext();
 
-      //jet plots
-      _h["n_jets"]->fill(n_jets);
-      _h["pt_tagjet1"]->fill(tag1_jet.pt());
-      _h["pt_tagjet2"]->fill(tag2_jet.pt());
-      _h["eta_tagjets"]->fill(tag1_jet.eta()); _h["eta_tagjets"]->fill(tag2_jet.eta());
-      _h["phi_tagjets"]->fill(tag1_jet.phi()); _h["phi_tagjets"]->fill(tag2_jet.phi());
-      _h["m_tagjets"]->fill(m_tagjets);
-      _h["dy_tagjets"]->fill(dy_tagjets);
-      _h["dphi_tagjets"]->fill(deltaPhi(tag1_jet,tag2_jet));
-      //lepton plots - absence of 
-      _h["n_lepton_stable"]->fill(nlep_stable);
-      //photon plots
-      _h["n_photons_iso"]->fill(isolated_photons.size());
-      _h["cone_frac_photon"]->fill(cone_to_photon_fracs[0]);
-      _h["eta_photon"]->fill(iso_photon.eta());
-      _h["pt_photon"]->fill(iso_photon.pT());
-      // analysis-secific
-      _h["pt_MET"]->fill(pt_MET);
-      _h["dphi_MET_photon"]->fill(dphi_MET_photon);
-      _h["dphi_MET_tagjet"]->fill(dphi_MET_tagjet1); _h["dphi_MET_tagjet"]->fill(dphi_MET_tagjet2);
-      _h["centrality_jjy"]->fill(centrality_jjy);
-
       // do clipping - sometimes there are two Z and one gamma - in this case to avoid much work take Z with highest pt and gamma
       std::vector<FourMomentum> hs_bosons_z = {};
       std::vector<FourMomentum> hs_bosons_y = {};
@@ -297,36 +274,59 @@ namespace Rivet {
         have_two_hs_bosons = true;
         }
       if (!have_two_hs_bosons) vetoEvent; // just in case reject events where dont have z+y
+
+      //jet plots
+      _h["n_jets"]->fill(n_jets);
+      _h["pt_tagjet1"]->fill(tag1_jet.pt());
+      _h["pt_tagjet2"]->fill(tag2_jet.pt());
+      _h["eta_tagjets"]->fill(tag1_jet.eta()); _h["eta_tagjets"]->fill(tag2_jet.eta());
+      _h["phi_tagjets"]->fill(tag1_jet.phi()); _h["phi_tagjets"]->fill(tag2_jet.phi());
+      _h["m_tagjets"]->fill(m_tagjets);
+      _h["dy_tagjets"]->fill(dy_tagjets);
+      _h["dphi_tagjets"]->fill(deltaPhi(tag1_jet,tag2_jet));
+      //lepton plots - absence of 
+      _h["n_lepton_stable"]->fill(nlep_stable);
+      //photon plots
+      _h["n_photons_iso"]->fill(isolated_photons.size());
+      _h["cone_frac_photon"]->fill(cone_to_photon_fracs[0]);
+      _h["eta_photon"]->fill(iso_photon.eta());
+      _h["pt_photon"]->fill(iso_photon.pT());
+      // analysis-secific
+      _h["pt_MET"]->fill(pt_MET);
+      _h["dphi_MET_photon"]->fill(dphi_MET_photon);
+      _h["dphi_MET_tagjet"]->fill(dphi_MET_tagjet1); _h["dphi_MET_tagjet"]->fill(dphi_MET_tagjet2);
+      _h["centrality_jjy"]->fill(centrality_jjy);
+      // clipping-related
       _h["m_Zy"]->fill(hs_diboson_mass);
       if (hs_diboson_mass < 700.0) {
-        _h["pt_photon_clip700"]->fill(iso_photon.pT());
-        if (ev_nominal_weight>=0){_c["pos_w_final_clip700"]->fill();}
-        else {_c["neg_w_final_clip700"]->fill();}
+        _h["pt_photon_clip_700"]->fill(iso_photon.pT());
+        if (ev_nominal_weight>=0){_c["pos_w_final_clip_700"]->fill();}
+        else {_c["neg_w_final_clip_700"]->fill();}
         }
       else if (hs_diboson_mass < 1000.0) {
-        _h["pt_photon_clip1000"]->fill(iso_photon.pT());
-        if (ev_nominal_weight>=0){_c["pos_w_final_clip1000"]->fill();}
-        else {_c["neg_w_final_clip1000"]->fill();}
+        _h["pt_photon_clip_1000"]->fill(iso_photon.pT());
+        if (ev_nominal_weight>=0){_c["pos_w_final_clip_1000"]->fill();}
+        else {_c["neg_w_final_clip_1000"]->fill();}
         }
       else if (hs_diboson_mass < 1500.0) {
-        _h["pt_photon_clip1500"]->fill(iso_photon.pT());
-        if (ev_nominal_weight>=0){_c["pos_w_final_clip1500"]->fill();}
-        else {_c["neg_w_final_clip1500"]->fill();}
+        _h["pt_photon_clip_1500"]->fill(iso_photon.pT());
+        if (ev_nominal_weight>=0){_c["pos_w_final_clip_1500"]->fill();}
+        else {_c["neg_w_final_clip_1500"]->fill();}
         }
       else if (hs_diboson_mass < 2000.0) {
-        _h["pt_photon_clip2000"]->fill(iso_photon.pT());
-        if (ev_nominal_weight>=0){_c["pos_w_final_clip2000"]->fill();}
-        else {_c["neg_w_final_clip2000"]->fill();}
+        _h["pt_photon_clip_2000"]->fill(iso_photon.pT());
+        if (ev_nominal_weight>=0){_c["pos_w_final_clip_2000"]->fill();}
+        else {_c["neg_w_final_clip_2000"]->fill();}
         }
       else if (hs_diboson_mass < 3000.0) {
-        _h["pt_photon_clip3000"]->fill(iso_photon.pT());
-        if (ev_nominal_weight>=0){_c["pos_w_final_clip3000"]->fill();}
-        else {_c["neg_w_final_clip3000"]->fill();}
+        _h["pt_photon_clip_3000"]->fill(iso_photon.pT());
+        if (ev_nominal_weight>=0){_c["pos_w_final_clip_3000"]->fill();}
+        else {_c["neg_w_final_clip_3000"]->fill();}
         }
-
-      // save weights after cuts
-      if (ev_nominal_weight>=0){_c["pos_w_final"]->fill();}
-      else {_c["neg_w_final"]->fill();}
+      // default case which is no clipping
+      _h["pt_photon_clip_inf"]->fill(iso_photon.pT()); // dublication of pt_photon hist
+      if (ev_nominal_weight>=0){_c["pos_w_final_clip_inf"]->fill();}
+      else {_c["neg_w_final_clip_inf"]->fill();}
     
       // file used for drawing images
       if (_docut==1){
@@ -366,8 +366,8 @@ namespace Rivet {
 
       double pos_w_sum_initial = dbl(*_c["pos_w_initial"]); // from which also number of entries can be obtained
       double neg_w_sum_initial = dbl(*_c["neg_w_initial"]);
-      double pos_w_sum_final = dbl(*_c["pos_w_final"]);
-      double neg_w_sum_final = dbl(*_c["neg_w_final"]);
+      double pos_w_sum_final = dbl(*_c["pos_w_final_clip_inf"]);
+      double neg_w_sum_final = dbl(*_c["neg_w_final_clip_inf"]);
       MSG_INFO("\n pos weights initial final ratio " << pos_w_sum_initial <<" " << pos_w_sum_final <<" "<< pos_w_sum_final/pos_w_sum_initial << "\n" );
       MSG_INFO("\n neg weights initial final ratio " << neg_w_sum_initial <<" " << neg_w_sum_final <<" "<< neg_w_sum_final/neg_w_sum_initial << "\n" );
 

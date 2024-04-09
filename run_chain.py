@@ -67,8 +67,8 @@ def save_job_infos(DOCUT_str, mydir, xsec_fb, prod_dec):
     print("looking for prefix in counter",rivet_dir_name)
     pos_n_in, pos_w_in = yoda_f[f"{rivet_dir_name}pos_w_initial"].numEntries(), yoda_f[f"{rivet_dir_name}pos_w_initial"].sumW()
     neg_n_in, neg_w_in= yoda_f[f"{rivet_dir_name}neg_w_initial"].numEntries(), yoda_f[f"{rivet_dir_name}neg_w_initial"].sumW()
-    pos_n_f, pos_w_f = yoda_f[f"{rivet_dir_name}pos_w_final"].numEntries(), yoda_f[f"{rivet_dir_name}pos_w_final"].sumW()
-    neg_n_f, neg_w_f = yoda_f[f"{rivet_dir_name}neg_w_final"].numEntries(), yoda_f[f"{rivet_dir_name}neg_w_final"].sumW()
+    pos_n_f, pos_w_f = yoda_f[f"{rivet_dir_name}pos_w_final_clip_inf"].numEntries(), yoda_f[f"{rivet_dir_name}pos_w_final_clip_inf"].sumW()
+    neg_n_f, neg_w_f = yoda_f[f"{rivet_dir_name}neg_w_final_clip_inf"].numEntries(), yoda_f[f"{rivet_dir_name}neg_w_final_clip_inf"].sumW()
     #
     frac_cut = (pos_w_f+neg_w_f) / (pos_w_in+neg_w_in) # (pos_n_f+neg_n_f) / (pos_n_in+neg_n_in) 
     frac_pos = pos_n_f / pos_n_in if pos_n_in!=0 else 0
@@ -78,17 +78,19 @@ def save_job_infos(DOCUT_str, mydir, xsec_fb, prod_dec):
     print("for unclip num neg and pos w after cuts", pos_w_f, neg_w_f, "sum", pos_w_f+neg_w_f)
     # save res to txt
     lu.write_to_f(mydir + "xsec_fb.txt", xsec_fb)
+    lu.write_to_f(mydir + "frac_after_cuts_error_bar.txt", frac_cut_er_bar)
     lu.write_to_f(mydir + "xsec_times_frac_fb.txt",xsec_fb*frac_cut)
     lu.write_to_f(mydir + "frac_after_cuts.txt",frac_cut)
-    lu.write_to_f(mydir + "frac_after_cuts_error_bar.txt", frac_cut_er_bar)
     # similarly for clipping
+    lu.write_to_f(mydir + "xsec_times_frac_fb_clip_inf.txt",xsec_fb*frac_cut) # dublication
+    lu.write_to_f(mydir + "frac_after_cuts_clip_inf.txt",frac_cut) # dublication
     for i_clip in ["700", "1000", "1500", "2000", "3000"]:
-        i_pos_w_f = yoda_f[f"{rivet_dir_name}pos_w_final_clip{i_clip}"].sumW()
-        i_neg_w_f = yoda_f[f"{rivet_dir_name}neg_w_final_clip{i_clip}"].sumW()
+        i_pos_w_f = yoda_f[f"{rivet_dir_name}pos_w_final_clip_{i_clip}"].sumW()
+        i_neg_w_f = yoda_f[f"{rivet_dir_name}neg_w_final_clip_{i_clip}"].sumW()
         print("for clip", i_clip, "num neg and pos w after cuts", i_pos_w_f, i_neg_w_f, "sum", i_pos_w_f+i_neg_w_f)
         i_frac_cut = (i_pos_w_f+i_neg_w_f) / (pos_w_in+neg_w_in) #(i_pos_n_f+i_neg_n_f) / (pos_n_in+neg_n_in) 
-        lu.write_to_f(mydir + f"xsec_times_frac_fb_clip{i_clip}.txt", xsec_fb*i_frac_cut)
-        lu.write_to_f(mydir + f"frac_after_cuts_clip{i_clip}.txt", i_frac_cut)
+        lu.write_to_f(mydir + f"xsec_times_frac_fb_clip_{i_clip}.txt", xsec_fb*i_frac_cut)
+        lu.write_to_f(mydir + f"frac_after_cuts_clip_{i_clip}.txt", i_frac_cut)
 
     # save hists in root for further plotting
     root_file = ROOT.TFile(root_file_name,"UPDATE")
