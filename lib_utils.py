@@ -4,11 +4,15 @@ from array import array
 import ROOT
 import itertools
 import matplotlib.pyplot as plt
-plt.rcParams['text.usetex'] = True
+plt.rcParams.update({'text.usetex': True,
+                     "backend": 'PDF'})
+from matplotlib.backends.backend_pdf import PdfPages
 import pandas as pd
 import numpy as np
 import math
 import json
+import re
+from pandas.plotting import table
 
 def get_im_color(particle_name, for_distribution=False):
     color = "black"
@@ -350,7 +354,7 @@ def get_op_from_dir(mydir,prod_dec):
         ops_arr.append(ops[ops.find("vs")+2:])
     else:
         ops_arr.append(ops)
-    return sorted(ops_arr), regime
+    return sorted(ops_arr), regime, ops
 
 def save_plot(plot,path_to_save, draw_option = "text45", log_scale = False, legend=False):
     c=ROOT.TCanvas()
@@ -457,53 +461,42 @@ def draw_stack_with_ratio(my_stack, mg_ratios, xtitle, outname, stack_x_range=[]
     c.Update()
     c.Show()
     c.SaveAs(outname)
-    print("hi")
 
 
-def get_replacement(df_in, miss_op, list_to_search_in,
-                    fidxsec_dict,ks_cut, chi2_cut, take_worse=False):
-    temp_df = df_in.loc[list_to_search_in, [miss_op]]
-    if miss_op in temp_df.index:
-        temp_df.drop(miss_op, axis=0, inplace=True)
-    chi_name, ks_name = miss_op + '_rChi2', miss_op + '_KS'
-    temp_df[[chi_name, ks_name]] = temp_df[miss_op].str.split(';', expand=True)
-    temp_df[chi_name], temp_df[ks_name] = temp_df[chi_name].astype(float), temp_df[ks_name].astype(float)
-    ks_val, ks_op = 0, ""
-    if not take_worse:
-        chi_val, chi_op = 100000, ""
+def get_replacement(df, op_miss, list_to_search_in):
+    column = df[op_miss]
+    def do_search(sublist_to_search_in):
+        best_chi2 = 1000000
+        best_rep = ""
+        for rep, chi2 in column.items():
+            if rep not in sublist_to_search_in: continue
+            if rep==op_miss: continue
+            if chi2 < best_chi2:
+                best_chi2 = chi2
+                best_rep = rep
+        return best_rep, round(best_chi2,2)
+
+    op_miss_family = op_miss[:re.search(r"\d", op_miss).start()]
+    # first seach within same family
+    same_family_search_list = [i_op for i_op in  list_to_search_in if op_miss_family in i_op]
+    rep_sf, chi2_sf = do_search(same_family_search_list)
+    # then inside all of them
+    rep_all, chi2_all = do_search(list_to_search_in)
+    if abs(chi2_sf-chi2_all) < 1:
+        best_rep, best_chi2 = rep_sf, chi2_sf
     else:
-        chi_val, chi_op = 0, ""
+        best_rep, best_chi2 = rep_all, chi2_all
+    return best_rep, best_chi2
 
-    for ind_op, row in temp_df.iterrows():
-        i_chi, i_ks = row[chi_name], row[ks_name]
-        if not take_worse:
-            if i_ks > ks_val:
-                ks_val = i_ks
-                ks_op = ind_op
-            if i_chi < chi_val:
-                chi_val = i_chi
-                chi_op = ind_op
-        else:
-            if i_chi > chi_val:
-                chi_val = i_chi
-                chi_op = ind_op
 
-    # make final decision
-    miss_op_fidxsec = fidxsec_dict["QUAD"][miss_op]
-    if not take_worse:
-        if ks_val > ks_cut:
-            replacement = ks_op
-            repnorm = miss_op_fidxsec / fidxsec_dict["QUAD"][replacement]
-            repmethod = "KS"
-        elif chi_val < chi2_cut:
-            replacement = chi_op
-            repnorm = miss_op_fidxsec / fidxsec_dict["QUAD"][replacement]
-            repmethod = "Chi2"
-        else:
-            replacement, repnorm,repmethod = "", -1, ""
-    else:
-        replacement = chi_op
-        repnorm = miss_op_fidxsec / fidxsec_dict["QUAD"][replacement]
-        repmethod = "Chi2"
-
-    return replacement,repmethod, repnorm, temp_df
+def save_df(df, out_path, save_csv=False, aspect = (16, 9)):
+    if save_csv: df.to_csv(out_path+".csv", sep=";")
+    plt.clf()
+    fig, ax = plt.subplots(figsize=aspect)
+    ax.axis('tight')
+    ax.axis('off')
+    table_quad_pairs = ax.table(cellText = df.values, rowLabels = df.index, colLabels = df.columns, loc='center')
+    with PdfPages(out_path) as pdf:
+        pdf.savefig(fig, bbox_inches='tight')
+        plt.close()
+    
