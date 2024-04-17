@@ -32,10 +32,8 @@ _, top_files_dir = lu.find_prod_dec_and_dir(f"user.okurdysh.MadGraph_{prod_dec}_
 docut_dir = "DOCUT_YES" if opts.runWithCuts=="yes" else "DOCUT_NO"
 base_plot_dir = lu.get_plotdir(prod_dec, docut_dir)
 
-clips = ["inf","3000","2000"]  # search based on this, avoid 1000,700 for rep search as they are super low stat
-all_clips = clips + ["1500", "1000", "700"] # to check later what search gives
-search_order = "QUAD"
-all_orders = [search_order, "INT"]
+search_clips = ["inf","3000","2000"]  # search based on this, avoid 1000,700 for rep search as they are super low stat
+all_clips = search_clips + ["1500", "1000", "700"] # to check later what search gives
 fit_plot_str, fit_plot_bins = lu.get_fitted_plot(prod_dec)
 xlabel = lu.get_var_latex(fit_plot_str)
 def plotname(i_clip):
@@ -48,8 +46,8 @@ for i_clip in all_clips: # separate seach per clipping
     for op_dir in [i_obj for i_obj in os.listdir(top_files_dir) if os.path.isdir(top_files_dir + "/" + i_obj)]:
         full_op_dir = os.path.join(top_files_dir,op_dir,docut_dir,"")
         _, order, op = lu.get_op_from_dir(op_dir, prod_dec)
-        if order not in all_orders: 
-            continue
+        # if order not in all_orders: 
+        #     continue
         dictkey = (i_clip, order, op)
         # get check that hists and fid xsec file are ok
         hists_file = full_op_dir + "hists.root"
@@ -69,76 +67,89 @@ for i_clip in all_clips: # separate seach per clipping
         with open(xsec_file, 'r') as f: 
             fid_xsec_fb = float(f.read())
         fid_xsecs[dictkey] = fid_xsec_fb
-print("collected hists and fid xsecs for", hists.keys())
+# print("collected hists and fid xsecs for", hists.keys())
 
-chi2_dfs = {} # per search clipping for all pairs
-have_ops = sorted(list(set([ihist[2] for ihist in hists.keys()])))
-for i_clip in all_clips:
-    rchi2_arr = []
-    pairs_arr = []    
-    for order in all_orders:
-        print("saveing paired hists and maybe doing search for clip", i_clip)
-        pairs_dir = base_plot_dir + f"/pair_ratios_{order}_clip_{i_clip}/"
+def save_pairs_find_rep(arr_ops_1, arr_ops_2, order1, order2, make_rep_df=False):
+    chi2_dfs = {} # per search clipping for all pairs
+    for i_clip in all_clips:
+        rchi2_arr = []
+        pairs_arr = []    
+        print("saveing paired hists and maybe doing search for clip order", i_clip, order2)
+        pairs_dir = base_plot_dir + f"/pair_ratios_{order2}_clip_{i_clip}/"
         if not os.path.exists(pairs_dir): os.makedirs(pairs_dir)
         # get compatibility between all pairs per clipping and save plots
-        for i_key1 in have_ops:
-            for i_key2 in have_ops:
+        for i_key1 in arr_ops_1:
+            for i_key2 in arr_ops_2:
                 if i_key1==i_key2: continue # "AvsB, BvsA both will be saved intentionally for easier latex batch plotting
                 # with same normalization derive test
-                i_hist1_raw = hists[(i_clip,order,i_key1)]
-                i_hist2_raw = hists[(i_clip,order,i_key2)]
-                i_hist1 = lu.dress_hist(i_hist1_raw, f"{i_key1}_{order}_{i_clip}", 1) 
-                i_hist2 = lu.dress_hist(i_hist2_raw, f"{i_key2}_{order}_{i_clip}", 2) 
+                i_hist1_raw = hists[(i_clip,order1,i_key1)]
+                i_hist2_raw = hists[(i_clip,order2,i_key2)]
+                i_hist1 = lu.dress_hist(i_hist1_raw, f"{i_key1}_{order1}_{i_clip}", 1) 
+                i_hist2 = lu.dress_hist(i_hist2_raw, f"{i_key2}_{order2}_{i_clip}", 2) 
                 ratio_plot, rchi2, _ = lu.get_ratio_plot_tests(i_hist1, i_hist2)
                 i_stack = ROOT.THStack()
                 i_stack.Add(i_hist1)
                 i_stack.Add(i_hist2)
                 lu.draw_stack_with_ratio(i_stack, ratio_plot, xlabel, pairs_dir+f"/{i_key1}vs{i_key2}.pdf")
-                if i_clip in clips and order==search_order: # only for search stuff save shape test res
+                if make_rep_df and i_clip in search_clips:
                     pairs_arr.append([i_key1, i_key2])
                     rchi2_arr.append(rchi2)
-    # for each clip
-    # only for testted clip - save table with tests for all pairs
-    df = pd.DataFrame(index=have_ops, columns=have_ops)
-    for i_pair, i_rchi2 in zip(pairs_arr, rchi2_arr):
-        i_op1, i_op2 = i_pair[0], i_pair[1]
-        df.at[i_op1, i_op2] = round(i_rchi2,2)
-    lu.save_df(df, f"{base_plot_dir}/{search_order}_tests_table_clip_{i_clip}.pdf")
-    chi2_dfs[i_clip] = df
-sum_chi2_df = chi2_dfs[clips[0]].add(chi2_dfs[clips[1]])
-for i_clip_add in clips[2:]:
-    sum_chi2_df = sum_chi2_df.add(chi2_dfs[i_clip_add])
-sum_chi2_df.astype('float64').round(2)
-lu.save_df(sum_chi2_df, f"{base_plot_dir}/{search_order}_tests_table_clip_sum.pdf")
+        # for each clip
+        # only for testted clip - save table with tests for all pairs
+        if make_rep_df:
+            df = pd.DataFrame(index=arr_ops_1, columns=arr_ops_2)
+            for i_pair, i_rchi2 in zip(pairs_arr, rchi2_arr):
+                i_op1, i_op2 = i_pair[0], i_pair[1]
+                df.at[i_op1, i_op2] = round(i_rchi2,2)
+            lu.save_df(df, f"{base_plot_dir}/{order2}_tests_table_clip_{i_clip}.pdf")
+            chi2_dfs[i_clip] = df
+    if make_rep_df:
+        sum_chi2_df = chi2_dfs[search_clips[0]].add(chi2_dfs[search_clips[1]])
+        for i_clip_add in search_clips[2:]:
+            sum_chi2_df = sum_chi2_df.add(chi2_dfs[i_clip_add])
+        sum_chi2_df.astype('float64').round(2)
+        lu.save_df(sum_chi2_df, f"{base_plot_dir}/{order2}_tests_table_clip_sum.pdf")
+        return sum_chi2_df
+    else:
+        return 0
+# find replacements
+have_ops_int_quad = sorted(list(set([ihist[2] for ihist in hists.keys() if ihist[1]!="CROSS"])))
+have_ops_cross = ["FM0vsFM1", "FT0vsFT5", "FT8vsFT9"] #sorted(list(set([ihist[2] for ihist in hists.keys() if ihist[1]=="CROSS"])))
+sum_chi2_df_quad = save_pairs_find_rep(have_ops_int_quad, have_ops_int_quad, "QUAD", "QUAD", make_rep_df=True)
+save_pairs_find_rep(have_ops_int_quad, have_ops_int_quad, "INT", "INT") # dont search based on INT, apply what was found in QUAD selected terms - just save plots
+sum_chi2_df_cross = save_pairs_find_rep(have_ops_int_quad, have_ops_cross, "QUAD", "CROSS", make_rep_df=True)
 
 # save table for reshuffling and replacement and also of renormalizations
 missing_ops_ana = lu.get_missing_ops(prod_dec)
-missing_ops = [i_op for i_op in missing_ops_ana if i_op in list(sum_chi2_df.keys())] # like can miss because irrelevant for process
-existing_ops = [i_op for i_op in list(sum_chi2_df.keys()) if i_op not in missing_ops]
+missing_ops_quad = [i_op for i_op in missing_ops_ana if i_op in list(sum_chi2_df_quad.keys())] # like can miss because irrelevant for process
+existing_ops_quad = [i_op for i_op in list(sum_chi2_df_quad.keys()) if i_op not in missing_ops_quad]
+missing_ops_cross = list(sum_chi2_df_cross.columns)
 cols_rep_df = ["toreplace", "replacement","sumchi2"]
-def make_df(to_be_replaced_ops, search_within_ops, out_name):
+def make_df(df_to_search, to_be_replaced_ops, search_within_ops, order_to_replace, order_rep, out_name):
     rep_df = pd.DataFrame(columns=cols_rep_df)
     for i_op_to_rep in to_be_replaced_ops:
-        rep_op, resh_chi2 = lu.get_replacement(sum_chi2_df, i_op_to_rep, existing_ops)
+        rep_op, resh_chi2 = lu.get_replacement(df_to_search, i_op_to_rep, search_within_ops)
         print("for op", i_op_to_rep, "replacement op is", rep_op, "with sum of chi2 across clips", resh_chi2)
         rep_df.loc[len(rep_df.index)] = [i_op_to_rep, rep_op, resh_chi2] 
     lu.save_df(rep_df, out_name, save_csv=True, aspect=(6,6))
     # find renormalizations 
-    df_norms = [pd.DataFrame(index=list(rep_df["toreplace"]),columns=["rep"]+all_clips) for order in all_orders] # one per order
+    df_norm = pd.DataFrame(index=list(rep_df["toreplace"]),columns=["rep"]+all_clips)
     for _, rep_row in rep_df.iterrows():
         to_replace = rep_row["toreplace"]
         rep = rep_row["replacement"]
         for i_clip in all_clips:
-            for order,df_norm in zip(all_orders, df_norms): 
-                xsec_to_replace = fid_xsecs[(i_clip,order,to_replace)]
-                xsec_rep = fid_xsecs[(i_clip,order,rep)]
-                norm = xsec_to_replace/xsec_rep
-                df_norm.at[to_replace, i_clip] = norm
-                df_norm.at[to_replace, "rep"] = rep
-    for df_norm, i_order in zip(df_norms,all_orders):
-        lu.save_df(df_norm, out_name+f"_norms_{i_order}.pdf", save_csv=True, aspect=(6,6))
+            xsec_to_replace = fid_xsecs[(i_clip, order_to_replace, to_replace)]
+            xsec_rep = fid_xsecs[(i_clip, order_rep, rep)]
+            norm = xsec_to_replace/xsec_rep
+            df_norm.at[to_replace, i_clip] = norm
+            df_norm.at[to_replace, "rep"] = rep
+    lu.save_df(df_norm, out_name+f"_norms_{order_to_replace}.pdf", save_csv=True, aspect=(6,6))
     return rep_df
-print("##### reshuffling") # find good reps for non-closure
-df_resh = make_df(existing_ops, existing_ops, f"{base_plot_dir}/reshuffling_ws_table.pdf")
-print("##### replace missing") # find good reps for missing
-df_rep = make_df(missing_ops, existing_ops, f"{base_plot_dir}/replacement_ws_table.pdf")
+print("##### reshuffling based on QUAD - find INT and QUAD coeficienes") # find good reps for non-closure
+df_resh = make_df(sum_chi2_df_quad, existing_ops_quad, existing_ops_quad, "QUAD", "QUAD", f"{base_plot_dir}/reshuffling_ws_table.pdf")
+df_resh = make_df(sum_chi2_df_quad, existing_ops_quad, existing_ops_quad, "INT", "INT", f"{base_plot_dir}/reshuffling_ws_table.pdf")
+print("##### replace missing QUAD - find INT and QUAD coeficienes") # find good reps for missing
+df_rep = make_df(sum_chi2_df_quad, missing_ops_quad, existing_ops_quad, "QUAD", "QUAD", f"{base_plot_dir}/replacement_ws_table.pdf")
+df_rep = make_df(sum_chi2_df_quad, missing_ops_quad, existing_ops_quad, "INT", "INT", f"{base_plot_dir}/replacement_ws_table.pdf")
+print("##### replace missing CROSS") # find way to insert missing crosses
+df_rep = make_df(sum_chi2_df_cross, missing_ops_cross, existing_ops_quad, "CROSS", "QUAD", f"{base_plot_dir}/cross_ws_table.pdf")
