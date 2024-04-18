@@ -303,22 +303,22 @@ namespace Rivet {
         if (ev_nominal_weight>=0){_c["pos_w_final_clip_700"]->fill();}
         else {_c["neg_w_final_clip_700"]->fill();}
         }
-      else if (hs_diboson_mass < 1000.0) {
+      if (hs_diboson_mass < 1000.0) {
         _h["pt_photon_clip_1000"]->fill(iso_photon.pT());
         if (ev_nominal_weight>=0){_c["pos_w_final_clip_1000"]->fill();}
         else {_c["neg_w_final_clip_1000"]->fill();}
         }
-      else if (hs_diboson_mass < 1500.0) {
+      if (hs_diboson_mass < 1500.0) {
         _h["pt_photon_clip_1500"]->fill(iso_photon.pT());
         if (ev_nominal_weight>=0){_c["pos_w_final_clip_1500"]->fill();}
         else {_c["neg_w_final_clip_1500"]->fill();}
         }
-      else if (hs_diboson_mass < 2000.0) {
+      if (hs_diboson_mass < 2000.0) {
         _h["pt_photon_clip_2000"]->fill(iso_photon.pT());
         if (ev_nominal_weight>=0){_c["pos_w_final_clip_2000"]->fill();}
         else {_c["neg_w_final_clip_2000"]->fill();}
         }
-      else if (hs_diboson_mass < 3000.0) {
+      if (hs_diboson_mass < 3000.0) {
         _h["pt_photon_clip_3000"]->fill(iso_photon.pT());
         if (ev_nominal_weight>=0){_c["pos_w_final_clip_3000"]->fill();}
         else {_c["neg_w_final_clip_3000"]->fill();}
