@@ -27,7 +27,7 @@ ws_hist_file = ROOT.TFile("../../fits/ws_extracted_hists/Zvvy.root", "read")
 ws_hist_list = [ih.GetName() for ih in list(ws_hist_file.GetListOfKeys())]
 for op_dir in [i_obj for i_obj in os.listdir(top_files_dir) if os.path.isdir(top_files_dir + "/" + i_obj)]:
     full_op_dir = os.path.join(top_files_dir,op_dir,docut_dir,"")
-    op, order = lu.get_op_from_dir(op_dir, prod_dec)
+    op, order, _ = lu.get_op_from_dir(op_dir, prod_dec)
     if order=="CROSS":
         continue
     hists_file = full_op_dir + "hists.root"
