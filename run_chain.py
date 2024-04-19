@@ -26,7 +26,7 @@ def prepare_grid_files(i_job_name):
         print ("will download", log_did, "since dir doesn't exist", log_dir)
         subprocess.call(f"rucio download {log_did}", shell=True, cwd=evnt_dir)
     else:
-        print("have ", evnt_dir ,"already so dont download")
+        print("have ", log_dir ,"already so dont download")
     # if job were reran tehre will be several logs and last one comes from succesfull
     untared_dir_cand = glob.glob(f"{evnt_dir}/*.log/tarball_PandaJob*")
     if len(untared_dir_cand)==0:
