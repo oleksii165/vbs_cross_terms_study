@@ -42,6 +42,8 @@ def plotname(i_clip):
 # organize hists and xsec into dicts (save all search+ check)
 hists = {}
 fid_xsecs = {}
+effs = {}
+eff_uncerts = {}
 for i_clip in all_clips: # separate seach per clipping
     for op_dir in [i_obj for i_obj in os.listdir(top_files_dir) if os.path.isdir(top_files_dir + "/" + i_obj)]:
         full_op_dir = os.path.join(top_files_dir,op_dir,docut_dir,"")
@@ -56,17 +58,26 @@ for i_clip in all_clips: # separate seach per clipping
             print("skip as didn't find hist", dictkey)
             continue
         xsec_file = full_op_dir + f"xsec_times_frac_fb_clip_{i_clip}.txt"
-        if not os.path.exists(xsec_file): 
-            print("skio as didnt find xsec", dictkey)
+        eff_file = full_op_dir + f"frac_after_cuts_clip_{i_clip}.txt"
+        eff_uncert_file = full_op_dir + f"frac_after_cuts_error_bar_clip_{i_clip}.txt"
+        if not os.path.exists(xsec_file) or not os.path.exists(eff_uncert_file) or not os.path.exists(eff_file): 
+            print("skip as didnt find xsec file or eff uncert/eff", dictkey)
             continue
         # get hist
         i_hist_in, i_hist_name = op_hists_default_bin[plotname(i_clip)], plotname(i_clip)
         i_hist_dressed = lu.dress_hist(i_hist_in, i_hist_name, 1, 1, re_bins=fit_plot_bins)
         hists[dictkey] = i_hist_dressed
-        # get xsec
+        # get xsec and eff uncert
         with open(xsec_file, 'r') as f: 
             fid_xsec_fb = float(f.read())
         fid_xsecs[dictkey] = fid_xsec_fb
+        with open(eff_uncert_file, 'r') as f: 
+            eff_uncert = float(f.read())
+        eff_uncerts[dictkey] = eff_uncert
+        with open(eff_file, 'r') as f: 
+            eff = float(f.read())
+        effs[dictkey] = eff
+
 # print("collected hists and fid xsecs for", hists.keys())
 
 def save_pairs_find_rep(arr_ops_1, arr_ops_2, order1, order2, make_rep_df=False):
@@ -117,13 +128,13 @@ have_ops_int_quad = sorted(list(set([ihist[2] for ihist in hists.keys() if ihist
 have_ops_cross = ["FM0vsFM1", "FT0vsFT5", "FT8vsFT9"] #sorted(list(set([ihist[2] for ihist in hists.keys() if ihist[1]=="CROSS"])))
 sum_chi2_df_quad = save_pairs_find_rep(have_ops_int_quad, have_ops_int_quad, "QUAD", "QUAD", make_rep_df=True)
 save_pairs_find_rep(have_ops_int_quad, have_ops_int_quad, "INT", "INT") # dont search based on INT, apply what was found in QUAD selected terms - just save plots
-sum_chi2_df_cross = save_pairs_find_rep(have_ops_int_quad, have_ops_cross, "QUAD", "CROSS", make_rep_df=True)
+# sum_chi2_df_cross = save_pairs_find_rep(have_ops_int_quad, have_ops_cross, "QUAD", "CROSS", make_rep_df=True)
 
 # save table for reshuffling and replacement and also of renormalizations
 missing_ops_ana = lu.get_missing_ops(prod_dec)
 missing_ops_quad = [i_op for i_op in missing_ops_ana if i_op in list(sum_chi2_df_quad.keys())] # like can miss because irrelevant for process
 existing_ops_quad = [i_op for i_op in list(sum_chi2_df_quad.keys()) if i_op not in missing_ops_quad]
-missing_ops_cross = list(sum_chi2_df_cross.columns)
+# missing_ops_cross = list(sum_chi2_df_cross.columns)
 cols_rep_df = ["toreplace", "replacement","sumchi2"]
 def make_df(df_to_search, to_be_replaced_ops, search_within_ops, order_to_replace, order_rep, out_name):
     rep_df = pd.DataFrame(columns=cols_rep_df)
@@ -134,6 +145,7 @@ def make_df(df_to_search, to_be_replaced_ops, search_within_ops, order_to_replac
     lu.save_df(rep_df, out_name, save_csv=True, aspect=(6,6))
     # find renormalizations 
     df_norm = pd.DataFrame(index=list(rep_df["toreplace"]),columns=["rep"]+all_clips)
+    df_norm_unc = pd.DataFrame(index=list(rep_df["toreplace"]),columns=["rep"]+all_clips)
     for _, rep_row in rep_df.iterrows():
         to_replace = rep_row["toreplace"]
         rep = rep_row["replacement"]
@@ -143,13 +155,29 @@ def make_df(df_to_search, to_be_replaced_ops, search_within_ops, order_to_replac
             norm = xsec_to_replace/xsec_rep
             df_norm.at[to_replace, i_clip] = norm
             df_norm.at[to_replace, "rep"] = rep
+            #
+            eff_to_replace, eff_rep = effs[(i_clip, order_rep, to_replace)], effs[(i_clip, order_rep, rep)]
+            eff_unc_to_replace, eff_unc_rep = eff_uncerts[(i_clip, order_rep, to_replace)], eff_uncerts[(i_clip, order_rep, rep)]
+            rel_eff_err_to_replace = eff_unc_to_replace / eff_to_replace
+            rel_eff_err_rep = eff_unc_rep / eff_rep
+            uncert = abs(norm) * math.sqrt(rel_eff_err_to_replace**2 + rel_eff_err_rep**2)
+            # print("###")
+            # print("for", (i_clip, order_to_replace, to_replace), "got eff and uncert", eff_to_replace, eff_unc_to_replace, "so rel unc", rel_eff_err_to_replace)
+            # print("for", (i_clip, order_to_replace, rep), "got eff and uncert", eff_rep, eff_unc_rep, "so rel unc", rel_eff_err_rep)
+            # print("including renorm", norm, "uncert on renorm", uncert)
+            # print("###")
+            # df_norm_unc.at[to_replace, i_clip] = f"{uncert/norm:.2f} ({rel_eff_err_to_replace:.2f}, {rel_eff_err_rep:.2f})"
+            df_norm_unc.at[to_replace, i_clip] = f"{uncert/norm:.2f}"
+            df_norm_unc.at[to_replace, "rep"] = rep
+            
     lu.save_df(df_norm, out_name+f"_norms_{order_to_replace}.pdf", save_csv=True, aspect=(6,6))
+    lu.save_df(df_norm_unc, out_name+f"_norms_unc_{order_to_replace}.pdf", save_csv=True, aspect=(6,6))
     return rep_df
 print("##### reshuffling based on QUAD - find INT and QUAD coeficienes") # find good reps for non-closure
 df_resh = make_df(sum_chi2_df_quad, existing_ops_quad, existing_ops_quad, "QUAD", "QUAD", f"{base_plot_dir}/reshuffling_ws_table.pdf")
-df_resh = make_df(sum_chi2_df_quad, existing_ops_quad, existing_ops_quad, "INT", "INT", f"{base_plot_dir}/reshuffling_ws_table.pdf")
-print("##### replace missing QUAD - find INT and QUAD coeficienes") # find good reps for missing
-df_rep = make_df(sum_chi2_df_quad, missing_ops_quad, existing_ops_quad, "QUAD", "QUAD", f"{base_plot_dir}/replacement_ws_table.pdf")
-df_rep = make_df(sum_chi2_df_quad, missing_ops_quad, existing_ops_quad, "INT", "INT", f"{base_plot_dir}/replacement_ws_table.pdf")
-print("##### replace missing CROSS") # find way to insert missing crosses
-df_rep = make_df(sum_chi2_df_cross, missing_ops_cross, existing_ops_quad, "CROSS", "QUAD", f"{base_plot_dir}/cross_ws_table.pdf")
+# df_resh = make_df(sum_chi2_df_quad, existing_ops_quad, existing_ops_quad, "INT", "INT", f"{base_plot_dir}/reshuffling_ws_table.pdf")
+# print("##### replace missing QUAD - find INT and QUAD coeficienes") # find good reps for missing
+# df_rep = make_df(sum_chi2_df_quad, missing_ops_quad, existing_ops_quad, "QUAD", "QUAD", f"{base_plot_dir}/replacement_ws_table.pdf")
+# df_rep = make_df(sum_chi2_df_quad, missing_ops_quad, existing_ops_quad, "INT", "INT", f"{base_plot_dir}/replacement_ws_table.pdf")
+# print("##### replace missing CROSS") # find way to insert missing crosses
+# df_rep = make_df(sum_chi2_df_cross, missing_ops_cross, existing_ops_quad, "CROSS", "QUAD", f"{base_plot_dir}/cross_ws_table.pdf")
