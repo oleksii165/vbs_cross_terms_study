@@ -117,7 +117,7 @@ def main():
     parser.add_option("--runWithCuts", default = "yes")
     parser.add_option("--runAgain", default = "no")
     parser.add_option("--jobName", default = "")
-    parser.add_option("--evtMax", default = 20000)
+    parser.add_option("--evtMax", default = 100000)
     global opts
     opts, _ = parser.parse_args()
 
