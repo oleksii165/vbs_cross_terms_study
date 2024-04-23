@@ -241,7 +241,7 @@ def get_hists_bounds_cuts(prod_dec):
     return return_dict 
 
 def find_prod_dec_and_dir(conf):
-    prod_temp = conf[conf.find("user.okurdysh.MadGraph_")+len("user.okurdysh.MadGraph_"):]
+    prod_temp = conf[conf.find("_")+1:]
     print("start from string", prod_temp)
     prod_dec = prod_temp[:prod_temp.find("_F")]
     print("from conf found production dec", prod_dec)
