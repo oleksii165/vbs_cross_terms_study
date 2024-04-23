@@ -13,6 +13,7 @@ parser.add_option("--runCROSS", default = "no")
 parser.add_option("--numJobsParallel", default = 15)
 parser.add_option("--runWithCuts", default = "yes")
 parser.add_option("--runAgain", default = "no")
+parser.add_option("--runRivet", default = "yes")
 
 opts, _ = parser.parse_args()
 c = panda_api.get_api()
@@ -26,7 +27,7 @@ blocks_of_op_pairs = [op_pairs[x:x + splitedSize] for x in range(0, len(op_pairs
 # get xsec*frac and save hists to root
 #############
 def get_com(jobname):
-    return f'python run_chain.py --jobName "{jobname}" --runAgain "{opts.runAgain}" --runWithCuts "{opts.runWithCuts}"'
+    return f'python run_chain.py --jobName "{jobname}" --runAgain "{opts.runAgain}" --runWithCuts "{opts.runWithCuts}" --runRivet "{opts.runRivet}"'
 
 def call_bloc_proc(op_blocks, eft_config):
     for i_num_block,i_ops_block in enumerate(op_blocks,start=1): # loops over blocks of 5

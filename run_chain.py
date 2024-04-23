@@ -80,7 +80,7 @@ def save_job_infos(DOCUT_str, mydir, xsec_fb, prod_dec):
         i_frac_pos = i_pos_n_f / pos_n_in if pos_n_in!=0 else 0
         i_frac_neg = i_neg_n_f / neg_n_in if neg_n_in!=0 else 0
         i_frac_cut_er_bar = 1/(pos_n_in+neg_n_in) * math.sqrt(pos_n_in*i_frac_pos*(1-i_frac_pos) + neg_n_in*i_frac_neg*(1-i_frac_neg))    
-        print("which gives eff", i_frac_cut, "with error", i_frac_cut_er_bar)
+        print("after cuts have pos and neg events",i_pos_n_f, i_neg_n_f,"which gives eff", i_frac_cut, "with error", i_frac_cut_er_bar)
         #
         clip_out_suff = f"_clip_{i_clip}" 
         lu.write_to_f(mydir + f"xsec_times_frac_fb{clip_out_suff}.txt", xsec_fb*i_frac_cut)
@@ -114,6 +114,7 @@ def main():
     parser.add_option("--runAgain", default = "no")
     parser.add_option("--jobName", default = "")
     parser.add_option("--evtMax", default = 100000)
+    parser.add_option("--runRivet", default = "yes")
     global opts
     opts, _ = parser.parse_args()
 
@@ -131,14 +132,15 @@ def main():
 
     if evnt_file==-1 or log_file==-1: return 
     
-    if opts.runWithCuts=="yes":
-        com_run_rivet = lu.get_rivet_com(job_name, evtMax = evtMax, DOCUT = "YES", redoRivet=opts.runAgain, redoPlots=opts.runAgain)
-        print("run rivet+untar in with com \n", com_run_rivet)
-        subprocess.call(com_run_rivet, shell=True)
-    else:
-        com_run_rivet = lu.get_rivet_com(job_name, evtMax = evtMax, DOCUT = "NO", redoRivet=opts.runAgain, redoPlots=opts.runAgain)
-        print("run rivet+untar in with com \n", com_run_rivet)
-        subprocess.call(com_run_rivet, shell=True)
+    if opts.runRivet=="yes":
+        if opts.runWithCuts=="yes":
+            com_run_rivet = lu.get_rivet_com(job_name, evtMax = evtMax, DOCUT = "YES", redoRivet=opts.runAgain, redoPlots=opts.runAgain)
+            print("run rivet+untar in with com \n", com_run_rivet)
+            subprocess.call(com_run_rivet, shell=True)
+        else:
+            com_run_rivet = lu.get_rivet_com(job_name, evtMax = evtMax, DOCUT = "NO", redoRivet=opts.runAgain, redoPlots=opts.runAgain)
+            print("run rivet+untar in with com \n", com_run_rivet)
+            subprocess.call(com_run_rivet, shell=True)
     # get xsec after cuts
     evnt_dir = os.path.dirname(evnt_file)
     xsec_fb = lu.get_xsec(log_file)
