@@ -77,8 +77,6 @@ namespace Rivet {
         FastJets jetsfs(hadrons, FastJets::ANTIKT, 0.4, JetAlg::Muons::NONE, JetAlg::Invisibles::NONE);
         declare(jetsfs, "jets");
 
-        declare(MissingMomentum(), "METFinder");
-
         // plots common with others
         std::ifstream jet_hist_file(txt_dir + "/jet_hists.json");      
         json jet_hist = json::parse(jet_hist_file);
@@ -107,7 +105,7 @@ namespace Rivet {
         book(_c["neg_w_final"],"neg_w_final");
 
         // Cut-flows
-        _cutflows.addCutflow("Wmy_lvy_selections", {"have_four_lep","pt_lep1_2","dR_all_pairs","SFOC_2pairs_min",
+        _cutflows.addCutflow("ZZ_llll_selections", {"have_four_lep","pt_lep1_2","dR_all_pairs","SFOC_2pairs_min",
                             "m_llll","n_jets","pt_tagjet1_2","m_tagjets","dy_tagjets","centrality_quadjj"});
 
         // setup for  file used for drawing images
