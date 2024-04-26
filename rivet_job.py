@@ -21,7 +21,6 @@ rivet = Rivet_i()
 import os
 rivet.AnalysisPath = os.environ['PWD']
 
-# rivet.Analyses += [f'{prod_dec}:DOCUT={DOCUT}']
 rivet.Analyses += [f'{prod_dec}:OUTDIR={conf_cut_dir}']
 rivet.RunName = ''
 rivet.HistoFile = conf_cut_dir + f'/MyOutput.yoda.gz'
