@@ -78,7 +78,7 @@ for i_clip in all_clips: # separate seach per clipping
             eff = float(f.read())
         effs[dictkey] = eff
 
-# print("collected hists and fid xsecs for", hists.keys())
+print("collected hists and fid xsecs  and eff with uncert for", hists.keys())
 
 def save_pairs_find_rep(arr_ops_1, arr_ops_2, order1, order2, make_rep_df=False):
     chi2_dfs = {} # per search clipping for all pairs
@@ -118,7 +118,7 @@ def save_pairs_find_rep(arr_ops_1, arr_ops_2, order1, order2, make_rep_df=False)
         sum_chi2_df = chi2_dfs[search_clips[0]].add(chi2_dfs[search_clips[1]])
         for i_clip_add in search_clips[2:]:
             sum_chi2_df = sum_chi2_df.add(chi2_dfs[i_clip_add])
-        sum_chi2_df.astype('float64').round(2)
+        # sum_chi2_df.astype('float64').round(2)
         lu.save_df(sum_chi2_df, f"{base_plot_dir}/{order2}_tests_table_clip_sum.pdf")
         return sum_chi2_df
     else:
@@ -127,13 +127,15 @@ def save_pairs_find_rep(arr_ops_1, arr_ops_2, order1, order2, make_rep_df=False)
 have_ops_int_quad = sorted(list(set([ihist[2] for ihist in hists.keys() if ihist[1]!="CROSS"])))
 have_ops_cross = ["FM0vsFM1", "FT0vsFT5", "FT8vsFT9"] #sorted(list(set([ihist[2] for ihist in hists.keys() if ihist[1]=="CROSS"])))
 sum_chi2_df_quad = save_pairs_find_rep(have_ops_int_quad, have_ops_int_quad, "QUAD", "QUAD", make_rep_df=True)
-save_pairs_find_rep(have_ops_int_quad, have_ops_int_quad, "INT", "INT") # dont search based on INT, apply what was found in QUAD selected terms - just save plots
+# save_pairs_find_rep(have_ops_int_quad, have_ops_int_quad, "INT", "INT") # dont search based on INT, apply what was found in QUAD selected terms - just save plots
 # sum_chi2_df_cross = save_pairs_find_rep(have_ops_int_quad, have_ops_cross, "QUAD", "CROSS", make_rep_df=True)
 
 # save table for reshuffling and replacement and also of renormalizations
 missing_ops_ana = lu.get_missing_ops(prod_dec)
 missing_ops_quad = [i_op for i_op in missing_ops_ana if i_op in list(sum_chi2_df_quad.keys())] # like can miss because irrelevant for process
 existing_ops_quad = [i_op for i_op in list(sum_chi2_df_quad.keys()) if i_op not in missing_ops_quad]
+print("have existing ops", existing_ops_quad)
+print("have missing ops", missing_ops_quad)
 # missing_ops_cross = list(sum_chi2_df_cross.columns)
 cols_rep_df = ["toreplace", "replacement","sumchi2"]
 def make_df(df_to_search, to_be_replaced_ops, search_within_ops, order_to_replace, order_rep, out_name):
@@ -176,8 +178,8 @@ def make_df(df_to_search, to_be_replaced_ops, search_within_ops, order_to_replac
 print("##### reshuffling based on QUAD - find INT and QUAD coeficienes") # find good reps for non-closure
 df_resh = make_df(sum_chi2_df_quad, existing_ops_quad, existing_ops_quad, "QUAD", "QUAD", f"{base_plot_dir}/reshuffling_ws_table.pdf")
 # df_resh = make_df(sum_chi2_df_quad, existing_ops_quad, existing_ops_quad, "INT", "INT", f"{base_plot_dir}/reshuffling_ws_table.pdf")
-# print("##### replace missing QUAD - find INT and QUAD coeficienes") # find good reps for missing
-# df_rep = make_df(sum_chi2_df_quad, missing_ops_quad, existing_ops_quad, "QUAD", "QUAD", f"{base_plot_dir}/replacement_ws_table.pdf")
+print("##### replace missing QUAD - find INT and QUAD coeficienes") # find good reps for missing
+df_rep = make_df(sum_chi2_df_quad, missing_ops_quad, existing_ops_quad, "QUAD", "QUAD", f"{base_plot_dir}/replacement_ws_table.pdf")
 # df_rep = make_df(sum_chi2_df_quad, missing_ops_quad, existing_ops_quad, "INT", "INT", f"{base_plot_dir}/replacement_ws_table.pdf")
 # print("##### replace missing CROSS") # find way to insert missing crosses
 # df_rep = make_df(sum_chi2_df_cross, missing_ops_cross, existing_ops_quad, "CROSS", "QUAD", f"{base_plot_dir}/cross_ws_table.pdf")
