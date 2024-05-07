@@ -113,8 +113,9 @@ def main():
     parser.add_option("--runWithCuts", default = "yes")
     parser.add_option("--runAgain", default = "no")
     parser.add_option("--jobName", default = "")
-    parser.add_option("--evtMax", default = 100000)
+    parser.add_option("--evtMax", default = 100000000)
     parser.add_option("--runRivet", default = "yes")
+    parser.add_option("--doDownload", default = "yes")
     global opts
     opts, _ = parser.parse_args()
 
@@ -126,23 +127,23 @@ def main():
 
     print("##################### \n ############# will work on job", opts.jobName)
     prod_dec, base_dir = lu.find_prod_dec_and_dir(opts.jobName) # dir where all files are stored
-    job_name = opts.jobName
-    prepare_grid_files(job_name)
-    evnt_file, log_file = lu.get_evnt_log_files(base_dir,job_name)
-
-    if evnt_file==-1 or log_file==-1: return 
+    if opts.doDownload=="yes":
+        prepare_grid_files(opts.jobName)
+        evnt_file, log_file = lu.get_evnt_log_files(base_dir,opts.jobName)
+        if evnt_file==-1 or log_file==-1: return 
     
     if opts.runRivet=="yes":
         if opts.runWithCuts=="yes":
-            com_run_rivet = lu.get_rivet_com(job_name, evtMax = evtMax, DOCUT = "YES", redoRivet=opts.runAgain, redoPlots=opts.runAgain)
+            com_run_rivet = lu.get_rivet_com(opts.jobName, evtMax = evtMax, DOCUT = "YES", redoRivet=opts.runAgain, redoPlots=opts.runAgain)
             print("run rivet+untar in with com \n", com_run_rivet)
             subprocess.call(com_run_rivet, shell=True)
         else:
-            com_run_rivet = lu.get_rivet_com(job_name, evtMax = evtMax, DOCUT = "NO", redoRivet=opts.runAgain, redoPlots=opts.runAgain)
+            com_run_rivet = lu.get_rivet_com(opts.jobName, evtMax = evtMax, DOCUT = "NO", redoRivet=opts.runAgain, redoPlots=opts.runAgain)
             print("run rivet+untar in with com \n", com_run_rivet)
             subprocess.call(com_run_rivet, shell=True)
     # get xsec after cuts
-    evnt_dir = os.path.dirname(evnt_file)
+    evnt_files, log_file = lu.get_evnt_log_files(base_dir,opts.jobName)
+    evnt_dir = os.path.dirname(evnt_files[0])
     xsec_fb = lu.get_xsec(log_file)
     if opts.runWithCuts=="yes": 
         save_job_infos("DOCUT=YES",evnt_dir + "/DOCUT_YES/", xsec_fb, prod_dec)

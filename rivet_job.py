@@ -4,11 +4,12 @@ theApp.EvtMax = -1
 print("#####received conf from cmd through -c 'conf=X;DOCUT=Y':  ",conf, DOCUT)
 import lib_utils
 prod_dec, base_dir = lib_utils.find_prod_dec_and_dir(conf)
-evnt_conf_dir,evnt_file  = lib_utils.find_evnt_dir_and_file(base_dir + f"/*{conf}*EXT0")
+evnt_conf_dir,evnt_files  = lib_utils.find_evnt_dir_and_file(base_dir + f"/*{conf}*EXT0")
 conf_cut_dir = lib_utils.get_conf_cut_dir(evnt_conf_dir, DOCUT)
 
 import AthenaPoolCnvSvc.ReadAthenaPool
-svcMgr.EventSelector.InputCollections = [ evnt_file ]
+svcMgr.EventSelector.InputCollections = evnt_files
+print("will run on files", evnt_files)
 
 from AthenaCommon.AlgSequence import AlgSequence
 job = AlgSequence()

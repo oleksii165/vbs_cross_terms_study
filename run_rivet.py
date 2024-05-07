@@ -26,13 +26,15 @@ if do_rivet:
 else:
     print("dont do evnt conversion since redoRivet=", opts.redoRivet, f"and file {rivet_out_name} exists ", os.path.exists(rivet_out_name))
 
-# plots_dir = conf_cut_dir + "/rivet-plots/"
-# if not os.path.exists(plots_dir): do_plots = 1
-# elif os.path.exists(plots_dir) and opts.redoPlots=="yes": do_plots = 1
-# else: do_plots = 0
-# if do_plots:
-#     plot_com = f"rivet-mkhtml MyOutput.yoda.gz:'Title={prod_dec}' --no-ratio"
-#     print("#### will run mkhtml in dir", conf_cut_dir, "with com", plot_com)
-#     subprocess.call(plot_com, shell=True, cwd = conf_cut_dir)
-# else:
-#     print("dont do plot from yoda since redoPlots=", opts.redoPlots, f"and dir {plots_dir} exists ", os.path.exists(plots_dir))
+plots_dir = conf_cut_dir + "/rivet-plots/"
+if not os.path.exists(plots_dir): do_plots = 1
+elif os.path.exists(plots_dir) and opts.redoPlots=="yes": do_plots = 1
+else: do_plots = 0
+if do_plots:
+    plot_com = f"rivet-mkhtml MyOutput.yoda.gz:'Title={prod_dec}' --no-ratio"
+    print("#### will run mkhtml in dir", conf_cut_dir, "with com", plot_com)
+    subprocess.call(plot_com, shell=True, cwd = conf_cut_dir)
+else:
+    print("dont do plot from yoda since redoPlots=", opts.redoPlots, f"and dir {plots_dir} exists ", os.path.exists(plots_dir))
+
+    

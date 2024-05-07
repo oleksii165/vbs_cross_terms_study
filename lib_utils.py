@@ -93,7 +93,8 @@ def draw_average_event(files_dir, average_im=True):
                     color = i_color, label=f"{i_part} $<p_T>={i_pt:.1f}$,$<\eta>={i_eta:.1f}$")
         plt.legend(loc="upper left")
     else:
-        for _, row in df.iterrows():
+        for numrow, row in df.iterrows():
+            if numrow>50: break
             for i_part in sorted(list(particles)):
                 i_eta = round(row["eta_" + i_part], 2)
                 i_phi = round(row["phi_" + i_part], 2)
@@ -145,7 +146,7 @@ def draw_cutflows(cut_names, y_arrays, labels_arr, outname, prod_dec=""):
 # @TODO maybe dublication with find_evnt_dir_and_file
 def get_evnt_log_files(base_dir,i_job_name):
     evnt_did, evnt_dir, log_did, log_dir_before_untar = get_envt_log_names_dirs(base_dir,i_job_name)
-    evnt_file = -1
+    evnt_candidates_out = -1
     log_file = -1
     if os.path.exists(evnt_dir) and os.path.exists(log_dir_before_untar):
         print("directories for evnt and log exist")
@@ -153,15 +154,15 @@ def get_evnt_log_files(base_dir,i_job_name):
         log_candidates = glob.glob(log_dir_before_untar + "/tarball_PandaJob*/log.generate")
         print("evnt candidates of len",len(evnt_candidates), evnt_candidates)
         print("log candidates of len",len(log_candidates), log_candidates)
-        if len(evnt_candidates)==1 and len(log_candidates)==1:
-            evnt_file = evnt_candidates[0]
+        if len(evnt_candidates)>0 and len(log_candidates)==1:
+            evnt_candidates_out = evnt_candidates
             log_file =  log_candidates[0]
     else:
         print("directories for evnt and log DOESN:T exist")
 
-    print("returning evnt file", evnt_file)
+    print("returning evnt files", evnt_candidates_out)
     print("returning log file", log_file)
-    return evnt_file, log_file
+    return evnt_candidates_out, log_file
 
 def get_plotdir(prod_dec, DOCUT_str):
     my_dir = f"/exp/atlas/kurdysh/vbs_cross_terms_study/plots/{prod_dec}/{DOCUT_str}/"
@@ -263,9 +264,9 @@ def find_evnt_dir_and_file(search_com):
     if conf_dir == -1: raise ValueError("did not find folder for this config ",search_com)
 
     evnt_file_candidates = glob.glob(conf_dir + "/*EVNT.root")
-    evnt_file = evnt_file_candidates[0] if len(evnt_file_candidates)>0 else -1
+    if len(evnt_file_candidates)==0: evnt_file_candidates=-1
 
-    return conf_dir, evnt_file
+    return conf_dir, evnt_file_candidates
 
 def get_conf_cut_dir(evnt_dir, docut):
     mydir = evnt_dir + f"/DOCUT_{docut}/"

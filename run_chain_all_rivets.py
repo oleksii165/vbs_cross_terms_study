@@ -18,7 +18,9 @@ parser.add_option("--runRivet", default = "yes")
 opts, _ = parser.parse_args()
 c = panda_api.get_api()
 tasks = c.get_tasks(limit=100000000, days=13000, username="Oleksii Kurdysh", status="done") # get already last try since only retry if it failed
-task_names = [i_task['taskname'].replace("/","") for i_task in tasks if "MadGraph" in i_task['taskname'] and opts.tProd in i_task['taskname'] and opts.tDec in i_task['taskname']]
+task_pref = "MadGraph"
+if opts.tDec=="llll": task_pref+="Fixed"
+task_names = [i_task['taskname'].replace("/","") for i_task in tasks if task_pref in i_task['taskname'] and opts.tProd in i_task['taskname'] and opts.tDec in i_task['taskname']]
 all_ops, op_pairs = lu.get_ops(include_fs0_2=False)
 splitedSize = int(opts.numJobsParallel)
 blocks_of_single_ops = [all_ops[x:x + splitedSize] for x in range(0, len(all_ops), splitedSize)]
