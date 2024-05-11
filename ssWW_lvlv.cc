@@ -7,17 +7,21 @@
 #include "Rivet/Projections/MissingMomentum.hh"
 #include "Rivet/Projections/DirectFinalState.hh"
 #include "Rivet/Projections/TauFinder.hh"
-#include "Rivet/Projections/MissingMomentum.hh"
+#include "Rivet/Tools/Cutflow.hh"
+#include "Rivet/Math/MathUtils.hh"
+#include <fstream>
+#include <nlohmann/json.hpp>
+using json = nlohmann::json;
 
 namespace Rivet {
 
 
   /// @brief Add a short analysis description here
-  class WmWm_lvlv : public Analysis {
+  class ssWW_lvlv : public Analysis {
   public:
 
     /// Constructor
-    RIVET_DEFAULT_ANALYSIS_CTOR(WmWm_lvlv);
+    RIVET_DEFAULT_ANALYSIS_CTOR(ssWW_lvlv);
 
 
     /// @name Analysis methods
@@ -25,192 +29,311 @@ namespace Rivet {
 
     /// Book histograms and initialise projections before the run
     void init() {
+        std::string txt_dir = "/exp/atlas/kurdysh/vbs_cross_terms_study/plotting/";
 
-      _docut = 0;
-      if (getOption("DOCUT") =="YES") _docut = 1;
-      if (getOption("DOCUT") =="NO") _docut = 0;
-      std::cout << "received docut " << _docut <<"\n";
+        std::string out_dir = getOption("OUTDIR");
 
-      // The basic final-state projection:
-      // all final-state particles within
-      // the given eta acceptance
-      const FinalState fs(Cuts::abseta < _jcuts["eta_tagjets"]);
+        _docut = 0; // most cuts on number of particles are always applied to avoid segfault
+        if (out_dir.find("DOCUT_YES") != string::npos) _docut = 1;
+        std::cout << "++++++received outidir" << out_dir << "meaning _docut is " << _docut << "\n";
 
-      // The final-state particles declared above are clustered using FastJet with
-      // the anti-kT algorithm and a jet-radius parameter 0.4
-      // muons and neutrinos are excluded from the clustering
-      FastJets jetfs(fs, FastJets::ANTIKT, 0.4, JetAlg::Muons::NONE, JetAlg::Invisibles::NONE);
-      declare(jetfs, "jets");
-      
-      // FinalState of direct photons and bare muons and electrons in the event - ignore taus but if want to include use TauFinder
-      DirectFinalState bare_leps(Cuts::abspid == PID::MUON || Cuts::abspid == PID::ELECTRON);
-      DirectFinalState photons(Cuts::abspid == PID::PHOTON);
-      // Dress the bare direct leptons with direct photons within dR < 0.1,
-      // and apply some fiducial cuts on the dressed leptons depending on param passed
-      Cut lepton_cuts;
-      if (_docut==1){lepton_cuts= Cuts::abseta < _jcuts["eta_lepton"] && Cuts::pT > dbl(_jcuts["pt_lepton"])*GeV;} 
-      else{lepton_cuts= Cuts::abseta < 10.0 && Cuts::pT > 0.001*GeV;}
-       
-      DressedLeptons dressed_leps(photons, bare_leps, 0.1, lepton_cuts);
-      declare(dressed_leps, "leptons_stable");
+        std::string jsonfilestr =  txt_dir + "ssWW_lvlv_cuts.json";
+        std::cout << "++++++assume .json for this ssWW_lvlv" << "is " << jsonfilestr << "\n";
+        std::ifstream json_file(jsonfilestr);
 
-      declare(MissingMomentum(), "METFinder");
+        _jcuts = json::parse(json_file);
+        std::cout << "++++++ to check json 1 var got photon pt min" << _jcuts["abs_diff_m_z"] << "\n";
 
-      // Book histograms
-      // plots common with others
-      std::ifstream jet_hist_file(txt_dir + "/jet_hists.json");      
-      json jet_hist = json::parse(jet_hist_file);
-      for (json::iterator it = jet_hist.begin(); it != jet_hist.end(); ++it) {
-        book(_h[it.key()], it.key(), it.value()[0], it.value()[1], it.value()[2]);
-        _hist_names.push_back(it.key());
-      }
-      //lepton plots
-      std::ifstream lep_hist_file(txt_dir + "/lepton_hists.json");      
-      json y_hist = json::parse(lep_hist_file);
-      for (json::iterator it = y_hist.begin(); it != y_hist.end(); ++it) {
-        book(_h[it.key()], it.key(), it.value()[0], it.value()[1], it.value()[2]);
-        _hist_names.push_back(it.key());
-      }
-      // plots that are not in other ana
-      std::ifstream ana_hist_file(txt_dir + "/WmWm_lvlv_hists.json");      
-      json ana_hist = json::parse(ana_hist_file);
-      for (json::iterator it = ana_hist.begin(); it != ana_hist.end(); ++it) {
-        book(_h[it.key()], it.key(), it.value()[0], it.value()[1], it.value()[2]);
-        _hist_names.push_back(it.key());
-      }
+        // The basic final-state projection:
+        // all final-state particles within
+        // the given eta acceptance
+        const FinalState fs;
+
+        // The final-state particles declared above are clustered using FastJet with
+        // the anti-kT algorithm and a jet-radius parameter 0.4
+        // muons and neutrinos are excluded from the clustering
+        FastJets jetfs(fs, FastJets::ANTIKT, 0.4, JetAlg::Muons::NONE, JetAlg::Invisibles::NONE);
+        declare(jetfs, "jets");
+
+        // FinalState of direct photons and bare muons and electrons in the event - ignore taus but if want to include use TauFinder
+        DirectFinalState bare_e(Cuts::abspid == PID::ELECTRON);
+        DirectFinalState bare_mu(Cuts::abspid == PID::MUON);
+        DirectFinalState photons_for_dressing(Cuts::abspid == PID::PHOTON);
+        DressedLeptons dressed_e(photons_for_dressing, bare_e, 0.1);
+        DressedLeptons dressed_mu(photons_for_dressing, bare_mu, 0.1);
+        declare(dressed_e, "e_stable");
+        declare(dressed_mu, "mu_stable");
+
+        // Dress the bare direct leptons with direct photons within dR < 0.1,
+        // and apply some fiducial cuts on the dressed leptons depending on param passed
+        if (_docut==1){
+            _electron_eta_cut = Cuts::absetaIn(0.0, _jcuts["eta_electron"]);
+            _muon_eta_cut = Cuts::absetaIn(0.0, _jcuts["eta_muon"]);
+            _lepton_pt_cut = Cuts::pT > dbl(_jcuts["pt_lepton"])*GeV;
+        }
+        else{
+            _electron_eta_cut = Cuts::absetaIn(0.0, 10.0);
+            _muon_eta_cut= _electron_eta_cut;
+            _lepton_pt_cut = Cuts::pT > 0.001*GeV;
+        }
+
+        declare(MissingMomentum(), "METFinder");
+
+        // Book histograms
+        // plots common with others
+        std::ifstream jet_hist_file(txt_dir + "/jet_hists.json");
+        json jet_hist = json::parse(jet_hist_file);
+        for (json::iterator it = jet_hist.begin(); it != jet_hist.end(); ++it) {
+            book(_h[it.key()], it.key(), it.value()[0], it.value()[1], it.value()[2]);
+            _hist_names.push_back(it.key());
+        }
+        //lepton plots
+        std::ifstream lep_hist_file(txt_dir + "/lepton_hists.json");
+        json y_hist = json::parse(lep_hist_file);
+        for (json::iterator it = y_hist.begin(); it != y_hist.end(); ++it) {
+            book(_h[it.key()], it.key(), it.value()[0], it.value()[1], it.value()[2]);
+            _hist_names.push_back(it.key());
+        }
+        // plots that are not in other ana
+        std::ifstream ana_hist_file(txt_dir + "/ssWW_lvlv_hists.json");
+        json ana_hist = json::parse(ana_hist_file);
+        for (json::iterator it = ana_hist.begin(); it != ana_hist.end(); ++it) {
+            book(_h[it.key()], it.key(), it.value()[0], it.value()[1], it.value()[2]);
+            _hist_names.push_back(it.key());
+        }
+
+        //counter for efficiency
+        book(_c["pos_w_initial"],"pos_w_initial");
+        book(_c["neg_w_initial"],"neg_w_initial");
+        for (std::string& i_clip : _clips){
+            std::string i_pos_c_name = "pos_w_final_clip_" + i_clip;
+            std::string i_neg_c_name = "neg_w_final_clip_" + i_clip;
+            book(_c[i_pos_c_name], i_pos_c_name);
+            book(_c[i_neg_c_name], i_neg_c_name);
+        }
+
+        // Cut-flows
+        _cutflows.addCutflow("ssWW_lvlv_selections", {"pt_MET","n_lep","lep_charge_dR", "m_ll","n_jets_bjets",
+                                                      "m_tagjets","dy_tagjets","two_W_HS"});
+
+        // setup for  file used for drawing images
+        if (_docut==1){
+        std::vector<std::string> pic_particles = {"tagjet1", "tagjet2", "lepton1", "lepton2", "MET"};
+        std::ofstream pic_csv (out_dir + "/info_for_image.csv", std::ofstream::out);
+        for (auto & i_p : pic_particles){
+            pic_csv << "eta_" + i_p +";";
+            pic_csv << "phi_" + i_p +";";
+            pic_csv << "pt_" + i_p +";";
+        }
+        pic_csv << "\n";
+        pic_csv.close();
+        }
+
     }
-
 
     /// Perform the per-event analysis
     void analyze(const Event& event) {
+        // save weights before cuts
+        double ev_nominal_weight =  event.weights()[0];
+        if (ev_nominal_weight>=0){_c["pos_w_initial"]->fill();}
+        else {_c["neg_w_initial"]->fill();}
 
-      // Retrieve dressed leptons, sorted by pT
-      Particles leptons_stable = apply<FinalState>(event, "leptons_stable").particlesByPt();
-      int nlep_stable = leptons_stable.size();
-      if (nlep_stable!=_jcuts["n_lepton_stable"])  vetoEvent; // meaning both are e,mu and not tau
+        _cutflows.fillinit();
 
-      const Particle& lep1 = leptons_stable[0];
-      const Particle& lep2 = leptons_stable[1]; 
-      if (lep1.charge() * lep2.charge() < 0) vetoEvent; // want same charge leptons
+        const MissingMomentum& METfinder = apply<MissingMomentum>(event, "METFinder");
+        const double scalar_MET = METfinder.missingPt()/GeV;
+        if (_docut==1 && scalar_MET<_jcuts["pt_MET"]) vetoEvent;
+        _cutflows.fillnext();
 
-      const FourMomentum fourvec_ll = lep1.mom() + lep2.mom(); 
-      const double m_ll = fourvec_ll.mass()/GeV;
-      if (_docut==1 && m_ll<_jcuts["m_ll"]) vetoEvent; 
+        const FourMomentum fourvec_MET = METfinder.missingMomentum();
 
-      const double lep1_pid = lep1.pid();
-      const double lep2_pid = lep2.pid();
-      double m_z = 91.18; 
-      if (_docut==1){
-        if (lep1_pid==PID::ELECTRON && lep2_pid==PID::ELECTRON && fabs(m_ll-m_z) < _jcuts["abs_diff_m_z"]) vetoEvent; 
-      }
-      
-      // Retrieve clustered jets, sorted by pT, with a minimum pT cut
-      Jets jets = apply<FastJets>(event, "jets").jetsByPt(Cuts::pT > 30*GeV);
-      Jets btagging_jets = apply<FastJets>(event, "jets").jetsByPt(Cuts::absrap < 2.5 && Cuts::pT > 20*GeV);
-      // Remove all jets within dR < 0.2 of a dressed lepton
-      idiscardIfAny(jets, electrons, [](const Jet& jet, const Particle& lep) {
-        return deltaR(lep, jet) < 0.4 && (lep.pT() / jet.pT() > 0.5);
-      });
+        // Retrieve clustered jets, sorted by pT, with a minimum pT cut
+        Jets jets = apply<FastJets>(event, "jets").jetsByPt(Cuts::pT > 20*GeV && Cuts::absrap < 4.5);
+        Jets btagging_jets = apply<FastJets>(event, "jets").jetsByPt(Cuts::absrap < 2.5 && Cuts::pT > 20*GeV);
 
-      idiscardIfAnyDeltaRLess(btagging_jets, leptons_stable, 0.2);
+        // Retrieve dressed leptons, sorted by pT
+        Particles e_stable;
+        Particles mu_stable;
+        e_stable = apply<FinalState>(event, "e_stable").particlesByPt(_electron_eta_cut && _lepton_pt_cut);
+        mu_stable = apply<FinalState>(event, "mu_stable").particlesByPt(_muon_eta_cut && _lepton_pt_cut);
 
+        // Remove jet if lepton too close
+        idiscardIfAny(jets, e_stable, [](const Jet& jet, const Particle& lep) {
+            return deltaR(lep, jet) < 0.4 && (lep.pT() / jet.pT() > 0.5);
+        });
+        // otherwise remove lepton
+        idiscardIfAny(e_stable, jets, [](const Particle& lep, const Jet& jet) {
+            return deltaR(lep, jet) < 0.4 && (lep.pT() / jet.pT() < 0.5);
+        });
 
+        Particles leptons = e_stable + mu_stable;
+        idiscardIfAnyDeltaRLess(btagging_jets, leptons, 0.2);
+        // sort by pt as not clear if e+m is in order invidually not but necessary together
+        std::sort(leptons.begin(), leptons.end(), [](Particle const &a, Particle const &b) {
+            return a.pT() > b.pT(); // biggest pT will be first in array
+        });
+        int nlep_stable = leptons.size();
+        if (nlep_stable!=_jcuts["n_lepton_stable"])  vetoEvent;
+        _cutflows.fillnext();
 
-      int njets = jets.size();
-      if (njets < _jcuts["n_jets"])  vetoEvent;  
+        const Particle& lep1 = leptons[0];
+        const Particle& lep2 = leptons[1];
+        if (lep1.charge() * lep2.charge() < 0) vetoEvent; // want same charge leptons
+        if (deltaR(lep1, lep2) < 0.2)  vetoEvent;
+        _cutflows.fillnext();
 
-      int nbtags = count(btagging_jets, hasBTag());
-      if (_docut==1 && nbtags>_jcuts["n_b_jets"]) vetoEvent;
+        const FourMomentum fourvec_ll = lep1.mom() + lep2.mom();
+        const double m_ll = fourvec_ll.mass()/GeV;
+        if (_docut==1 && m_ll<_jcuts["m_ll"]) vetoEvent;
+        _cutflows.fillnext();
 
-      bool foundVBSJetPair = false; // look in opposite hemispheres and pair should have highest mjj
-      double max_mjj = 0;
-      int tag1_jet_index = -1 ,tag2_jet_index = -1;
-      for (int i = 0; i < njets; i++) {
-        const Jet& i_jet = jets[i];
-        for (int j = 0; j < njets; j++) {
-          if (i!=j){
-            const Jet& j_jet = jets[j];
-            const double mjj = (i_jet.mom() + j_jet.mom()).mass()/GeV;
-            const double eta_prod = i_jet.eta()*j_jet.eta();
-            if  (eta_prod < 0.0 && mjj>max_mjj){
-              max_mjj = mjj;
-              foundVBSJetPair = true;
-              tag1_jet_index = i;
-              tag2_jet_index = j;
-              }
+        const double lep1_abs_pid = lep1.pid();
+        const double lep2_abs_pid = lep2.pid();
+        double m_z = 91.18;
+        if (_docut==1 && (lep1_abs_pid == 11 && lep2_abs_pid == 11 && fabs(m_ll - m_z) < _jcuts["abs_diff_m_z"])) vetoEvent;
+
+        int njets = jets.size();
+        if (njets < _jcuts["n_jets"])  vetoEvent;
+        int nbtags = count(btagging_jets, hasBTag());
+        if (_docut==1 && nbtags>_jcuts["n_b_jets"]) vetoEvent;
+        _cutflows.fillnext();
+
+        const FourMomentum tag1_jet = jets[0].mom();
+        const FourMomentum tag2_jet = jets[1].mom();
+        if (_docut==1 && (tag1_jet.pT()<_jcuts["pt_tagjet1"] || tag2_jet.pT()<_jcuts["pt_tagjet2"])) vetoEvent;
+
+        const double m_tagjets = (tag1_jet + tag2_jet).mass()/GeV;
+        if (_docut==1 && m_tagjets<_jcuts["m_tagjets"]) vetoEvent;
+        _cutflows.fillnext();
+
+        const double dy_tagjets = fabs(tag1_jet.rap() - tag2_jet.rap());
+        if (_docut==1 && dy_tagjets<_jcuts["dy_tagjets"]) vetoEvent;
+        _cutflows.fillnext();
+
+        const double m_T = (fourvec_MET + fourvec_ll).mass()/GeV;
+
+        // do clipping - in case with 2+ w to avoid much work take two w with highest pt
+        std::vector<FourMomentum> hs_bosons_W = {};
+        std::vector<int> hs_bosons_W_pid = {};
+        const Particles all_particles = event.allParticles();
+        for(const Particle& p_rivet : all_particles){
+            ConstGenParticlePtr p_hepmc = p_rivet.genParticle();
+            int status = p_hepmc->status();
+            if (abs(status)==23 or abs(status)==22){
+                int i_pid = p_hepmc->pid();
+                FourMomentum i_mom = p_hepmc->momentum();
+                if (abs(i_pid) == 24){
+                    hs_bosons_W.push_back(i_mom);
+                    hs_bosons_W_pid.push_back(i_pid);
+                }
             }
         }
-      }
-      if (tag2_jet_index < tag1_jet_index) swap(tag1_jet_index, tag2_jet_index); // organize tag jets by pt  
-      if (!foundVBSJetPair)  vetoEvent;
+        std::sort(hs_bosons_W.begin(), hs_bosons_W.end(), [](FourMomentum const &a, FourMomentum const &b) {return a.pT() > b.pT(); }); // biggest pT will be first in array
+        bool have_two_hs_bosons = false;
+        double hs_diboson_mass = 0.0;
+        int n_z_hs = hs_bosons_W.size();
+        if (n_z_hs > 1){
+            if (hs_bosons_W_pid[0]==hs_bosons_W_pid[1]){ //want same sign
+                hs_diboson_mass = (hs_bosons_W[0] + hs_bosons_W[1]).mass() / GeV;
+                have_two_hs_bosons = true;
+            }
+        }
+        if (!have_two_hs_bosons) vetoEvent; // just in case reject events where dont have ww somehow
+        _cutflows.fillnext();
 
-      const FourMomentum tag1_jet = jets[tag1_jet_index].mom();
-      const FourMomentum tag2_jet = jets[tag2_jet_index].mom();
-      if (_docut==1 && (tag1_jet.pT()<_jcuts["pt_tagjet1"] || tag2_jet.pT()<_jcuts["pt_tagjet2"])) vetoEvent; 
+        //jet plots
+        _h["n_jets"]->fill(njets);
+        _h["pt_tagjet1"]->fill(tag1_jet.pt());
+        _h["pt_tagjet2"]->fill(tag2_jet.pt());
+        _h["m_tagjets"]->fill(m_tagjets);
+        _h["dy_tagjets"]->fill(dy_tagjets);
+        _h["eta_tagjets"]->fill(tag1_jet.eta()); _h["eta_tagjets"]->fill(tag2_jet.eta()); // fill both to the same hists
+        _h["dphi_tagjets"]->fill(deltaPhi(tag1_jet,tag2_jet));
+        //lepton plots
+        _h["n_lepton_stable"]->fill(nlep_stable);
+        _h["pt_lepton"]->fill(lep1.pT()); _h["pt_lepton"]->fill(lep2.pT()); // fill both to the same hists
+        _h["eta_lepton"]->fill(lep1.eta()); _h["eta_lepton"]->fill(lep2.eta());
+        // other
+        if (lep1_abs_pid == 11 && lep2_abs_pid == 11){_h["m_ee"]->fill(m_ll);}
+        _h["n_b_jet"]->fill(nbtags);
+        _h["MET"]->fill(scalar_MET);
+        _h["m_T"]->fill(m_T);
+        _h["m_WW"]->fill(hs_diboson_mass);
 
-      const double m_tagjets = (tag1_jet + tag2_jet).mass()/GeV;
-      if (_docut==1 && m_tagjets<_jcuts["m_tagjets"]) vetoEvent;
+        // clipping-related
+        _h["m_ll_clip_inf"]->fill(m_ll);
+        if (ev_nominal_weight>=0){_c["pos_w_final_clip_inf"]->fill();}
+        else {_c["neg_w_final_clip_inf"]->fill();}
+        for (std::string& i_clip : _clips){
+            if (i_clip=="inf") continue; // as done above without cut
+            int i_clip_num = std::stoi(i_clip);
+            std::string i_pos_c_name = "pos_w_final_clip_" + i_clip;
+            std::string i_neg_c_name = "neg_w_final_clip_" + i_clip;
+            std::string i_hist_name = "m_ll_clip_" + i_clip;
+            if (hs_diboson_mass < i_clip_num) {
+                _h[i_hist_name]->fill(m_ll);
+                if (ev_nominal_weight>=0){_c[i_pos_c_name]->fill();}
+                else {_c[i_neg_c_name]->fill();}
+            }
+        }
 
-      const double dy_tagjets = fabs(tag1_jet.rap() - tag2_jet.rap());
-      if (_docut==1 && dy_tagjets<_jcuts["dy_tagjets"]) vetoEvent;
+        // file used for drawing images
+        if (_docut==1){
+            int ind_bigger_eta_tagjet = (tag1_jet.eta() >  tag2_jet.eta()) ? 0 : 1;
+            int ind_smaller_eta_tagjet = static_cast<int>(!static_cast<bool>(ind_bigger_eta_tagjet));
+            //
+            int ind_bigger_eta_lep = (tag1_jet.eta() >  tag2_jet.eta()) ? 0 : 1;
+            int ind_smaller_eta_lep = static_cast<int>(!static_cast<bool>(ind_bigger_eta_lep));
+            // pulling file into common with init() _fout didn't work so re-open
+            std::ofstream pic_csv (getOption("OUTDIR") + "/info_for_image.csv", std::ofstream::app);
+            // tagjet1
+            pic_csv << jets[ind_bigger_eta_tagjet].eta() << ";";
+            pic_csv << jets[ind_bigger_eta_tagjet].phi() << ";";
+            pic_csv << jets[ind_bigger_eta_tagjet].pt() << ";";
+            //tagjet2
+            pic_csv << jets[ind_smaller_eta_tagjet].eta() << ";";
+            pic_csv << jets[ind_smaller_eta_tagjet].phi() << ";";
+            pic_csv << jets[ind_smaller_eta_tagjet].pt() << ";";
+            //
+            //lepton 1
+            pic_csv << leptons[ind_bigger_eta_lep].eta() << ";";
+            pic_csv << leptons[ind_bigger_eta_lep].phi() << ";";
+            pic_csv << leptons[ind_bigger_eta_lep].pt() << ";";
+            //lepton 2
+            pic_csv << leptons[ind_smaller_eta_lep].eta() << ";";
+            pic_csv << leptons[ind_smaller_eta_lep].phi() << ";";
+            pic_csv << leptons[ind_smaller_eta_lep].pt() << ";";
+            // MET
+            pic_csv << fourvec_MET.eta() << ";";
+            pic_csv << fourvec_MET.phi() << ";";
+            pic_csv << fourvec_MET.pt() << ";";
+            // terminate line
+            pic_csv << "\n";
+        }
 
-      const MissingMomentum& METfinder = apply<MissingMomentum>(event, "METFinder");
-      const double scalar_MET = METfinder.missingPt()/GeV;
-      if (_docut==1 && scalar_MET<_jcuts["pt_MET"]) vetoEvent;
-
-      const FourMomentum fourvec_MET = METfinder.missingMomentum();
-      const double m_T = (fourvec_MET + fourvec_ll).mass()/GeV;
-    
-      //jet plots
-      _h["n_jet"]->fill(njets);
-      _h["n_bjet"]->fill(nbtags);
-      _h["pt_tagjet1"]->fill(tag1_jet.pt());
-      _h["pt_tagjet2"]->fill(tag2_jet.pt());
-      // above this worked before
-      _h["m_tagjets"]->fill(m_tagjets);
-      _h["dy_tagjets"]->fill(dy_tagjets);
-      _h2["m_dy_tagjets"]->fill(m_tagjets,dy_tagjets);
-      _h["eta_tagjet1"]->fill(tag1_jet.eta());
-      _h["eta_tagjet2"]->fill(tag2_jet.eta());
-      _h["eta_tagjets"]->fill(tag1_jet.eta()); _h["eta_tagjets"]->fill(tag2_jet.eta()); // fill both to the same hists
-      _h["deta_tagjets"]->fill(deltaEta(tag1_jet,tag2_jet));
-      _h["phi_tagjet1"]->fill(tag1_jet.phi());
-      _h["phi_tagjet2"]->fill(tag2_jet.phi());
-      _h["dphi_tagjets"]->fill(deltaPhi(tag1_jet,tag2_jet));
-      //lepton plots
-      _h2["leptons_pids"]->fill(lep1_pid,lep2_pid); // to check that only have e and mu and of same charge
-      _h["n_lepton_stable"]->fill(nlep_stable);
-      _h["lepton_pt"]->fill(lep1.pT()); _h["lepton_pt"]->fill(lep2.pT()); // fill both to the same hists
-      _h["lepton_eta"]->fill(lep1.eta());
-      _h["lepton_eta"]->fill(lep2.eta());
-      _h["m_ll"]->fill(m_ll);
-      if (lep1_pid == PID::ELECTRON && lep2_pid == PID::ELECTRON){_h["m_ee"]->fill(m_ll);}
-      else if (lep1_pid == PID::MUON && lep2_pid == PID::MUON){_h["m_mumu"]->fill(m_ll);}
-      else{_h["m_emu"]->fill(m_ll);}
-      // other
-      _h["MET"]->fill(scalar_MET);
-      _h["m_T"]->fill(m_T);
-      _c["found_VBS_pair"]->fill();
     }
 
 
     /// Normalise histograms etc., after the run
     void finalize() {
+        std::string cut_str = _cutflows.str();
+        std::string cutflow_file = getOption("OUTDIR") + "/cutflow.txt";
+        std::ofstream ofs (cutflow_file, std::ofstream::out);
+        ofs << cut_str;
+        ofs.close();
 
-      double veto_survive_sumW = dbl(*_c["found_VBS_pair"]);
-      double veto_survive_frac = veto_survive_sumW / sumW();
-      std::cout << "survived veto, will norm to this: " << veto_survive_frac << "\n";
-      double norm_to = veto_survive_frac*crossSection()/picobarn; // norm to generated cross-section in pb (after cuts)
-      
-      std::vector<std::string> hist_names_1d = {"n_jet","n_bjet","pt_tagjet1","pt_tagjet2","m_tagjets",
-      "dy_tagjets","eta_tagjet1","eta_tagjet2","eta_tagjets", "deta_tagjets", 
-      "phi_tagjet1","phi_tagjet2","dphi_tagjets",
-      "n_lepton_stable","lepton_pt","lepton_eta",
-      "m_ll","m_ee","m_mumu","m_emu","MET","m_T"};       
-      for (auto&& i_name : hist_names_1d){ normalize(_h[i_name], norm_to);}
-      // also norm few 2d
-      normalize(_h2["m_dy_tagjets"], norm_to);
-      normalize(_h2["leptons_pids"],norm_to);
+        double pos_w_sum_initial = dbl(*_c["pos_w_initial"]); // from which also number of entries can be obtained
+        double neg_w_sum_initial = dbl(*_c["neg_w_initial"]);
+        double pos_w_sum_final = dbl(*_c["pos_w_final_clip_inf"]);
+        double neg_w_sum_final = dbl(*_c["neg_w_final_clip_inf"]);
+        MSG_INFO("\n pos weights initial final ratio " << pos_w_sum_initial <<" " << pos_w_sum_final <<" "<< pos_w_sum_final/pos_w_sum_initial << "\n" );
+        MSG_INFO("\n neg weights initial final ratio " << neg_w_sum_initial <<" " << neg_w_sum_final <<" "<< neg_w_sum_final/neg_w_sum_initial << "\n" );
+
+        // normalize all to 1 since in case of mostly negative weights not clear what it will do
+        for (auto & i_name : _hist_names){
+            std::cout << "normalizeing hist " << i_name <<" to 1; " ;
+            normalize(_h[i_name], 1.0);
+        }
 
     }
 
@@ -224,12 +347,19 @@ namespace Rivet {
     // map<string, Profile1DPtr> _p;
     map<string, CounterPtr> _c;
     int _docut;
+    Cut _electron_eta_cut;
+    Cut _muon_eta_cut;
+    Cut _lepton_pt_cut;
+    json _jcuts;
+    Cutflows _cutflows;
+    std::vector<std::string> _hist_names;
+    std::vector<std::string> _clips {"inf", "3000", "2000", "1500", "1000", "700"};
     /// @}
 
 
   };
 
 
-  RIVET_DECLARE_PLUGIN(WmWm_lvlv);
+  RIVET_DECLARE_PLUGIN(ssWW_lvlv);
 
 }
