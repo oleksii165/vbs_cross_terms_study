@@ -2,7 +2,8 @@
     "n_b_jets": 0,
     "n_lepton_stable": 2,
 
-    "eta_lepton" : 2.5,
+    "eta_muon" : 2.5,
+    "eta_electron" : 1.37,
     "eta_tagjets": 4.5,
   
     "pt_lepton": 27.0,
