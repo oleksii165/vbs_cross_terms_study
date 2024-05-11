@@ -10,6 +10,7 @@ parser.add_option("--runFULL", default = "no")
 parser.add_option("--runINT", default = "no")
 parser.add_option("--runQUAD", default = "no")
 parser.add_option("--runCROSS", default = "no")
+parser.add_option("--skipOuterCROSS", default = "yes")
 parser.add_option("--numJobsParallel", default = 15)
 parser.add_option("--runWithCuts", default = "yes")
 parser.add_option("--runAgain", default = "no")
@@ -20,7 +21,7 @@ c = panda_api.get_api()
 tasks = c.get_tasks(limit=100000000, days=13000, username="Oleksii Kurdysh", status="done") # get already last try since only retry if it failed
 task_pref = "MadGraph"
 if opts.tDec=="llll": task_pref+="Fixed"
-task_names = [i_task['taskname'].replace("/","") for i_task in tasks if task_pref in i_task['taskname'] and opts.tProd in i_task['taskname'] and opts.tDec in i_task['taskname']]
+task_names = [i_task['taskname'].replace("/","") for i_task in tasks if task_pref in i_task['taskname'] and f"{opts.tProd}_" in i_task['taskname'] and f"{opts.tDec}_" in i_task['taskname']]
 all_ops, op_pairs = lu.get_ops(include_fs0_2=False)
 splitedSize = int(opts.numJobsParallel)
 blocks_of_single_ops = [all_ops[x:x + splitedSize] for x in range(0, len(all_ops), splitedSize)]
@@ -41,6 +42,8 @@ def call_bloc_proc(op_blocks, eft_config):
                 if i_job!=-1: i_block_bashcoms.append(get_com(i_job))
                 else: print("-------------- did not find done job for", i_job)
             else:
+                family1, family2 = i_op[0][1], i_op[1][1] 
+                if opts.skipOuterCROSS=="yes" and family1!=family2: continue
                 i_job_order_1 = lu.find_last_match_job(task_names, f"{i_op[0]}vs{i_op[1]}_{eft_config}")
                 i_job_order_2 = lu.find_last_match_job(task_names, f"{i_op[1]}vs{i_op[0]}_{eft_config}")
                 if i_job_order_1!=-1: i_block_bashcoms.append(get_com(i_job_order_1))
