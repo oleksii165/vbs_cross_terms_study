@@ -64,7 +64,8 @@ def save_job_infos(DOCUT_str, mydir, xsec_fb, prod_dec):
 
     # save fid xsec
     lu.write_to_f(mydir + "xsec_fb.txt", xsec_fb) # before cuts
-    rivet_dir_name = f"/{prod_dec}:OUTDIR=/{mydir}".replace("//","/") + "/"
+
+    rivet_dir_name = f"/{lu.get_routine(prod_dec)}:OUTDIR=/{mydir}".replace("//","/") + "/"
     print("looking for prefix in counter",rivet_dir_name)
     pos_n_in, pos_w_in = yoda_f[f"{rivet_dir_name}pos_w_initial"].numEntries(), yoda_f[f"{rivet_dir_name}pos_w_initial"].sumW()
     neg_n_in, neg_w_in= yoda_f[f"{rivet_dir_name}neg_w_initial"].numEntries(), yoda_f[f"{rivet_dir_name}neg_w_initial"].sumW()

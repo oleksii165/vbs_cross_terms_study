@@ -14,6 +14,20 @@ import json
 import re
 from pandas.plotting import table
 
+
+def get_routine(prod_dec):
+    if prod_dec in ["Zy_lly", "Zy_vvy", "ZZ_llll", "ZZ_llvv"]:
+        routine = prod_dec
+    elif prod_dec in ["WmWm_lvlv", "WpWp_lvlv"]:
+        routine = "ssWW_lvlv"
+    elif prod_dec in ["WmZ_lllv", "WpZ_lllv"]:
+        routine = "WZ_lllv"
+    elif prod_dec in ["Wmy_lvy", "Wpy_lvy"]:
+        routine = "Wy_lvy"
+    else:
+        routine = -1
+    return routine
+
 def get_im_color(particle_name, for_distribution=False):
     color = "black"
     if "jet" in particle_name: 

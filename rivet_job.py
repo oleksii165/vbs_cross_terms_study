@@ -22,17 +22,7 @@ rivet = Rivet_i()
 import os
 rivet.AnalysisPath = os.environ['PWD']
 
-if prod_dec in ["Zy_lly", "Zy_vvy", "ZZ_llll", "ZZ_llvv"]:
-    routine = prod_dec
-elif prod_dec in ["WmWm_lvlv", "WpWp_lvlv"]:
-    routine = "ssWW_lvlv"
-elif prod_dec in ["WmZ_lllv", "WpZ_lllv"]:
-    routine = "WZ_lllv"
-elif prod_dec in ["Wmy_lvy", "Wpy_lvy"]:
-    routine = "Wy_lvy"
-else:
-    raise Exception("dont know which routine to use for this prod_dec", prod_dec)
-rivet.Analyses += [f'{routine}:OUTDIR={conf_cut_dir}']
+rivet.Analyses += [f'{lib_utils.get_routine(prod_dec)}:OUTDIR={conf_cut_dir}']
 rivet.RunName = ''
 rivet.HistoFile = conf_cut_dir + f'/MyOutput.yoda.gz'
 rivet.CrossSection = 1.0 #xsec_pb
