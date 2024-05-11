@@ -3,4 +3,8 @@ PoolFileCatalog.xml
 RivetVBS_CROSS_TERMS.so
 *.so
 eventLoopHeartBeat.txt
+.idea/
+CMakeLists.txt
+__pycache__/
+cmake-build-debug/
 
