@@ -5,12 +5,10 @@ ROOT.gStyle.SetOptStat(0)
 ROOT.gROOT.SetBatch(ROOT.kTRUE)
 from optparse import OptionParser
 parser = OptionParser()
-parser.add_option("--tProd", default = "Zy")
-parser.add_option("--tDec", default = "vvy")
 parser.add_option("--runWithCuts", default = "yes")
 opts, _ = parser.parse_args()
 
-prod_dec = f"{opts.tProd}_{opts.tDec}"
+prod_dec = "Zy_vvy"
 _, top_files_dir = lu.find_prod_dec_and_dir(f"user.okurdysh.MadGraph_{prod_dec}_FM0_SM")
 docut_dir = "DOCUT_YES" if opts.runWithCuts=="yes" else "DOCUT_NO"
 base_plot_dir = lu.get_plotdir(prod_dec, docut_dir)
