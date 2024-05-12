@@ -3,11 +3,13 @@ import os
 import ROOT
 ROOT.gStyle.SetOptStat(0)
 ROOT.gROOT.SetBatch(ROOT.kTRUE)
+import pandas as pd
 from optparse import OptionParser
 parser = OptionParser()
 parser.add_option("--tProd", default = "Zy")
 parser.add_option("--tDec", default = "vvy")
 parser.add_option("--runWithCuts", default = "yes")
+parser.add_option("--clips", default = "inf,3000,2000,1500,1000,700")
 opts, _ = parser.parse_args()
 
 prod_dec = f"{opts.tProd}_{opts.tDec}"
@@ -15,7 +17,7 @@ _, top_files_dir = lu.find_prod_dec_and_dir(f"user.okurdysh.MadGraph_{prod_dec}_
 docut_dir = "DOCUT_YES" if opts.runWithCuts=="yes" else "DOCUT_NO"
 base_plot_dir = lu.get_plotdir(prod_dec, docut_dir)
 
-clips = ["inf","3000","2000", "1500", "1000", "700"] # M1_quad_pt_photon_clip_1000
+clips = opts.clips.split(",") # M1_quad_pt_photon_clip_1000
 def get_clip_hist_name(fitvar,clip):
     return f"{fitvar}_clip_{clip}"
 
@@ -23,7 +25,13 @@ fit_plot_str, fit_plot_bins = lu.get_fitted_plot(prod_dec)
 plots_to_save = [get_clip_hist_name(fit_plot_str, i_clip) for i_clip in clips]
 print("plots to save", plots_to_save)
 
-ws_hist_file = ROOT.TFile("../../fits/ws_extracted_hists/Zvvy.root", "read")
+ws_hist_file_name = "../../fits/ws_extracted_hists/Zvvy.root" if opts.tDec=="vvy" else base_plot_dir+f"/ws_{prod_dec}_hists.root"
+if prod_dec=="ssWW_lvlv": # initially Mathieu send table
+    print("hi")
+    pd.read_excel("the_document.ods", engine="odf")
+
+
+ws_hist_file = ROOT.TFile(ws_hist_file_name, "read")
 ws_hist_list = [ih.GetName() for ih in list(ws_hist_file.GetListOfKeys())]
 for op_dir in [i_obj for i_obj in os.listdir(top_files_dir) if os.path.isdir(top_files_dir + "/" + i_obj)]:
     full_op_dir = os.path.join(top_files_dir,op_dir,docut_dir,"")
