@@ -46,13 +46,17 @@ def get_fitted_plot(prod_dec):
     if prod_dec=="Zy_vvy":
         mystr = "pt_photon"
         bins = array('d', [150,300,450,600,750,900,1050,1200,2000])
-    elif prod_dec in ["WmZ_lllv","WpZ_lllv"]:
+    elif prod_dec in ["WmZ_lllv","WpZ_lllv","WZ_lllv"]:
         mystr="m_WZ_T"
         bins = array('d', [0,400,750,1050,1350,4000])
     elif prod_dec=="ZZ_llvv":
         mystr="pt_Z"
         bins = array('d', [50,100,150,200,250,350,1500])
         # bins = array('d', [50,110,130,150,170,200,250,350,1500])
+    elif prod_dec in ["WmWm_lvlv","WpWp_lllv","ssWW_lvlv"]:
+        mystr = "m_ll"
+        bins = array('d', [0,250,500,750,1000,1500])
+
     return mystr, bins
 
 def get_missing_ops(prod_dec):
