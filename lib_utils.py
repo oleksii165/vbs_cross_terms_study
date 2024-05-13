@@ -14,33 +14,6 @@ import json
 import re
 from pandas.plotting import table
 
-
-def get_routine(prod_dec):
-    if prod_dec in ["Zy_lly", "Zy_vvy", "ZZ_llll", "ZZ_llvv"]:
-        routine = prod_dec
-    elif prod_dec in ["WmWm_lvlv", "WpWp_lvlv"]:
-        routine = "ssWW_lvlv"
-    elif prod_dec in ["WmZ_lllv", "WpZ_lllv"]:
-        routine = "WZ_lllv"
-    elif prod_dec in ["Wmy_lvy", "Wpy_lvy"]:
-        routine = "Wy_lvy"
-    else:
-        routine = -1
-    return routine
-
-def get_im_color(particle_name, for_distribution=False):
-    color = "black"
-    if "jet" in particle_name: 
-        color="blue" if not for_distribution else "deepskyblue"
-    elif "lepton" in particle_name:
-        color="red" if not for_distribution else "lightcoral"
-    elif "photon" in particle_name: 
-        color = "orange" if not for_distribution else "yellow"
-    elif "MET" in particle_name:
-        color = "dimgrey" if not for_distribution else "darkgrey"
-
-    return color
-
 def get_fitted_plot(prod_dec):
     mystr,bins="",[]
     if prod_dec=="Zy_vvy":
@@ -87,48 +60,6 @@ def latex_ana_str(prod_dec):
     mystr=""
     if "Zy_lly" in prod_dec: mystr = "Z(" + r"$\rightarrow$" + f"ll)y"
     return mystr
-
-def draw_average_event(files_dir, average_im=True):
-    op = files_dir[files_dir.find("_F")+1 : files_dir.find("_EXT0")]
-    prod_dec = files_dir[files_dir.find("/eft_files/")+11 : files_dir.find("/user.okurdysh")]
-    print("found op and prod_dec", op, prod_dec)
-
-    f_str = files_dir + "info_for_image.csv" 
-    df = pd.read_csv(f_str,delimiter=";")
-    particles = set([i_col[i_col.find("_")+1:] for i_col in  list(df.head()) if "Unnamed" not in i_col])
-    print("found particles", particles, "in file", f_str)
-
-    fig, ax = plt.subplots(figsize=(8, 6))
-    plt.clf()
-    if average_im:
-        for i_part in sorted(list(particles)):
-            i_eta = round(np.mean(df["eta_" + i_part]), 2)
-            i_phi = round(np.mean(df["phi_" + i_part]), 2)
-            i_pt = round(np.mean(df["pt_" + i_part]), 2)
-            i_color = get_im_color(i_part)
-            print("drawing", i_part, "with eta phi pt", i_eta, i_phi, i_pt, "and color", i_color)
-            plt.plot([0, i_pt*math.sinh(i_eta)], [0, i_pt*math.sin(i_phi)], 
-                    color = i_color, label=f"{i_part} $<p_T>={i_pt:.1f}$,$<\eta>={i_eta:.1f}$")
-        plt.legend(loc="upper left")
-    else:
-        for numrow, row in df.iterrows():
-            if numrow>50: break
-            for i_part in sorted(list(particles)):
-                i_eta = round(row["eta_" + i_part], 2)
-                i_phi = round(row["phi_" + i_part], 2)
-                i_pt = round(row["pt_" + i_part], 2)
-                i_color = get_im_color(i_part, for_distribution=True)
-                plt.plot([0, i_pt*math.sinh(i_eta)], [0, i_pt*math.sin(i_phi)], color = i_color, alpha=0.4)
-    plt.xlabel('beam Z')
-    plt.ylabel('Y')
-    if average_im: my_title = f"{latex_ana_str(prod_dec)} SR av.img for {op}"
-    else: my_title = f"{latex_ana_str(prod_dec)} SR distr.img for {op}" 
-    plt.title(my_title)
-    # take super long to save pdf switch to png
-    save_path_no_ext = files_dir+"average_image" if average_im else files_dir+"distribution_image"  
-    plt.savefig(save_path_no_ext+".png", bbox_inches='tight') 
-    plt.savefig(save_path_no_ext+".svg", bbox_inches='tight') 
-    return
 
 def get_cutflow_arrays(cutflow_file):
     names = []
@@ -291,9 +222,6 @@ def get_conf_cut_dir(evnt_dir, routine, cut):
     if not os.path.exists(mydir): os.makedirs(mydir) 
     return mydir
 
-def get_job_name_template(prod,dec,op,EFTmode):
-    return f"user.okurdysh.MadGraph_{prod}_{dec}_{op}_{EFTmode}"
-
 def find_last_match_job(names_arr, str_op_EFTmode):
     matches_temp = []
     for i_name in names_arr:
@@ -313,14 +241,6 @@ def get_envt_log_names_dirs(base_dir,i_job_name):
     print("returnning names structure log did and dir",log_did, log_dir)
     return evnt_did, evnt_dir, log_did, log_dir  
 
-def get_rivet_com(gen_job_name, evtMax=-1, redoRivet=-1, redoPlots=-1, DOCUT=-1):
-    mycom = f'python run_rivet.py --conf="{gen_job_name}" '
-    if evtMax!=-1: mycom += f' --evtMax {evtMax} '
-    if redoRivet!=-1: mycom += f' --redoRivet "{redoRivet}" '
-    if redoPlots!=-1: mycom += f' --redoPlots "{redoPlots}" '
-    if DOCUT!=-1: mycom += f' --DOCUT "{DOCUT}" '
-    return mycom
-
 def get_xsec(log_file):
     with open(log_file) as textf:
         xsec_val, xsec_unit = -999.0 , "fb" # here pb but later for plots will convert to fb
@@ -332,20 +252,6 @@ def get_xsec(log_file):
     xsec_fb = xsec_val * conv_fact_to_pb[xsec_unit] * 1000
     print("found xsec value ",xsec_val,"with unit",xsec_unit,"converting to fb get in fb",xsec_fb)
     return xsec_fb
-
-def get_sumw_initial(log_file):
-    with open(log_file) as textf:
-        sumw_neg, sumw_pos, filt_ef = -999.0 , -999.0, -999.0
-        for line in textf:
-            if 'MetaData: sumOfPosWeights =' in line:
-                sumw_pos = float(line[line.find('=')+1:])
-            if "MetaData: sumOfNegWeights =" in line:
-                sumw_neg = float(line[line.find('=')+1:])
-            if "MetaData: GenFiltEff =" in line:
-                filt_ef = float(line[line.find('=')+1:])    
-    sumw_in = (sumw_pos + sumw_neg) * filt_ef 
-    print(f"found sumw_in: {sumw_in} build from sumw_neg, pos and filt_ef: {sumw_neg}, {sumw_pos}, {filt_ef}")
-    return sumw_in
 
 def write_to_f(product_file,product):
     f = open(product_file, "w") #since opening yoda a bit slow for 50 configs save when have it
