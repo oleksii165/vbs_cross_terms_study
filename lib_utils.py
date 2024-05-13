@@ -410,7 +410,7 @@ def read_hists(root_file_name, h_names_arr):
         h_file.Close()
     return hists
 
-def dress_hist(my_hist, my_title, my_color, my_norm = 1.0, re_bins=-1):
+def dress_hist(my_hist, my_title, my_color, my_norm = 1.0, re_bins=-1, re_overflow=0):
     my_hist.SetTitle(my_title)
     my_hist.SetName(my_title)
     my_hist.SetLineColor(my_color)
@@ -418,8 +418,20 @@ def dress_hist(my_hist, my_title, my_color, my_norm = 1.0, re_bins=-1):
     hist_integ = my_hist.Integral()
     if hist_integ!=0:
         my_hist.Scale(my_norm/hist_integ)
-    if re_bins!=-1:
+    if re_bins!=-1 and re_overflow==0:
         my_hist = my_hist.Rebin(len(re_bins) - 1, my_hist.GetName(), re_bins)
+    elif re_bins!=-1 and re_overflow:
+        print("hi")
+        orig_nbins = my_hist.GetNbinsX()
+        orig_end_x = my_hist.GetBinLowEdge(orig_nbins) + my_hist.GetBinWidth(orig_nbins)
+        orig_hist_rebin_with_overflow = my_hist.Clone()
+        re_bins_overflow = array('d',re_bins.tolist().copy())
+        re_bins_overflow[-1] = orig_end_x
+        orig_hist_rebin_with_overflow = orig_hist_rebin_with_overflow.Rebin(len(re_bins_overflow)-1, "over", re_bins_overflow)
+        my_hist = my_hist.Rebin(len(re_bins) - 1, my_hist.GetName(), re_bins)
+        rebin_nbins = my_hist.GetNbinsX()
+        # keep visually same binning but include everything in last bin
+        my_hist.SetBinContent(rebin_nbins,orig_hist_rebin_with_overflow.GetBinContent(rebin_nbins))
     return my_hist.Clone()
 
 def make_stack(hist_arr, title="",norm=-1):
@@ -525,4 +537,11 @@ def save_df(df, out_path, save_csv=False, aspect = (16, 9)):
     with PdfPages(out_path) as pdf:
         pdf.savefig(fig, bbox_inches='tight')
         plt.close()
+
+def arr_to_hist1d(arr_counts, hname, bin_edges):
+    my_hist = ROOT.TH1F(hname, hname, len(bin_edges)-1, bin_edges)
+    for i_num_bin, i_bin_count in zip(range(1,my_hist.GetNbinsX()+1),arr_counts):
+        my_hist.SetBinContent(i_num_bin, i_bin_count)
+    return my_hist.Clone()
+
     
