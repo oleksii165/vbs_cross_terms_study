@@ -31,10 +31,10 @@ namespace Rivet {
 
     /// Book histograms and initialise projections before the run
     void init() {
-      std::string out_dir = getOption("OUTDIR");
+      std::string out_dir = getOption("cut");
       
       _docut = 0; // most cuts on number of particles are always applied to avoid segfault
-      if (out_dir.find("DOCUT_YES") != string::npos) _docut = 1;
+      if (out_dir.find("SR") != string::npos) _docut = 1;
       // if (out_dir.find("DOCUT_NO") != string::npos) _docut = 0;
       std::cout << "++++++received outidir" << out_dir << "meaning _docut is " << _docut << "\n";
 
@@ -102,14 +102,18 @@ namespace Rivet {
       
       //counter for efficiency
       book(_c["pos_w_initial"],"pos_w_initial");
-      book(_c["pos_w_final"],"pos_w_final");
       book(_c["neg_w_initial"],"neg_w_initial");
-      book(_c["neg_w_final"],"neg_w_final");
+      for (std::string& i_clip : _clips){
+        std::string i_pos_c_name = "pos_w_final_clip_" + i_clip;
+        std::string i_neg_c_name = "neg_w_final_clip_" + i_clip;
+        book(_c[i_pos_c_name], i_pos_c_name);
+        book(_c[i_neg_c_name], i_neg_c_name);
+      }
       
       // Cut-flows
       _cutflows.addCutflow("WZ_lllv_selections", {"three_leptons", "one_SFOC_or_more", "mZ_mismatch",
-                                                  "pt_W_lepton", "m_W_T", "dR__leptons", "n_jets","n_b_jets", 
-                                                  "pt_tagjets", "m_tagjets", "tagj_opposite_hemisph"});
+                                                  "pt_W_lepton", "m_T_W", "dR__leptons", "n_jets","n_b_jets",
+                                                  "pt_tagjets", "m_tagjets", "tagj_opposite_hemisph","two_WZ_HS"});
 
     }
 
@@ -184,8 +188,8 @@ namespace Rivet {
       const double pt_MET = METfinder.missingPt()/GeV;
       const FourMomentum fourvec_MET = METfinder.missingMomentum();
       const double d_phi_MET_lep = deltaPhi(fourvec_MET.phi(), W_lep.phi());
-      const double m_W_T = sqrt( 2*W_lep.pT()*pt_MET*(1 - cos(d_phi_MET_lep)) );
-      if (_docut==1 && m_W_T<_jcuts["m_W_T"]) vetoEvent;
+      const double m_T_W = sqrt( 2*W_lep.pT()*pt_MET*(1 - cos(d_phi_MET_lep)) );
+      if (_docut==1 && m_T_W<_jcuts["m_T_W"]) vetoEvent;
       _cutflows.fillnext();
 
       // Retrieve clustered jets, sorted by pT, with a minimum pT cut
@@ -194,7 +198,6 @@ namespace Rivet {
       // Remove all jets within certain dR of a dressed lepton
       idiscardIfAnyDeltaRLess(jets, leptons, _jcuts["dR_lepton_jet"]);
       idiscardIfAnyDeltaRLess(btagging_jets, leptons, _jcuts["dR_lepton_jet"]);
-      
 
       double dR_Z_lep_1_lep_2 = deltaR(Z_lep_1, Z_lep_2);  
       double dR_Z_lep_1_lep_W = deltaR(Z_lep_1, W_lep);  
@@ -226,43 +229,76 @@ namespace Rivet {
       if (_docut==1 && prod_y_tagjets > 0) vetoEvent;
       _cutflows.fillnext();
 
-      const double m_WZ_T_term1 =  pow(Z_lep_1.pT() + Z_lep_2.pT() + W_lep.pT() + pt_MET, 2);
-      const double m_WZ_T_term2 =  pow(Z_lep_1.px() + Z_lep_2.px() + W_lep.px() + fourvec_MET.px(), 2);
-      const double m_WZ_T_term3 =  pow(Z_lep_1.py() + Z_lep_2.py() + W_lep.py() + fourvec_MET.py(), 2);
-      const double m_WZ_T = sqrt(m_WZ_T_term1 - m_WZ_T_term2 - m_WZ_T_term3);
-      
+      const double m_T_WZ_term1 =  pow(Z_lep_1.pT() + Z_lep_2.pT() + W_lep.pT() + pt_MET, 2);
+      const double m_T_WZ_term2 =  pow(Z_lep_1.px() + Z_lep_2.px() + W_lep.px() + fourvec_MET.px(), 2);
+      const double m_T_WZ_term3 =  pow(Z_lep_1.py() + Z_lep_2.py() + W_lep.py() + fourvec_MET.py(), 2);
+      const double m_T_WZ = sqrt(m_T_WZ_term1 - m_T_WZ_term2 - m_T_WZ_term3);
+
+      // do clipping - in case with 2+ w/z to avoid much work take two w with highest pt
+      std::vector<FourMomentum> hs_bosons = {};
+      const Particles all_particles = event.allParticles();
+      for(const Particle& p_rivet : all_particles){
+        ConstGenParticlePtr p_hepmc = p_rivet.genParticle();
+        int status = p_hepmc->status();
+        if (abs(status)==23 or abs(status)==22){
+          int i_pid = p_hepmc->pid();
+          FourMomentum i_mom = p_hepmc->momentum();
+          if (abs(i_pid)==24 or abs(i_pid)==23){hs_bosons.push_back(i_mom);
+          }
+        }
+      }
+      // biggest pT will be first in array
+      std::sort(hs_bosons.begin(), hs_bosons.end(), [](FourMomentum const &a, FourMomentum const &b) {return a.pT() > b.pT(); });
+      bool have_two_hs_bosons = false;
+      double hs_diboson_mass = 0.0;
+      int n_hs = hs_bosons.size();
+      if (n_hs > 1){
+          hs_diboson_mass = (hs_bosons[0] + hs_bosons[1]).mass() / GeV;
+          have_two_hs_bosons = true;
+      }
+      if (!have_two_hs_bosons) vetoEvent; // just in case reject events where dont have wz somehow
+      _cutflows.fillnext();
+
       //jet common 
       _h["n_jets"]->fill(n_jets);
       _h["pt_tagjet1"]->fill(tag1_jet.pt());
       _h["pt_tagjet2"]->fill(tag2_jet.pt());
-      _h["eta_tagjets"]->fill(tag1_jet.eta()); _h["eta_tagjets"]->fill(tag2_jet.eta());
-      _h["phi_tagjets"]->fill(tag1_jet.phi()); _h["phi_tagjets"]->fill(tag2_jet.phi());
       _h["m_tagjets"]->fill(m_tagjets);
       _h["dy_tagjets"]->fill(dy_tagjets);
+      _h["eta_tagjets"]->fill(tag1_jet.eta()); _h["eta_tagjets"]->fill(tag2_jet.eta());
       _h["dphi_tagjets"]->fill(deltaPhi(tag1_jet,tag2_jet));
       //lepton plots
       _h["n_lepton_stable"]->fill(nlep);
-      //
       _h["pt_lepton"]->fill(Z_lep_1.pT());
       _h["pt_lepton"]->fill(Z_lep_2.pT()); 
-      _h["pt_lepton"]->fill(W_lep.pT()); 
-      //
+      _h["pt_lepton"]->fill(W_lep.pT());
       _h["eta_lepton"]->fill(Z_lep_1.eta()); 
       _h["eta_lepton"]->fill(Z_lep_2.eta());
       _h["eta_lepton"]->fill(W_lep.eta());
       // analysis-specific
       _h["pt_MET"]->fill(pt_MET);
-      _h["m_W_T"]->fill(m_W_T);
-      _h["m_WZ_T"]->fill(m_WZ_T);
+      _h["m_T_W"]->fill(m_T_W);
       _h["n_b_jets"]->fill(n_b_jets);
-      //
       _h["dR_leptons"]->fill(dR_Z_lep_1_lep_2);
       _h["dR_leptons"]->fill(dR_Z_lep_1_lep_W);
       _h["dR_leptons"]->fill(dR_Z_lep_2_lep_W);
 
-      // save weights after cuts
-      if (ev_nominal_weight>=0){_c["pos_w_final"]->fill();}
-      else {_c["neg_w_final"]->fill();}
+      // clipping-related
+      _h["m_T_WZ_clip_inf"]->fill(m_T_WZ);
+      if (ev_nominal_weight>=0){_c["pos_w_final_clip_inf"]->fill();}
+      else {_c["neg_w_final_clip_inf"]->fill();}
+      for (std::string& i_clip : _clips) {
+        if (i_clip == "inf") continue; // as done above without cut
+        int i_clip_num = std::stoi(i_clip);
+        std::string i_pos_c_name = "pos_w_final_clip_" + i_clip;
+        std::string i_neg_c_name = "neg_w_final_clip_" + i_clip;
+        std::string i_hist_name = "m_T_WZ_clip_" + i_clip;
+        if (hs_diboson_mass < i_clip_num) {
+          _h[i_hist_name]->fill(m_T_WZ);
+          if (ev_nominal_weight >= 0) { _c[i_pos_c_name]->fill(); }
+          else { _c[i_neg_c_name]->fill(); }
+        }
+      }
 
     }
 
@@ -278,8 +314,8 @@ namespace Rivet {
 
       double pos_w_sum_initial = dbl(*_c["pos_w_initial"]); // from which also number of entries can be obtained
       double neg_w_sum_initial = dbl(*_c["neg_w_initial"]);
-      double pos_w_sum_final = dbl(*_c["pos_w_final"]);
-      double neg_w_sum_final = dbl(*_c["neg_w_final"]);
+      double pos_w_sum_final = dbl(*_c["pos_w_final_clip_inf"]);
+      double neg_w_sum_final = dbl(*_c["neg_w_final_clip_inf"]);
       MSG_INFO("\n pos weights initial final ratio " << pos_w_sum_initial <<" " << pos_w_sum_final <<" "<< pos_w_sum_final/pos_w_sum_initial << "\n" );
       MSG_INFO("\n neg weights initial final ratio " << neg_w_sum_initial <<" " << neg_w_sum_final <<" "<< neg_w_sum_final/neg_w_sum_initial << "\n" );
 
@@ -304,8 +340,9 @@ namespace Rivet {
     json _jcuts;
     Cutflows _cutflows;
     std::vector<std::string> _hist_names;
+    std::vector<std::string> _clips {"inf", "3000", "2000", "1500", "1000", "700"};
 
-    /// @}
+      /// @}
 
   };
 

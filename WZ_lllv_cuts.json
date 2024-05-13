@@ -13,7 +13,7 @@
   "pt_tagjet2": 40.0,
 
   "m_tagjets": 500.0,
-  "m_W_T": 30,
+  "m_T_W": 30,
 
   "dR_lepton_jet": 0.3,
   "dR_lepton1_lepton2_Z" : 0.2,

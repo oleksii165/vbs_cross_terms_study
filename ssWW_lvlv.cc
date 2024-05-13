@@ -29,15 +29,13 @@ namespace Rivet {
 
     /// Book histograms and initialise projections before the run
     void init() {
-        std::string txt_dir = "/exp/atlas/kurdysh/vbs_cross_terms_study/plotting/";
-
-        std::string out_dir = getOption("OUTDIR");
+        std::string cut_mode = getOption("cut");
 
         _docut = 0; // most cuts on number of particles are always applied to avoid segfault
-        if (out_dir.find("DOCUT_YES") != string::npos) _docut = 1;
-        std::cout << "++++++received outidir" << out_dir << "meaning _docut is " << _docut << "\n";
+        if (cut_mode.find("SR") != string::npos) _docut = 1;
+        std::cout << "++++++received outidir" << cut_mode << "meaning _docut is " << _docut << "\n";
 
-        std::string jsonfilestr =  txt_dir + "ssWW_lvlv_cuts.json";
+        std::string jsonfilestr = "ssWW_lvlv_cuts.json";
         std::cout << "++++++assume .json for this ssWW_lvlv" << "is " << jsonfilestr << "\n";
         std::ifstream json_file(jsonfilestr);
 
@@ -81,21 +79,21 @@ namespace Rivet {
 
         // Book histograms
         // plots common with others
-        std::ifstream jet_hist_file(txt_dir + "/jet_hists.json");
+        std::ifstream jet_hist_file("jet_hists.json");
         json jet_hist = json::parse(jet_hist_file);
         for (json::iterator it = jet_hist.begin(); it != jet_hist.end(); ++it) {
             book(_h[it.key()], it.key(), it.value()[0], it.value()[1], it.value()[2]);
             _hist_names.push_back(it.key());
         }
         //lepton plots
-        std::ifstream lep_hist_file(txt_dir + "/lepton_hists.json");
+        std::ifstream lep_hist_file("lepton_hists.json");
         json y_hist = json::parse(lep_hist_file);
         for (json::iterator it = y_hist.begin(); it != y_hist.end(); ++it) {
             book(_h[it.key()], it.key(), it.value()[0], it.value()[1], it.value()[2]);
             _hist_names.push_back(it.key());
         }
         // plots that are not in other ana
-        std::ifstream ana_hist_file(txt_dir + "/ssWW_lvlv_hists.json");
+        std::ifstream ana_hist_file("ssWW_lvlv_hists.json");
         json ana_hist = json::parse(ana_hist_file);
         for (json::iterator it = ana_hist.begin(); it != ana_hist.end(); ++it) {
             book(_h[it.key()], it.key(), it.value()[0], it.value()[1], it.value()[2]);
@@ -114,20 +112,7 @@ namespace Rivet {
 
         // Cut-flows
         _cutflows.addCutflow("ssWW_lvlv_selections", {"pt_MET","n_lep","lep_charge_dR", "m_ll","n_jets_bjets",
-                                                      "m_tagjets","dy_tagjets","two_W_HS"});
-
-        // setup for  file used for drawing images
-        if (_docut==1){
-        std::vector<std::string> pic_particles = {"tagjet1", "tagjet2", "lepton1", "lepton2", "MET"};
-        std::ofstream pic_csv (out_dir + "/info_for_image.csv", std::ofstream::out);
-        for (auto & i_p : pic_particles){
-            pic_csv << "eta_" + i_p +";";
-            pic_csv << "phi_" + i_p +";";
-            pic_csv << "pt_" + i_p +";";
-        }
-        pic_csv << "\n";
-        pic_csv.close();
-        }
+                                                      "m_tagjets","dy_tagjets","two_HS_bosons"});
 
     }
 
@@ -213,8 +198,7 @@ namespace Rivet {
         const double m_T = (fourvec_MET + fourvec_ll).mass()/GeV;
 
         // do clipping - in case with 2+ w to avoid much work take two w with highest pt
-        std::vector<FourMomentum> hs_bosons_W = {};
-        std::vector<int> hs_bosons_W_pid = {};
+        std::vector<FourMomentum> hs_bosons = {}; // also can be WZ for WZ CR
         const Particles all_particles = event.allParticles();
         for(const Particle& p_rivet : all_particles){
             ConstGenParticlePtr p_hepmc = p_rivet.genParticle();
@@ -222,21 +206,18 @@ namespace Rivet {
             if (abs(status)==23 or abs(status)==22){
                 int i_pid = p_hepmc->pid();
                 FourMomentum i_mom = p_hepmc->momentum();
-                if (abs(i_pid) == 24){
-                    hs_bosons_W.push_back(i_mom);
-                    hs_bosons_W_pid.push_back(i_pid);
+                if (abs(i_pid) == 24 or abs(i_pid) == 23){
+                    hs_bosons.push_back(i_mom);
                 }
             }
         }
-        std::sort(hs_bosons_W.begin(), hs_bosons_W.end(), [](FourMomentum const &a, FourMomentum const &b) {return a.pT() > b.pT(); }); // biggest pT will be first in array
+        std::sort(hs_bosons.begin(), hs_bosons.end(), [](FourMomentum const &a, FourMomentum const &b) {return a.pT() > b.pT(); }); // biggest pT will be first in array
         bool have_two_hs_bosons = false;
         double hs_diboson_mass = 0.0;
-        int n_z_hs = hs_bosons_W.size();
+        int n_z_hs = hs_bosons.size();
         if (n_z_hs > 1){
-            if (hs_bosons_W_pid[0]==hs_bosons_W_pid[1]){ //want same sign
-                hs_diboson_mass = (hs_bosons_W[0] + hs_bosons_W[1]).mass() / GeV;
-                have_two_hs_bosons = true;
-            }
+              hs_diboson_mass = (hs_bosons[0] + hs_bosons[1]).mass() / GeV;
+              have_two_hs_bosons = true;
         }
         if (!have_two_hs_bosons) vetoEvent; // just in case reject events where dont have ww somehow
         _cutflows.fillnext();
@@ -277,50 +258,12 @@ namespace Rivet {
             }
         }
 
-        // file used for drawing images
-        if (_docut==1){
-            int ind_bigger_eta_tagjet = (tag1_jet.eta() >  tag2_jet.eta()) ? 0 : 1;
-            int ind_smaller_eta_tagjet = static_cast<int>(!static_cast<bool>(ind_bigger_eta_tagjet));
-            //
-            int ind_bigger_eta_lep = (tag1_jet.eta() >  tag2_jet.eta()) ? 0 : 1;
-            int ind_smaller_eta_lep = static_cast<int>(!static_cast<bool>(ind_bigger_eta_lep));
-            // pulling file into common with init() _fout didn't work so re-open
-            std::ofstream pic_csv (getOption("OUTDIR") + "/info_for_image.csv", std::ofstream::app);
-            // tagjet1
-            pic_csv << jets[ind_bigger_eta_tagjet].eta() << ";";
-            pic_csv << jets[ind_bigger_eta_tagjet].phi() << ";";
-            pic_csv << jets[ind_bigger_eta_tagjet].pt() << ";";
-            //tagjet2
-            pic_csv << jets[ind_smaller_eta_tagjet].eta() << ";";
-            pic_csv << jets[ind_smaller_eta_tagjet].phi() << ";";
-            pic_csv << jets[ind_smaller_eta_tagjet].pt() << ";";
-            //
-            //lepton 1
-            pic_csv << leptons[ind_bigger_eta_lep].eta() << ";";
-            pic_csv << leptons[ind_bigger_eta_lep].phi() << ";";
-            pic_csv << leptons[ind_bigger_eta_lep].pt() << ";";
-            //lepton 2
-            pic_csv << leptons[ind_smaller_eta_lep].eta() << ";";
-            pic_csv << leptons[ind_smaller_eta_lep].phi() << ";";
-            pic_csv << leptons[ind_smaller_eta_lep].pt() << ";";
-            // MET
-            pic_csv << fourvec_MET.eta() << ";";
-            pic_csv << fourvec_MET.phi() << ";";
-            pic_csv << fourvec_MET.pt() << ";";
-            // terminate line
-            pic_csv << "\n";
-        }
-
     }
 
 
     /// Normalise histograms etc., after the run
     void finalize() {
-        std::string cut_str = _cutflows.str();
-        std::string cutflow_file = getOption("OUTDIR") + "/cutflow.txt";
-        std::ofstream ofs (cutflow_file, std::ofstream::out);
-        ofs << cut_str;
-        ofs.close();
+        std::cout << _cutflows.str();
 
         double pos_w_sum_initial = dbl(*_c["pos_w_initial"]); // from which also number of entries can be obtained
         double neg_w_sum_initial = dbl(*_c["neg_w_initial"]);
