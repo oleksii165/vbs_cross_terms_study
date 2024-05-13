@@ -67,7 +67,10 @@ for i_order_op in confs_common:
         i_hist_sum = i_hist_plus.Clone()
         i_hist_sum.Add(i_hist_minus)
         if debug: print("integral of sum", i_hist_sum.Integral())
-        if i_hist_sum.Integral()!=0: i_hist_sum.Scale(1/i_hist_sum.Integral())
+        if i_hist_sum.Integral()!=0:
+            i_hist_sum.Scale(1/i_hist_sum.Integral())
+        else:
+            print("################### for var clip op", i_hist_name, i_clip, i_order_op, "have intergral zero")
         if debug: print("integral of sum after norm to 1", i_hist_sum.Integral())
         i_hist_sum.SetDirectory(0)
         i_plots_sum[i_hist_name] = i_hist_sum
