@@ -19,11 +19,11 @@ namespace Rivet {
 
 
   /// @brief Add a short analysis description here
-  class WmZ_lllv : public Analysis {
+  class WZ_lllv : public Analysis {
   public:
 
     /// Constructor
-    RIVET_DEFAULT_ANALYSIS_CTOR(WmZ_lllv);
+    RIVET_DEFAULT_ANALYSIS_CTOR(WZ_lllv);
 
 
     /// @name Analysis methods
@@ -31,8 +31,6 @@ namespace Rivet {
 
     /// Book histograms and initialise projections before the run
     void init() {
-      std::string txt_dir = "/exp/atlas/kurdysh/vbs_cross_terms_study/plotting/";
-      
       std::string out_dir = getOption("OUTDIR");
       
       _docut = 0; // most cuts on number of particles are always applied to avoid segfault
@@ -40,8 +38,8 @@ namespace Rivet {
       // if (out_dir.find("DOCUT_NO") != string::npos) _docut = 0;
       std::cout << "++++++received outidir" << out_dir << "meaning _docut is " << _docut << "\n";
 
-      std::string jsonfilestr =  txt_dir + "WmZ_lllv_cuts.json"; 
-      std::cout << "++++++assume .json for this WmZ_lllv" << "is " << jsonfilestr << "\n";
+      std::string jsonfilestr =  "WZ_lllv_cuts.json";
+      std::cout << "++++++assume .json for this WZ_lllv" << "is " << jsonfilestr << "\n";
       std::ifstream json_file(jsonfilestr);
       
       _jcuts = json::parse(json_file);
@@ -82,20 +80,20 @@ namespace Rivet {
       // Book things and save names to normalize later
       
       // plots common with others
-      std::ifstream jet_hist_file(txt_dir + "/jet_hists.json");      
+      std::ifstream jet_hist_file("jet_hists.json");
       json jet_hist = json::parse(jet_hist_file);
       for (json::iterator it = jet_hist.begin(); it != jet_hist.end(); ++it) {
         book(_h[it.key()], it.key(), it.value()[0], it.value()[1], it.value()[2]);
         _hist_names.push_back(it.key());
       }
-      std::ifstream lep_hist_file(txt_dir + "/lepton_hists.json");      
+      std::ifstream lep_hist_file("lepton_hists.json");
       json lep_hist = json::parse(lep_hist_file);
       for (json::iterator it = lep_hist.begin(); it != lep_hist.end(); ++it) {
         book(_h[it.key()], it.key(), it.value()[0], it.value()[1], it.value()[2]);
         _hist_names.push_back(it.key());
       }
       // plots that are not in other ana
-      std::ifstream ana_hist_file(txt_dir + "/WmZ_lllv_hists.json");      
+      std::ifstream ana_hist_file("WZ_lllv_hists.json");
       json ana_hist = json::parse(ana_hist_file);
       for (json::iterator it = ana_hist.begin(); it != ana_hist.end(); ++it) {
         book(_h[it.key()], it.key(), it.value()[0], it.value()[1], it.value()[2]);
@@ -109,22 +107,10 @@ namespace Rivet {
       book(_c["neg_w_final"],"neg_w_final");
       
       // Cut-flows
-      _cutflows.addCutflow("WmZ_lllv_selections", {"three_leptons", "one_SFOC_or_more", "mZ_mismatch",
+      _cutflows.addCutflow("WZ_lllv_selections", {"three_leptons", "one_SFOC_or_more", "mZ_mismatch",
                                                   "pt_W_lepton", "m_W_T", "dR__leptons", "n_jets","n_b_jets", 
                                                   "pt_tagjets", "m_tagjets", "tagj_opposite_hemisph"});
-      
-      // setup for  file used for drawing images
-      if (_docut==1){
-        std::vector<std::string> pic_particles = {"tagjet1", "tagjet2", "lepton1", "lepton2", "lepton3", "MET"};
-        std::ofstream pic_csv (out_dir + "/info_for_image.csv", std::ofstream::out);
-        for (auto & i_p : pic_particles){ 
-          pic_csv << "eta_" + i_p +";";
-          pic_csv << "phi_" + i_p +";";
-          pic_csv << "pt_" + i_p +";";
-        }
-        pic_csv << "\n";
-        pic_csv.close();
-      }
+
     }
 
     /// Perform the per-event analysis
@@ -278,37 +264,6 @@ namespace Rivet {
       if (ev_nominal_weight>=0){_c["pos_w_final"]->fill();}
       else {_c["neg_w_final"]->fill();}
 
-       // file used for drawing images
-      if (_docut==1){
-        // stop ordering by eta since want to plot each event now
-        std::ofstream pic_csv (getOption("OUTDIR") + "/info_for_image.csv", std::ofstream::app); 
-        // tagjet1
-        pic_csv << tag1_jet.eta() << ";";
-        pic_csv << tag1_jet.phi() << ";";
-        pic_csv << tag1_jet.pt() << ";";
-        //tagjet2
-        pic_csv << tag2_jet.eta() << ";";
-        pic_csv << tag2_jet.phi() << ";";
-        pic_csv << tag2_jet.pt() << ";";
-        //lepton1        
-        pic_csv << Z_lep_1.eta() << ";";
-        pic_csv << Z_lep_1.phi() << ";";
-        pic_csv << Z_lep_1.pt() << ";";
-        //lepton2
-        pic_csv << Z_lep_2.eta() << ";";
-        pic_csv << Z_lep_2.phi() << ";";
-        pic_csv << Z_lep_2.pt() << ";";
-        //lepton3
-        pic_csv << W_lep.eta() << ";";
-        pic_csv << W_lep.phi() << ";";
-        pic_csv << W_lep.pt() << ";";
-        // MET        
-        pic_csv << fourvec_MET.eta() << ";";
-        pic_csv << fourvec_MET.phi() << ";";
-        pic_csv << fourvec_MET.pt() << ";";
-        // terminate line
-        pic_csv << "\n";
-      }
     }
 
     double pair_m_dist_m_z(const FourMomentum& lep_1, const FourMomentum& lep_2){
@@ -319,11 +274,7 @@ namespace Rivet {
 
     /// Normalise histograms etc., after the run
     void finalize() {
-      std::string cut_str = _cutflows.str();
-      std::string cutflow_file = getOption("OUTDIR") + "/cutflow.txt";
-      std::ofstream ofs (cutflow_file, std::ofstream::out); // same for all variations so can overwrite and last will be correct
-      ofs << cut_str;
-      ofs.close();
+      std::cout << _cutflows.str();
 
       double pos_w_sum_initial = dbl(*_c["pos_w_initial"]); // from which also number of entries can be obtained
       double neg_w_sum_initial = dbl(*_c["neg_w_initial"]);
@@ -359,6 +310,6 @@ namespace Rivet {
   };
 
 
-  RIVET_DECLARE_PLUGIN(WmZ_lllv);
+  RIVET_DECLARE_PLUGIN(WZ_lllv);
 
 }
