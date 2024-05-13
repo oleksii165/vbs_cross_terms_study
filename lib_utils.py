@@ -286,8 +286,8 @@ def find_evnt_dir_and_file(search_com):
 
     return conf_dir, evnt_file_candidates
 
-def get_conf_cut_dir(evnt_dir, docut):
-    mydir = evnt_dir + f"/DOCUT_{docut}/"
+def get_conf_cut_dir(evnt_dir, routine, cut):
+    mydir = evnt_dir + f"/routine_{routine}_cut_{cut}/"
     if not os.path.exists(mydir): os.makedirs(mydir) 
     return mydir
 
@@ -309,12 +309,12 @@ def get_envt_log_names_dirs(base_dir,i_job_name):
     evnt_dir = base_dir + "/" + evnt_did 
     log_did = i_job_name + ".log"
     log_dir = evnt_dir + "/" + log_did
-    print("returnning envt did and dir",evnt_did, evnt_dir)
-    print("returnning log did and dir",log_did, log_dir)
+    print("returnning names structure for envt did and dir",evnt_did, evnt_dir)
+    print("returnning names structure log did and dir",log_did, log_dir)
     return evnt_did, evnt_dir, log_did, log_dir  
 
-def get_rivet_com(job_name, evtMax=-1, redoRivet=-1, redoPlots=-1, DOCUT=-1):
-    mycom = f'python run_rivet.py --conf="{job_name}" '
+def get_rivet_com(gen_job_name, evtMax=-1, redoRivet=-1, redoPlots=-1, DOCUT=-1):
+    mycom = f'python run_rivet.py --conf="{gen_job_name}" '
     if evtMax!=-1: mycom += f' --evtMax {evtMax} '
     if redoRivet!=-1: mycom += f' --redoRivet "{redoRivet}" '
     if redoPlots!=-1: mycom += f' --redoPlots "{redoPlots}" '
