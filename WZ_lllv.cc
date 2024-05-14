@@ -8,6 +8,7 @@
 #include "Rivet/Projections/DirectFinalState.hh"
 #include "Rivet/Projections/TauFinder.hh"
 #include "Rivet/Projections/MissingMomentum.hh"
+#include "Rivet/Projections/IdentifiedFinalState.hh"
 #include "Rivet/Projections/InvisibleFinalState.hh"
 #include "Rivet/Tools/Cutflow.hh"
 #include "Rivet/Tools/RivetHepMC.hh"
@@ -31,17 +32,11 @@ namespace Rivet {
 
     /// Book histograms and initialise projections before the run
     void init() {
-      std::string out_dir = getOption("cut");
-      
-      _docut = 0; // most cuts on number of particles are always applied to avoid segfault
-      if (out_dir.find("SR") != string::npos) _docut = 1;
-      // if (out_dir.find("DOCUT_NO") != string::npos) _docut = 0;
-      std::cout << "++++++received outidir" << out_dir << "meaning _docut is " << _docut << "\n";
+      _cut_mode = getOption("cut");
 
-      std::string jsonfilestr =  "WZ_lllv_cuts.json";
-      std::cout << "++++++assume .json for this WZ_lllv" << "is " << jsonfilestr << "\n";
-      std::ifstream json_file(jsonfilestr);
-      
+      std::cout << "++++++received cut_mode" << _cut_mode << "will do them accordingly \n";
+
+      std::ifstream json_file("WZ_lllv_cuts.json");
       _jcuts = json::parse(json_file);
       std::cout << "++++++ to check 1 var got photon pt min" << _jcuts["m_tagjets"] << "\n";
       _electron_eta_cut = (Cuts::absetaIn(_jcuts["eta_lepton_electron"][0][0], _jcuts["eta_lepton_electron"][0][1])) || 
@@ -61,7 +56,6 @@ namespace Rivet {
       // and apply some fiducial cuts on the dressed leptons depending on param passed
       DressedLeptons dressed_e(photons_for_dressing, bare_e, 0.1);
       DressedLeptons dressed_mu(photons_for_dressing, bare_mu, 0.1);
-      // declare(dressed_leps, "leptons_stable");
       declare(dressed_e, "e_stable");
       declare(dressed_mu, "mu_stable");
 
@@ -75,10 +69,13 @@ namespace Rivet {
       FastJets jetsfs(hadrons, FastJets::ANTIKT, 0.4, JetAlg::Muons::NONE, JetAlg::Invisibles::NONE);
       declare(jetsfs, "jets");
 
-      declare(MissingMomentum(), "METFinder");
+      IdentifiedFinalState nu_id;
+      nu_id.acceptNeutrinos();
+      PromptFinalState neutrinos(nu_id);
+      neutrinos.acceptTauDecays(false);
+      declare(neutrinos, "Neutrinos");
 
       // Book things and save names to normalize later
-      
       // plots common with others
       std::ifstream jet_hist_file("jet_hists.json");
       json jet_hist = json::parse(jet_hist_file);
@@ -111,9 +108,9 @@ namespace Rivet {
       }
       
       // Cut-flows
-      _cutflows.addCutflow("WZ_lllv_selections", {"three_leptons", "one_SFOC_or_more", "mZ_mismatch",
-                                                  "pt_W_lepton", "m_T_W", "dR__leptons", "n_jets","n_b_jets",
-                                                  "pt_tagjets", "m_tagjets", "tagj_opposite_hemisph","two_WZ_HS"});
+      _cutflows.addCutflow("WZ_lllv_selections", {"three_leptons_one_neutrino","res_shape_step_1", "mZ_mismatch",
+                                                  "pt_W_lepton", "m_T_W", "dR_leptons", "n_jets","n_b_jets",
+                                                  "tagj_opposite_hemisph_and_pt","m_tagjets" ,"two_WZ_HS"});
 
     }
 
@@ -129,7 +126,7 @@ namespace Rivet {
       // Retrieve dressed leptons, sorted by pT
       Particles e_stable;
       Particles mu_stable;
-      if (_docut==1){
+      if (_cut_mode=="SR"){
         e_stable = apply<FinalState>(event, "e_stable").particlesByPt(_electron_eta_cut && _lepton_stage1_pt_cut);
         mu_stable = apply<FinalState>(event, "mu_stable").particlesByPt(_muon_eta_cut && _lepton_stage1_pt_cut);
       }
@@ -141,55 +138,92 @@ namespace Rivet {
       Particles leptons = e_stable + mu_stable; 
 
       int nlep = leptons.size();
-      if (nlep!=_jcuts["n_lepton_stable"])  vetoEvent; // meaning both are e,mu and not tau
+      if (nlep < _jcuts["n_lepton_stable"])  vetoEvent; // meaning both are e,mu and not tau
+
+      const Particles& neutrinos = apply<PromptFinalState>(event, "Neutrinos").particlesByPt();
+      if (neutrinos.size() < _jcuts["n_neutrinos"]) vetoEvent;
       _cutflows.fillnext();
 
+      /////
+      // resonant shape algo copied from their previous routine
+      // https://gitlab.cern.ch/atlas-physics/pmg/rivet-routines/-/blob/master/STDM-2017-23_WZ_VBS_36ifb/ATLAS_2018_I1711223.cc
+      ////
+      int i, j, k;
+      double MassZ01 = 0., MassZ02 = 0., MassZ12 = 0.;
+      double MassW0 = 0., MassW1 = 0., MassW2 = 0.;
+      double WeightZ1, WeightZ2, WeightZ3;
+      double WeightW1, WeightW2, WeightW3;
+      double M1, M2, M3;
+      double WeightTotal1, WeightTotal2, WeightTotal3;
 
-      // check SFOC and m_ll and save possible pairs
-      std::vector<std::vector<int>> pairs_ind;
-      for (int i = 0; i < nlep; i++) {
-          const Particle& i_lep = leptons[i];
-          for (int j = 0; j < nlep; j++) {
-              // to avoid comparing to itself and double couting like (i,j),(j,i) as two separate pairs
-              if (i==j || j>i) continue;
-              const Particle& j_lep = leptons[j];
-              int i_sum_pids = i_lep.pid() + j_lep.pid(); // to have SFOC will be 0
-              double i_m_ll = (i_lep.mom() + j_lep.mom()).mass()/GeV;
-              if (i_sum_pids==0 && i_m_ll>_jcuts["m_ll_all_pairs"]) pairs_ind.push_back({i,j});
-          }
+      int icomb=0;
+      // try Z pair of leptons 01
+      if ( (leptons[0].pid() ==-(leptons[1].pid()))  && (leptons[2].pid()*neutrinos[0].pid()< 0) && (leptons[2].abspid()==neutrinos[0].abspid()-1)) {
+        MassZ01 = (leptons[0].momentum() + leptons[1].momentum()).mass();
+        MassW2 = (leptons[2].momentum() + neutrinos[0].momentum()).mass();
+        icomb = 1;
       }
-      if (pairs_ind.size()<1) vetoEvent;
+      // try Z pair of leptons 02
+      if ( (leptons[0].pid()==-(leptons[2].pid()))  && (leptons[1].pid()*neutrinos[0].pid()< 0) && (leptons[1].abspid()==neutrinos[0].abspid()-1)) {
+        MassZ02 = (leptons[0].momentum() + leptons[2].momentum()).mass();
+        MassW1 = (leptons[1].momentum() + neutrinos[0].momentum()).mass();
+        icomb = 2;
+      }
+      // try Z pair of leptons 12
+      if ( (leptons[1].pid()==-(leptons[2].pid())) && (leptons[0].pid()*neutrinos[0].pid()< 0) && (leptons[0].abspid()==neutrinos[0].abspid()-1)) {
+        MassZ12 = (leptons[1].momentum() + leptons[2].momentum()).mass();
+        MassW0 = (leptons[0].momentum() + neutrinos[0].momentum()).mass();
+        icomb = 3;
+      }
+
+      if (icomb<=0)  vetoEvent;
       _cutflows.fillnext();
 
-      // order found pairs by how close they are m_z
-      std::sort(pairs_ind.begin(), pairs_ind.end(), [this,leptons](std::vector<int> &ind_pair_1, std::vector<int> &ind_pair_2) {
-          double dist_pair_1 = pair_m_dist_m_z(leptons[ind_pair_1[0]], leptons[ind_pair_1[1]]);
-          double dist_pair_2 = pair_m_dist_m_z(leptons[ind_pair_2[0]], leptons[ind_pair_2[1]]);
-          return dist_pair_1 < dist_pair_2; // closest to m_z will be first
-      });
+      WeightZ1 = 1/(pow(MassZ01*MassZ01 - MZ_PDG*MZ_PDG,2) + pow(MZ_PDG*GammaZ_PDG,2));
+      WeightW1 = 1/(pow(MassW2*MassW2 - MW_PDG*MW_PDG,2) + pow(MW_PDG*GammaW_PDG,2));
+      WeightTotal1 = WeightZ1*WeightW1;
+      M1 = -1*WeightTotal1;
 
-      const FourMomentum& Z_lep_1 = leptons[pairs_ind[0][0]].mom();
-      const FourMomentum& Z_lep_2 = leptons[pairs_ind[0][1]].mom();
-      if (_docut==1 && pair_m_dist_m_z(Z_lep_1, Z_lep_2)>_jcuts["abs_diff_m_z"]) vetoEvent;
+      WeightZ2 = 1/(pow(MassZ02*MassZ02- MZ_PDG*MZ_PDG,2) + pow(MZ_PDG*GammaZ_PDG,2));
+      WeightW2 = 1/(pow(MassW1*MassW1- MW_PDG*MW_PDG,2) + pow(MW_PDG*GammaW_PDG,2));
+      WeightTotal2 = WeightZ2*WeightW2;
+      M2 = -1*WeightTotal2;
+
+      WeightZ3 = 1/(pow(MassZ12*MassZ12 - MZ_PDG*MZ_PDG,2) + pow(MZ_PDG*GammaZ_PDG,2));
+      WeightW3 = 1/(pow(MassW0*MassW0 - MW_PDG*MW_PDG,2) + pow(MW_PDG*GammaW_PDG,2));
+      WeightTotal3 = WeightZ3*WeightW3;
+      M3 = -1*WeightTotal3;
+
+      if( (M1 < M2 && M1 < M3) || (MassZ01 != 0 && MassW2 != 0 && MassZ02 == 0 && MassZ12 == 0) ) {
+        i = 0; j = 1; k = 2;
+      }
+      if((M2 < M1 && M2 < M3) || (MassZ02 != 0 && MassW1 != 0 && MassZ01 == 0 && MassZ12 == 0) ) {
+        i = 0; j = 2; k = 1;
+      }
+      if((M3 < M1 && M3 < M2) || (MassZ12 != 0 && MassW0 != 0 && MassZ01 == 0 && MassZ02 == 0) ) {
+        i = 1; j = 2; k = 0;
+      }
+
+      const FourMomentum& Z_lep_1 = leptons[i].momentum();
+      const FourMomentum& Z_lep_2 = leptons[j].momentum();
+      const FourMomentum& W_lep  = leptons[k].momentum();
+      const FourMomentum& Z_boson   = leptons[i].momentum()+leptons[j].momentum();
+//      FourMomentum Wboson   = leptons[k].momentum()+neutrinos[0].momentum();
+
+      ////
+      // apply resonant shape
+      ////
+
+      if (_cut_mode=="SR" && fabs(Z_boson.mass()/GeV - MZ_PDG)>_jcuts["abs_diff_m_z"]) vetoEvent;
       _cutflows.fillnext();
 
-      int ind_W_lep = 500;
-      for (int i = 0; i < nlep; i++) {
-              if (i==pairs_ind[0][0] || i==pairs_ind[0][1]) continue;
-              ind_W_lep = i;
-        }
-      if (ind_W_lep==500) vetoEvent;
-
-      const FourMomentum& W_lep = leptons[ind_W_lep].mom();
-      if (_docut==1 && W_lep.pT() < _jcuts["pt_W_lepton"]) vetoEvent;
+      if (_cut_mode=="SR" && W_lep.pT() < _jcuts["pt_W_lepton"]) vetoEvent;
       _cutflows.fillnext();
-
-      const MissingMomentum& METfinder = apply<MissingMomentum>(event, "METFinder");
-      const double pt_MET = METfinder.missingPt()/GeV;
-      const FourMomentum fourvec_MET = METfinder.missingMomentum();
-      const double d_phi_MET_lep = deltaPhi(fourvec_MET.phi(), W_lep.phi());
-      const double m_T_W = sqrt( 2*W_lep.pT()*pt_MET*(1 - cos(d_phi_MET_lep)) );
-      if (_docut==1 && m_T_W<_jcuts["m_T_W"]) vetoEvent;
+      
+      const double pt_neutrino = neutrinos[0].pt();
+      const double d_phi_MET_lep = deltaPhi(neutrinos[0].phi(), W_lep.phi());
+      const double m_T_W = sqrt( 2*W_lep.pT()*pt_neutrino*(1 - cos(d_phi_MET_lep)) );
+      if (_cut_mode=="SR" && m_T_W<_jcuts["m_T_W"]) vetoEvent;
       _cutflows.fillnext();
 
       // Retrieve clustered jets, sorted by pT, with a minimum pT cut
@@ -202,9 +236,9 @@ namespace Rivet {
       double dR_Z_lep_1_lep_2 = deltaR(Z_lep_1, Z_lep_2);  
       double dR_Z_lep_1_lep_W = deltaR(Z_lep_1, W_lep);  
       double dR_Z_lep_2_lep_W = deltaR(Z_lep_2, W_lep);  
-      if (_docut==1 && dR_Z_lep_1_lep_2 < _jcuts["dR_lepton1_lepton2_Z"]) vetoEvent; 
-      if (_docut==1 && dR_Z_lep_1_lep_W < _jcuts["dR_Z_leptons_W_lepton"]) vetoEvent; 
-      if (_docut==1 && dR_Z_lep_2_lep_W < _jcuts["dR_Z_leptons_W_lepton"]) vetoEvent; 
+      if (_cut_mode=="SR" && dR_Z_lep_1_lep_2 < _jcuts["dR_lepton1_lepton2_Z"]) vetoEvent; 
+      if (_cut_mode=="SR" && dR_Z_lep_1_lep_W < _jcuts["dR_Z_leptons_W_lepton"]) vetoEvent; 
+      if (_cut_mode=="SR" && dR_Z_lep_2_lep_W < _jcuts["dR_Z_leptons_W_lepton"]) vetoEvent; 
       _cutflows.fillnext();
 
       int n_jets = jets.size();
@@ -212,26 +246,33 @@ namespace Rivet {
       _cutflows.fillnext();
 
       int n_b_jets = count(btagging_jets, hasBTag());
-      if (_docut==1 && n_b_jets>_jcuts["n_b_jets"]) vetoEvent;
+      if (_cut_mode=="SR" && n_b_jets>_jcuts["n_b_jets"]) vetoEvent;
       _cutflows.fillnext();
 
-      const FourMomentum tag1_jet = jets[0].mom();
-      const FourMomentum tag2_jet = jets[1].mom();
-      if (_docut==1 && (tag1_jet.pT()<dbl(_jcuts["pt_tagjet1"])*GeV || tag2_jet.pT()<dbl(_jcuts["pt_tagjet2"])*GeV)) vetoEvent; 
+      FourMomentum tag1_jet = jets[0].mom();
+      FourMomentum tag2_jet;
+      bool foundVBSJetPair = false;
+      for (const Jet& i_jet : jets) {
+        if(i_jet.pT() > dbl(_jcuts["pt_tagjet1"])*GeV && i_jet.eta()*tag1_jet.eta() < 0.) {
+          tag2_jet = i_jet.mom();
+          foundVBSJetPair = true;
+          break;
+        }
+      }
+      if (!foundVBSJetPair)  vetoEvent;
       _cutflows.fillnext();
+
+      if (_cut_mode=="SR" && (tag1_jet.pT()<dbl(_jcuts["pt_tagjet1"])*GeV || tag2_jet.pT()<dbl(_jcuts["pt_tagjet2"])*GeV)) vetoEvent;
 
       const double m_tagjets = (tag1_jet + tag2_jet).mass()/GeV;
-      if (_docut==1 && m_tagjets<dbl(_jcuts["m_tagjets"])*GeV) vetoEvent;
+      if (_cut_mode=="SR" && m_tagjets<dbl(_jcuts["m_tagjets"])*GeV) vetoEvent;
       _cutflows.fillnext();
 
       const double dy_tagjets =  fabs(deltaRap(tag1_jet, tag2_jet));
-      const double prod_y_tagjets =  tag1_jet.rap()*tag2_jet.rap();
-      if (_docut==1 && prod_y_tagjets > 0) vetoEvent;
-      _cutflows.fillnext();
 
-      const double m_T_WZ_term1 =  pow(Z_lep_1.pT() + Z_lep_2.pT() + W_lep.pT() + pt_MET, 2);
-      const double m_T_WZ_term2 =  pow(Z_lep_1.px() + Z_lep_2.px() + W_lep.px() + fourvec_MET.px(), 2);
-      const double m_T_WZ_term3 =  pow(Z_lep_1.py() + Z_lep_2.py() + W_lep.py() + fourvec_MET.py(), 2);
+      const double m_T_WZ_term1 =  pow(Z_lep_1.pT() + Z_lep_2.pT() + W_lep.pT() + pt_neutrino, 2);
+      const double m_T_WZ_term2 =  pow(Z_lep_1.px() + Z_lep_2.px() + W_lep.px() + neutrinos[0].px(), 2);
+      const double m_T_WZ_term3 =  pow(Z_lep_1.py() + Z_lep_2.py() + W_lep.py() + neutrinos[0].py(), 2);
       const double m_T_WZ = sqrt(m_T_WZ_term1 - m_T_WZ_term2 - m_T_WZ_term3);
 
       // do clipping - in case with 2+ w/z to avoid much work take two w with highest pt
@@ -276,7 +317,7 @@ namespace Rivet {
       _h["eta_lepton"]->fill(Z_lep_2.eta());
       _h["eta_lepton"]->fill(W_lep.eta());
       // analysis-specific
-      _h["pt_MET"]->fill(pt_MET);
+      _h["pt_neutrino"]->fill(pt_neutrino);
       _h["m_T_W"]->fill(m_T_W);
       _h["n_b_jets"]->fill(n_b_jets);
       _h["dR_leptons"]->fill(dR_Z_lep_1_lep_2);
@@ -284,6 +325,7 @@ namespace Rivet {
       _h["dR_leptons"]->fill(dR_Z_lep_2_lep_W);
 
       // clipping-related
+      _h["m_WZ"]->fill(hs_diboson_mass);
       _h["m_T_WZ_clip_inf"]->fill(m_T_WZ);
       if (ev_nominal_weight>=0){_c["pos_w_final_clip_inf"]->fill();}
       else {_c["neg_w_final_clip_inf"]->fill();}
@@ -300,12 +342,6 @@ namespace Rivet {
         }
       }
 
-    }
-
-    double pair_m_dist_m_z(const FourMomentum& lep_1, const FourMomentum& lep_2){
-        double i_m_ll = (lep_1 + lep_2).mass()/GeV;
-        double i_m_ll_dist_m_z = fabs(i_m_ll-91.18);
-        return i_m_ll_dist_m_z;
     }
 
     /// Normalise histograms etc., after the run
@@ -333,7 +369,7 @@ namespace Rivet {
     map<string, Histo1DPtr> _h;
     map<string, Histo2DPtr> _h2;
     map<string, CounterPtr> _c;
-    int _docut;
+    std::string _cut_mode;
     Cut _electron_eta_cut;
     Cut _muon_eta_cut;
     Cut _lepton_stage1_pt_cut;
@@ -341,6 +377,11 @@ namespace Rivet {
     Cutflows _cutflows;
     std::vector<std::string> _hist_names;
     std::vector<std::string> _clips {"inf", "3000", "2000", "1500", "1000", "700"};
+    double MZ_PDG = 91.1876;
+    double MW_PDG = 80.385;
+    double GammaZ_PDG = 2.4952;
+    double GammaW_PDG = 2.085;
+
 
       /// @}
 

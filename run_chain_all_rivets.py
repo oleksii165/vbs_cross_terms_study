@@ -1,5 +1,4 @@
 from pandaclient import panda_api
-# rucio add-rule user.okurdysh.MadGraph_Zy_vvy_FT2_QUAD_try2.log 1 IN2P3-CC_LOCALGROUPDISK
 import subprocess
 import lib_utils as lu
 from optparse import OptionParser
@@ -43,9 +42,10 @@ def get_com(jobname):
                f'--genJobName "{jobname}" --routine "{opts.routine}" --cut "{opts.cut}" '
                f'--genDoDownload 1 --saveInfoAfterRivet 1 --doMakeHtml {opts.doMakeHtml}')
     else:
+        param_download_proc = 0 if opts.runRivet else 1 
         com = (f'python run_chain.py '
                f'--runLocally 0 --runRivet {opts.runRivet} '
-               f'--genDoDownload 1 --saveInfoAfterRivet 1 --doMakeHtml {opts.doMakeHtml} '
+               f'--genDoDownload {param_download_proc} --saveInfoAfterRivet {param_download_proc} --doMakeHtml {opts.doMakeHtml} '
                f'--genJobName "{jobname}" --routine "{opts.routine}" --cut "{opts.cut}" ')
     return com
 

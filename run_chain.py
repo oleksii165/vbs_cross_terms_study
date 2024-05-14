@@ -59,14 +59,19 @@ def prepare_grid_rivet_files():
 
 
 
-def save_job_infos(mydir, xsec_no_cuts_fb):
-    yoda_unmerged_names = glob.glob(mydir + "/user*MyOutput.yoda.gz")
-    if len(yoda_unmerged_names)==0:
-        print("dont see yoda file in dir ", mydir, ",return")
-        return
+def save_job_infos(mydir, xsec_no_cuts_fb, runLocally):
     merged_yoda_name = mydir + "MyOutput.yoda.gz"
+    if not runLocally:
+        yoda_unmerged_names = glob.glob(mydir + "/user*MyOutput.yoda.gz")
+        if len(yoda_unmerged_names)==0:
+            print("dont see yoda  files for merging in dir ", mydir, ",return")
+            return
+        if not os.path.exists(merged_yoda_name):
+            subprocess.call(f"yodamerge -o {merged_yoda_name} {' '.join(yoda_unmerged_names)}", shell=True, cwd=mydir)
+
     if not os.path.exists(merged_yoda_name):
-        subprocess.call(f"yodamerge -o {merged_yoda_name} {' '.join(yoda_unmerged_names)}", shell=True, cwd=mydir)
+        print("dont see yoda  files for merging in dir ", mydir, ",return")
+        return
 
     yoda_f = yoda.read(merged_yoda_name)
     print("reading from yoda file ", merged_yoda_name, "wherehist naes will save those to root")
@@ -106,8 +111,12 @@ def save_job_infos(mydir, xsec_no_cuts_fb):
 
 
 def get_ext_in_files(routine):
+    standard_pack = f"Rivet{routine}.so,{routine}_cuts.json,{routine}_hists.json,"
+    standard_pack += ",jet_hists.json,"
     if routine=="Zy_vvy":
-        files = "RivetZy_vvy.so,Zy_vvy_cuts.json,Zy_vvy_hists.json,jet_hists.json,photon_hists.json"
+        files = standard_pack + "photon_hists.json"
+    elif routine=="WZ_lllv":
+        files = standard_pack + "lepton_hists.json"
     return files
 
 
@@ -171,7 +180,7 @@ def main():
         _, evnt_dir, _, _ = lu.get_envt_log_names_dirs(base_dir,opts.genJobName)
         xsec_no_cuts_fb = lu.get_xsec(log_file)
         rivet_out_dir = lu.get_conf_cut_dir(evnt_dir, opts.routine, opts.cut)
-        save_job_infos(rivet_out_dir, xsec_no_cuts_fb)
+        save_job_infos(rivet_out_dir, xsec_no_cuts_fb, opts.runLocally)
         if opts.doMakeHtml:
             plot_com = f"rivet-mkhtml MyOutput.yoda.gz:'Title={prod_dec}' --no-ratio"
             print("#### will run mkhtml in dir", rivet_out_dir, "with com", plot_com)

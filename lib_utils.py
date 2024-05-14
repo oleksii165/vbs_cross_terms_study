@@ -286,7 +286,7 @@ def get_op_from_dir(mydir,prod_dec):
     if "try" in temp2: temp3 = temp2[:temp2.find("_try")]
     else: temp3  = temp2
     arr = temp3.split("_")
-    print("vec for this str", arr)
+    # print("vec for this str", arr)
     ops = arr[0]
     regime = arr[1]
     ops_arr = []
