@@ -17,7 +17,7 @@
   "pt_MET": 30,
 
   "m_tagjets": 1000.0,
-  "m_W_T": 30,
+  "m_T_W": 30,
 
   "centrality_jjly":0.35,
   "dy_tagjets": 2.0,

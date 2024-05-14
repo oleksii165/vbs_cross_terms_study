@@ -112,11 +112,14 @@ def save_job_infos(mydir, xsec_no_cuts_fb, runLocally):
 
 def get_ext_in_files(routine):
     standard_pack = f"Rivet{routine}.so,{routine}_cuts.json,{routine}_hists.json,"
-    standard_pack += ",jet_hists.json,"
+    standard_pack += "jet_hists.json,"
     if routine=="Zy_vvy":
         files = standard_pack + "photon_hists.json"
     elif routine=="WZ_lllv":
         files = standard_pack + "lepton_hists.json"
+    elif routine=="Wy_lvy":
+        files = standard_pack + "photon_hists.json,lepton_hists.json"
+
     return files
 
 
