@@ -10,7 +10,11 @@ import os
 c = panda_api.get_api()
 rucio_client = Client()
 
-prod_dec_to_move = ["Zy_vvy"]
+prod_dec_to_move = ["WmWm_lvlv","WpWp_lvlv",
+                    "WmZ_lllv","WpZ_lllv",
+                    "Wmy_lvy", "Wpy_lvy",
+                    # "Zy_vvy"
+                    ]
 ignore_outer_cross_terms = True
 debug_print = False
 days_to_search_jobs = 30
@@ -22,6 +26,7 @@ task_names = [i_task['taskname'].replace("/","") for i_task in tasks
               if "rivet" not in i_task['taskname']]
 
 for i_prod_dec in prod_dec_to_move:
+    print("******* will move files for process", i_prod_dec)
     prod_dec_tasks = [i_name for i_name in task_names if i_prod_dec in i_name]
     for i_job_name in prod_dec_tasks:
         ops_arr, order, _ = lu.get_op_from_dir(i_job_name+"_EXT0", i_prod_dec)
