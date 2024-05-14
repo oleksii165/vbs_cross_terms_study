@@ -1,4 +1,5 @@
 from pandaclient import panda_api
+# rucio add-rule user.okurdysh.MadGraph_Zy_vvy_FT2_QUAD_try2.log 1 IN2P3-CC_LOCALGROUPDISK
 import subprocess
 import lib_utils as lu
 from optparse import OptionParser
@@ -13,15 +14,21 @@ parser.add_option("--runCROSS", default = 0, type="int")
 parser.add_option("--skipOuterCROSS", default = 1, type="int")
 parser.add_option("--numLocJobsParallel", default = 15, type="int")
 parser.add_option("--runLocally", default = 0, type='int')
+parser.add_option("--runRivet", default = 0, type='int')
 parser.add_option("--routine", default = "WmWm_lvlv")
 parser.add_option("--cut", default = "SR")
+parser.add_option("--doMakeHtml", default = 0, type="int")
 
 opts, _ = parser.parse_args()
 c = panda_api.get_api()
 tasks = c.get_tasks(limit=100000000, days=13000, username="Oleksii Kurdysh", status="done") # get already last try since only retry if it failed
 task_pref = "MadGraph"
 if opts.tGenDec=="llll": task_pref+="Fixed"
-task_names = [i_task['taskname'].replace("/","") for i_task in tasks if task_pref in i_task['taskname'] and f"{opts.tGenProd}_" in i_task['taskname'] and f"{opts.tGenDec}_" in i_task['taskname']]
+task_names = [i_task['taskname'].replace("/","") for i_task in tasks
+              if task_pref in i_task['taskname']
+              and f"{opts.tGenProd}_" in i_task['taskname']
+              and f"{opts.tGenDec}_" in i_task['taskname']
+              and "rivet" not in i_task['taskname']]
 all_ops, op_pairs = lu.get_ops(include_fs0_2=False)
 splitedSize = opts.numLocJobsParallel if opts.runLocally else 1
 blocks_of_single_ops = [all_ops[x:x + splitedSize] for x in range(0, len(all_ops), splitedSize)]
@@ -32,12 +39,13 @@ blocks_of_op_pairs = [op_pairs[x:x + splitedSize] for x in range(0, len(op_pairs
 def get_com(jobname):
     if opts.runLocally:
         com = (f'python run_chain.py '
-               f'--runLocally 1 --runRivet 1 '
+               f'--runLocally 1 --runRivet {opts.runRivet} '
                f'--genJobName "{jobname}" --routine "{opts.routine}" --cut "{opts.cut}" '
-               f'--doDownload 1 --saveInfoAfterRivet 1 --doMakeHtml 1')
+               f'--genDoDownload 1 --saveInfoAfterRivet 1 --doMakeHtml {opts.doMakeHtml}')
     else:
         com = (f'python run_chain.py '
-               f'--runLocally 0 --runRivet 1 '
+               f'--runLocally 0 --runRivet {opts.runRivet} '
+               f'--genDoDownload 1 --saveInfoAfterRivet 1 --doMakeHtml {opts.doMakeHtml} '
                f'--genJobName "{jobname}" --routine "{opts.routine}" --cut "{opts.cut}" ')
     return com
 

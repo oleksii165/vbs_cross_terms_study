@@ -14,15 +14,19 @@ import lib_utils as lu
 from optparse import OptionParser
 import math
 
+
 def prepare_grid_files(i_job_name):
     print("will download+untar files evnt and log for", i_job_name)
     evnt_did, evnt_dir, log_did, log_dir = lu.get_envt_log_names_dirs(base_dir,i_job_name)
-    if not os.path.exists(evnt_dir):
-        print ("will download", evnt_did, "since dir doesn't exist", evnt_dir)
-        subprocess.call(f"rucio download {evnt_did}", shell=True, cwd=base_dir)
-    else:
-        print("have ", evnt_dir ,"already so dont download")
+    if opts.runLocally:
+        if not os.path.exists(evnt_dir):
+            print ("will download", evnt_did, "since dir doesn't exist", evnt_dir)
+            subprocess.call(f"rucio download {evnt_did}", shell=True, cwd=base_dir)
+        else:
+            print("have ", evnt_dir ,"already so dont download")
+
     if not os.path.exists(log_dir):
+        if not opts.runLocally: os.makedirs(evnt_dir)
         print ("will download", log_did, "since dir doesn't exist", log_dir)
         subprocess.call(f"rucio download {log_did}", shell=True, cwd=evnt_dir)
     else:
@@ -38,35 +42,55 @@ def prepare_grid_files(i_job_name):
     else:
         print("dont untar since did it before res in ", untared_dir_cand[0])
 
-def save_job_infos(mydir, xsec_fb):
-    yoda_f_str = mydir + "MyOutput.yoda.gz"
+def prepare_grid_rivet_files():
+    rivet_job_name = lu.get_rivet_job_name(opts.genJobName,opts.routine,opts.cut)
+    rivet_job_files = rivet_job_name.replace("/","") + "_EXT0"
+    print("will download yoda files for", rivet_job_name)
+    _, evnt_dir, _, _ = lu.get_envt_log_names_dirs(base_dir,opts.genJobName)
+    conf_cut_dir = lu.get_conf_cut_dir(evnt_dir, opts.routine,opts.cut)
+    if len(glob.glob(f"{conf_cut_dir}/*yoda*"))==0:
+        print ("will download", rivet_job_files, "since no yoda in ", conf_cut_dir)
+        subprocess.call(f"rucio download {rivet_job_files}", shell=True, cwd=conf_cut_dir)
+        # dowloading will create another folder but shoter path names keep it in current
+        subprocess.call(f"mv {rivet_job_files}/* .", shell=True, cwd=conf_cut_dir)
+        subprocess.call(f"rmdir {rivet_job_files}", shell=True, cwd=conf_cut_dir)
+    else:
+        print("have yoda in", conf_cut_dir ,"already so dont download")
 
-    if not os.path.exists(yoda_f_str): 
+
+
+def save_job_infos(mydir, xsec_no_cuts_fb):
+    yoda_unmerged_names = glob.glob(mydir + "/user*MyOutput.yoda.gz")
+    if len(yoda_unmerged_names)==0:
         print("dont see yoda file in dir ", mydir, ",return")
         return
-    
-    yoda_f = yoda.read(yoda_f_str)
-    print("reading from yoda file ", yoda_f_str)
+    merged_yoda_name = mydir + "MyOutput.yoda.gz"
+    if not os.path.exists(merged_yoda_name):
+        subprocess.call(f"yodamerge -o {merged_yoda_name} {' '.join(yoda_unmerged_names)}", shell=True, cwd=mydir)
+
+    yoda_f = yoda.read(merged_yoda_name)
+    print("reading from yoda file ", merged_yoda_name, "wherehist naes will save those to root")
     all_hists_in_yoda = [iname  for iname in yoda_f.keys() if "[" not in iname and "RAW" not in iname]
     hists_1h_in_yoda = []
     for i_name in all_hists_in_yoda:
         if yoda_f[i_name].type()=="Histo1D": hists_1h_in_yoda.append(i_name)  
-    print("have 1d hists to be saved in root:", hists_1h_in_yoda, "in yoda file", yoda_f_str)
+    print("have 1d hists to be saved in root:", hists_1h_in_yoda, "in yoda file", merged_yoda_name)
+    root_file = ROOT.TFile(mydir + "/hists.root","UPDATE")
+    for i_hist in hists_1h_in_yoda:
+        h_yoda =  yoda_f[i_hist]
+        h_root = lu.yoda_to_root_1d(h_yoda, i_hist.split("/")[-1])
+        h_root.Write("", ROOT.TObject.kOverwrite)
+    root_file.Close()
 
-    root_file_name = mydir + "/hists.root"
-    # save fid xsec
-    lu.write_to_f(mydir + "xsec_fb.txt", xsec_fb) # before cuts
-
-    rivet_dir_name = f"/{opts.routine}:cut={opts.cut}/"
-    print("looking for prefix in counter",rivet_dir_name)
-    pos_n_in, pos_w_in = yoda_f[f"{rivet_dir_name}pos_w_initial"].numEntries(), yoda_f[f"{rivet_dir_name}pos_w_initial"].sumW()
-    neg_n_in, neg_w_in= yoda_f[f"{rivet_dir_name}neg_w_initial"].numEntries(), yoda_f[f"{rivet_dir_name}neg_w_initial"].sumW()
-    # save res to txt
-    # similarly for clipping
+    lu.write_to_f(mydir + "xsec_fb.txt", xsec_no_cuts_fb) # before cuts
+    rivet_internal_conf_name = f"/{opts.routine}:cut={opts.cut}/"
+    print("looking for prefix in counter",rivet_internal_conf_name)
+    pos_n_in, pos_w_in = yoda_f[f"{rivet_internal_conf_name}pos_w_initial"].numEntries(), yoda_f[f"{rivet_internal_conf_name}pos_w_initial"].sumW()
+    neg_n_in, neg_w_in= yoda_f[f"{rivet_internal_conf_name}neg_w_initial"].numEntries(), yoda_f[f"{rivet_internal_conf_name}neg_w_initial"].sumW()
     for i_clip in ["700", "1000", "1500", "2000", "3000", "inf"]:
-        i_counter_pos = yoda_f[f"{rivet_dir_name}pos_w_final_clip_{i_clip}"]
+        i_counter_pos = yoda_f[f"{rivet_internal_conf_name}pos_w_final_clip_{i_clip}"]
         i_pos_n_f, i_pos_w_f = i_counter_pos.numEntries(), i_counter_pos.sumW()
-        i_counter_neg = yoda_f[f"{rivet_dir_name}neg_w_final_clip_{i_clip}"]
+        i_counter_neg = yoda_f[f"{rivet_internal_conf_name}neg_w_final_clip_{i_clip}"]
         i_neg_n_f, i_neg_w_f = i_counter_neg.numEntries(), i_counter_neg.sumW()
         print("for clip", i_clip, "num neg and pos w after cuts", i_pos_w_f, i_neg_w_f, "sum", i_pos_w_f+i_neg_w_f)
         i_frac_cut = (i_pos_w_f+i_neg_w_f) / (pos_w_in+neg_w_in)
@@ -76,17 +100,10 @@ def save_job_infos(mydir, xsec_fb):
         print("after cuts have pos and neg events",i_pos_n_f, i_neg_n_f,"which gives eff", i_frac_cut, "with error", i_frac_cut_er_bar)
         #
         clip_out_suff = f"_clip_{i_clip}" 
-        lu.write_to_f(mydir + f"xsec_times_frac_fb{clip_out_suff}.txt", xsec_fb*i_frac_cut)
+        lu.write_to_f(mydir + f"xsec_times_frac_fb{clip_out_suff}.txt", xsec_no_cuts_fb * i_frac_cut)
         lu.write_to_f(mydir + f"frac_after_cuts{clip_out_suff}.txt", i_frac_cut)
         lu.write_to_f(mydir + f"frac_after_cuts_error_bar{clip_out_suff}.txt", i_frac_cut_er_bar)
 
-    # save hists in root for further plotting
-    root_file = ROOT.TFile(root_file_name,"UPDATE")
-    for i_hist in hists_1h_in_yoda: # they are in format '/WpWm_lvlv:DOCUT=YES/leptons_pids'
-        h_yoda =  yoda_f[i_hist]
-        h_root = lu.yoda_to_root_1d(h_yoda, i_hist.split("/")[-1])
-        h_root.Write("", ROOT.TObject.kOverwrite)
-    root_file.Close()
 
 def get_ext_in_files(routine):
     if routine=="Zy_vvy":
@@ -101,7 +118,7 @@ def main():
     parser.add_option("--evtMax", default = 100000000)
     parser.add_option("--runRivet", default = 0, type='int')
     parser.add_option("--routine", default = "ssWW_lvlv")
-    parser.add_option("--doDownload", default = 0, type='int')
+    parser.add_option("--genDoDownload", default = 0, type='int')
     parser.add_option("--runLocally", default = 0, type='int')
     parser.add_option("--saveInfoAfterRivet", default = 0, type='int')
     parser.add_option("--doMakeHtml", default = 0, type='int')
@@ -118,11 +135,12 @@ def main():
 
     print("##################### \n ############# will work on job", opts.genJobName)
     prod_dec, base_dir = lu.find_prod_dec_and_dir(opts.genJobName) # dir where all files are stored
-    if opts.doDownload and opts.runLocally:
+    if opts.genDoDownload:
         prepare_grid_files(opts.genJobName)
         evnt_file, log_file = lu.get_evnt_log_files(base_dir,opts.genJobName)
-        if evnt_file==-1 or log_file==-1: return 
-    
+        if (evnt_file==-1 or log_file==-1) and opts.runLocally: return
+        if log_file==-1 and not opts.runLocally: return
+
     if opts.runRivet:
         if opts.runLocally:
             run_com = f'athena rivet_job.py '
@@ -137,14 +155,23 @@ def main():
         print("#### will run rivet with", run_com)
         subprocess.call(run_com, shell=True)
 
-    # todo implement saving files from running on GRID
-    if opts.runLocally and opts.saveInfoAfterRivet:
-        # get xsec after cuts
-        evnt_files, log_file = lu.get_evnt_log_files(base_dir,opts.genJobName)
-        evnt_dir = os.path.dirname(evnt_files[0])
-        xsec_fb = lu.get_xsec(log_file)
+    if not opts.runLocally and opts.saveInfoAfterRivet:
+        tasks = c.get_tasks(limit=100000000, days=13000, username="Oleksii Kurdysh", status="done")
+        rivet_done_task_names = [i_task['taskname'].replace("/","") for i_task in tasks if "rivet" in i_task['taskname']]
+        rivet_job_name = lu.get_rivet_job_name(opts.genJobName,opts.routine,opts.cut)
+        rivet_job_done = 0
+        if rivet_job_name in rivet_done_task_names: rivet_job_done = 1
+        if not rivet_job_done:
+            print("********** rivet task for this job is not finished", rivet_job_name)
+            return
+        prepare_grid_rivet_files()
+
+    if opts.saveInfoAfterRivet:
+        _, log_file = lu.get_evnt_log_files(base_dir,opts.genJobName)
+        _, evnt_dir, _, _ = lu.get_envt_log_names_dirs(base_dir,opts.genJobName)
+        xsec_no_cuts_fb = lu.get_xsec(log_file)
         rivet_out_dir = lu.get_conf_cut_dir(evnt_dir, opts.routine, opts.cut)
-        save_job_infos(rivet_out_dir, xsec_fb)
+        save_job_infos(rivet_out_dir, xsec_no_cuts_fb)
         if opts.doMakeHtml:
             plot_com = f"rivet-mkhtml MyOutput.yoda.gz:'Title={prod_dec}' --no-ratio"
             print("#### will run mkhtml in dir", rivet_out_dir, "with com", plot_com)

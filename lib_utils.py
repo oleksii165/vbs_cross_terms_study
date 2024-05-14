@@ -100,17 +100,23 @@ def get_evnt_log_files(base_dir,i_job_name):
     evnt_did, evnt_dir, log_did, log_dir_before_untar = get_envt_log_names_dirs(base_dir,i_job_name)
     evnt_candidates_out = -1
     log_file = -1
-    if os.path.exists(evnt_dir) and os.path.exists(log_dir_before_untar):
-        print("directories for evnt and log exist")
+    if os.path.exists(evnt_dir):
+        print("directories for evnt  exist")
         evnt_candidates = glob.glob(evnt_dir + "/*EVNT.root")
-        log_candidates = glob.glob(log_dir_before_untar + "/tarball_PandaJob*/log.generate")
         print("evnt candidates of len",len(evnt_candidates), evnt_candidates)
-        print("log candidates of len",len(log_candidates), log_candidates)
-        if len(evnt_candidates)>0 and len(log_candidates)==1:
+        if len(evnt_candidates)>0:
             evnt_candidates_out = evnt_candidates
+    else:
+        print("directories for evnt  DOESN:T exist")
+
+    if os.path.exists(log_dir_before_untar):
+        print("directories for log exist")
+        log_candidates = glob.glob(log_dir_before_untar + "/tarball_PandaJob*/log.generate")
+        print("log candidates of len",len(log_candidates), log_candidates)
+        if len(log_candidates)==1:
             log_file =  log_candidates[0]
     else:
-        print("directories for evnt and log DOESN:T exist")
+        print("directories for log  DOESN:T exist")
 
     print("returning evnt files", evnt_candidates_out)
     print("returning log file", log_file)
