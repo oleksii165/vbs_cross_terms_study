@@ -38,7 +38,7 @@ def prepare_grid_files(i_job_name):
     else:
         print("dont untar since did it before res in ", untared_dir_cand[0])
 
-def save_job_infos(mydir, xsec_fb, prod_dec):
+def save_job_infos(mydir, xsec_fb):
     yoda_f_str = mydir + "MyOutput.yoda.gz"
 
     if not os.path.exists(yoda_f_str): 
@@ -88,6 +88,11 @@ def save_job_infos(mydir, xsec_fb, prod_dec):
         h_root.Write("", ROOT.TObject.kOverwrite)
     root_file.Close()
 
+def get_ext_in_files(routine):
+    if routine=="Zy_vvy":
+        files = "RivetZy_vvy.so,Zy_vvy_cuts.json,Zy_vvy_hists.json,jet_hists.json,photon_hists.json"
+    return files
+
 
 def main():
     parser = OptionParser()
@@ -113,7 +118,7 @@ def main():
 
     print("##################### \n ############# will work on job", opts.genJobName)
     prod_dec, base_dir = lu.find_prod_dec_and_dir(opts.genJobName) # dir where all files are stored
-    if opts.doDownload:
+    if opts.doDownload and opts.runLocally:
         prepare_grid_files(opts.genJobName)
         evnt_file, log_file = lu.get_evnt_log_files(base_dir,opts.genJobName)
         if evnt_file==-1 or log_file==-1: return 
@@ -123,9 +128,12 @@ def main():
             run_com = f'athena rivet_job.py '
             run_com += f'''-c 'runLocally=1;conf="{opts.genJobName}";routine="{opts.routine}";cut="{opts.cut}"' '''
             run_com += f'--evtMax {opts.evtMax}'
-        # todo implement running on grid
-        # else:
-        # pathena rivet_job.py -c 'conf="user.okurdysh.MadGraph_Zy_vvy_FT2_QUAD_try2";DOCUT="DOCUT_YES"' --extOutFile=MyOutput.yoda.gz --inDS=user.okurdysh.MadGraph_Zy_vvy_FT2_QUAD_try2_EXT0 --outDS=user.okurdysh.rivettestFT2vvy7 --extFile=RivetZy_vvy.so,Zy_vvy_cuts.json,jet_hists.json,photon_hists.json,lepton_hists.json,Zy_vvy_hists.json
+        else:
+            ext_files_str = get_ext_in_files(opts.routine)
+            run_com = 'pathena rivet_job.py '
+            run_com += f'''-c 'runLocally=0;conf="{opts.genJobName}";routine="{opts.routine}";cut="{opts.cut}"' '''
+            run_com += f'--extOutFile=MyOutput.yoda.gz --extFile={ext_files_str} '
+            run_com += f'--inDS={opts.genJobName}_EXT0 --outDS={lu.get_rivet_job_name(opts.genJobName,opts.routine,opts.cut)}'
         print("#### will run rivet with", run_com)
         subprocess.call(run_com, shell=True)
 
@@ -136,12 +144,11 @@ def main():
         evnt_dir = os.path.dirname(evnt_files[0])
         xsec_fb = lu.get_xsec(log_file)
         rivet_out_dir = lu.get_conf_cut_dir(evnt_dir, opts.routine, opts.cut)
-        save_job_infos(rivet_out_dir, xsec_fb, prod_dec)
+        save_job_infos(rivet_out_dir, xsec_fb)
         if opts.doMakeHtml:
             plot_com = f"rivet-mkhtml MyOutput.yoda.gz:'Title={prod_dec}' --no-ratio"
             print("#### will run mkhtml in dir", rivet_out_dir, "with com", plot_com)
             subprocess.call(plot_com, shell=True, cwd = rivet_out_dir)
-
 
     return 0
 

@@ -32,6 +32,9 @@ def get_fitted_plot(prod_dec):
 
     return mystr, bins
 
+def get_rivet_job_name(genJobName,routine,cut):
+    return f'{genJobName}_rivet_{routine}_cut_{cut}'
+
 def get_missing_ops(prod_dec):
     if prod_dec=="Zy_vvy":
         ops = ["FS0", "FS1", "FS2", "FS02",
