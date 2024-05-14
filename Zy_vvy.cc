@@ -31,16 +31,11 @@ namespace Rivet {
 
     /// Book histograms and initialise projections before the run
     void init() {
-      std::string out_dir = getOption("OUTDIR");
+       _cut_mode = getOption("cut");
       
-      _docut = 0; // most cuts on number of particles are always applied to avoid segfault
-      if (out_dir.find("DOCUT_YES") != string::npos) _docut = 1;
-      std::cout << "++++++received outidir" << out_dir << "meaning _docut is " << _docut << "\n";
+      std::cout << "++++++received cut_mode" << _cut_mode << "will do them accordingly \n";
 
-      std::string jsonfilestr = "Zy_vvy_cuts.json";
-      std::cout << "++++++assume .json for this Zy_vvy" << "is " << jsonfilestr << "\n";
-      std::ifstream json_file(jsonfilestr);
-      
+      std::ifstream json_file("Zy_vvy_cuts.json");
       _jcuts = json::parse(json_file);
       std::cout << "++++++ to check json 1 var got photon pt min" << _jcuts["pt_photon"] << "\n";
       _electron_eta_cut = (Cuts::absetaIn(_jcuts["eta_lepton_electron"][0][0], _jcuts["eta_lepton_electron"][0][1])) || 
@@ -108,12 +103,6 @@ namespace Rivet {
         book(_h[it.key()], it.key(), it.value()[0], it.value()[1], it.value()[2]);
         _hist_names.push_back(it.key());
       }
-      // from lepton only take nleps to see 0
-      std::ifstream lep_hist_file("lepton_hists.json");
-      json lep_hist = json::parse(lep_hist_file);
-      book(_h["n_lepton_stable"],  "n_lepton_stable", 
-          lep_hist["n_lepton_stable"][0], lep_hist["n_lepton_stable"][1], lep_hist["n_lepton_stable"][2]);
-      _hist_names.push_back("n_lepton_stable");
       // plots that are not in other ana
       std::ifstream ana_hist_file("Zy_vvy_hists.json");
       json ana_hist = json::parse(ana_hist_file);
@@ -125,20 +114,12 @@ namespace Rivet {
       //counter for efficiency
       book(_c["pos_w_initial"],"pos_w_initial");
       book(_c["neg_w_initial"],"neg_w_initial");
-      //
-      book(_c["pos_w_final_clip_700"], "pos_w_final_clip_700");
-      book(_c["pos_w_final_clip_1000"], "pos_w_final_clip_1000");
-      book(_c["pos_w_final_clip_1500"], "pos_w_final_clip_1500");
-      book(_c["pos_w_final_clip_2000"], "pos_w_final_clip_2000");
-      book(_c["pos_w_final_clip_3000"], "pos_w_final_clip_3000");
-      book(_c["pos_w_final_clip_inf"], "pos_w_final_clip_inf");
-      //
-      book(_c["neg_w_final_clip_700"], "neg_w_final_clip_700");
-      book(_c["neg_w_final_clip_1000"], "neg_w_final_clip_1000");
-      book(_c["neg_w_final_clip_1500"], "neg_w_final_clip_1500");
-      book(_c["neg_w_final_clip_2000"], "neg_w_final_clip_2000");
-      book(_c["neg_w_final_clip_3000"], "neg_w_final_clip_3000");
-      book(_c["neg_w_final_clip_inf"], "neg_w_final_clip_inf");
+      for (std::string& i_clip : _clips){
+        std::string i_pos_c_name = "pos_w_final_clip_" + i_clip;
+        std::string i_neg_c_name = "neg_w_final_clip_" + i_clip;
+        book(_c[i_pos_c_name], i_pos_c_name);
+        book(_c[i_neg_c_name], i_neg_c_name);
+      }
 
       // Cut-flows 
       _cutflows.addCutflow("Zy_vvy_selections", {"no_leptons", "have_iso_photons_ok_pt_eta",
@@ -159,7 +140,7 @@ namespace Rivet {
       // Retrieve dressed leptons, sorted by pT
       Particles e_stable;
       Particles mu_stable;
-      if (_docut==1){
+      if (_cut_mode=="SR"){
         e_stable = apply<FinalState>(event, "e_stable").particlesByPt(_electron_eta_cut && _lepton_pt_cut);
         mu_stable = apply<FinalState>(event, "mu_stable").particlesByPt(_muon_eta_cut && _lepton_pt_cut);
       }
@@ -196,7 +177,7 @@ namespace Rivet {
       }
       if (isolated_photons.size()!=_jcuts["n_photons_iso"])  vetoEvent;
       const Particle& iso_photon = isolated_photons[0];
-      if (_docut==1 && iso_photon.pT() < dbl(_jcuts["pt_photon"])*GeV) vetoEvent;
+      if (_cut_mode=="SR" && iso_photon.pT() < dbl(_jcuts["pt_photon"])*GeV) vetoEvent;
       _cutflows.fillnext();
       
       // Retrieve clustered jets, sorted by pT, with a minimum pT cut
@@ -210,32 +191,32 @@ namespace Rivet {
 
       const FourMomentum tag1_jet = jets[0].mom();
       const FourMomentum tag2_jet = jets[1].mom();
-      if (_docut==1 && (tag1_jet.pT()<dbl(_jcuts["pt_tagjet1"])*GeV || tag2_jet.pT()<dbl(_jcuts["pt_tagjet1"])*GeV)) vetoEvent; 
+      if (_cut_mode=="SR" && (tag1_jet.pT()<dbl(_jcuts["pt_tagjet1"])*GeV || tag2_jet.pT()<dbl(_jcuts["pt_tagjet1"])*GeV)) vetoEvent; 
       _cutflows.fillnext();
 
       const double m_tagjets = (tag1_jet + tag2_jet).mass()/GeV;
-      if (_docut==1 && m_tagjets<_jcuts["m_tagjets"]) vetoEvent;
+      if (_cut_mode=="SR" && m_tagjets<_jcuts["m_tagjets"]) vetoEvent;
       _cutflows.fillnext();
       const double dy_tagjets =  fabs(deltaRap(tag1_jet, tag2_jet)); // they dont do the cut
 
       const double centrality_jjy = fabs(0.5 * (iso_photon.rap() - (tag1_jet.rap()+tag2_jet.rap())/2) / (tag1_jet.rap()-tag2_jet.rap()));
-      if (_docut==1 && centrality_jjy > _jcuts["centrality_jjy"])  vetoEvent;
+      if (_cut_mode=="SR" && centrality_jjy > _jcuts["centrality_jjy"])  vetoEvent;
       _cutflows.fillnext();
 
       // MET
       const MissingMomentum& METfinder = apply<MissingMomentum>(event, "METFinder");
       const double pt_MET = METfinder.missingPt()/GeV;
-      if (_docut==1 && pt_MET<_jcuts["pt_MET"]) vetoEvent;
+      if (_cut_mode=="SR" && pt_MET<_jcuts["pt_MET"]) vetoEvent;
       _cutflows.fillnext();
 
       const FourMomentum fourvec_MET = METfinder.missingMomentum();
       double dphi_MET_photon = fabs(deltaPhi(iso_photon,fourvec_MET));
-      if (_docut==1 && (dphi_MET_photon<_jcuts["dphi_MET_photon"])) vetoEvent;
+      if (_cut_mode=="SR" && (dphi_MET_photon<_jcuts["dphi_MET_photon"])) vetoEvent;
       _cutflows.fillnext();
 
       double dphi_MET_tagjet1 = fabs(deltaPhi(tag1_jet,fourvec_MET));
       double dphi_MET_tagjet2 = fabs(deltaPhi(tag2_jet,fourvec_MET));
-      if (_docut==1 && (dphi_MET_tagjet1<_jcuts["dphi_MET_tagjet"] || dphi_MET_tagjet2<_jcuts["dphi_MET_tagjet"])) vetoEvent;
+      if (_cut_mode=="SR" && (dphi_MET_tagjet1<_jcuts["dphi_MET_tagjet"] || dphi_MET_tagjet2<_jcuts["dphi_MET_tagjet"])) vetoEvent;
       _cutflows.fillnext();
 
       // do clipping - sometimes there are two Z and one gamma - in this case to avoid much work take Z with highest pt and gamma
@@ -270,13 +251,11 @@ namespace Rivet {
       _h["m_tagjets"]->fill(m_tagjets);
       _h["dy_tagjets"]->fill(dy_tagjets);
       _h["dphi_tagjets"]->fill(deltaPhi(tag1_jet,tag2_jet));
-      //lepton plots - absence of 
-      _h["n_lepton_stable"]->fill(nlep_stable);
       //photon plots
       _h["n_photons_iso"]->fill(isolated_photons.size());
       _h["cone_frac_photon"]->fill(cone_to_photon_fracs[0]);
       _h["eta_photon"]->fill(iso_photon.eta());
-      _h["pt_photon"]->fill(iso_photon.pT());
+      _h["pt_photon"]->fill(iso_photon.pT()); //comes from general hist
       // analysis-secific
       _h["pt_MET"]->fill(pt_MET);
       _h["dphi_MET_photon"]->fill(dphi_MET_photon);
@@ -284,35 +263,21 @@ namespace Rivet {
       _h["centrality_jjy"]->fill(centrality_jjy);
       // clipping-related
       _h["m_Zy"]->fill(hs_diboson_mass);
-      if (hs_diboson_mass < 700.0) {
-        _h["pt_photon_clip_700"]->fill(iso_photon.pT());
-        if (ev_nominal_weight>=0){_c["pos_w_final_clip_700"]->fill();}
-        else {_c["neg_w_final_clip_700"]->fill();}
-        }
-      if (hs_diboson_mass < 1000.0) {
-        _h["pt_photon_clip_1000"]->fill(iso_photon.pT());
-        if (ev_nominal_weight>=0){_c["pos_w_final_clip_1000"]->fill();}
-        else {_c["neg_w_final_clip_1000"]->fill();}
-        }
-      if (hs_diboson_mass < 1500.0) {
-        _h["pt_photon_clip_1500"]->fill(iso_photon.pT());
-        if (ev_nominal_weight>=0){_c["pos_w_final_clip_1500"]->fill();}
-        else {_c["neg_w_final_clip_1500"]->fill();}
-        }
-      if (hs_diboson_mass < 2000.0) {
-        _h["pt_photon_clip_2000"]->fill(iso_photon.pT());
-        if (ev_nominal_weight>=0){_c["pos_w_final_clip_2000"]->fill();}
-        else {_c["neg_w_final_clip_2000"]->fill();}
-        }
-      if (hs_diboson_mass < 3000.0) {
-        _h["pt_photon_clip_3000"]->fill(iso_photon.pT());
-        if (ev_nominal_weight>=0){_c["pos_w_final_clip_3000"]->fill();}
-        else {_c["neg_w_final_clip_3000"]->fill();}
-        }
-      // default case which is no clipping
-      _h["pt_photon_clip_inf"]->fill(iso_photon.pT()); // dublication of pt_photon hist
+      _h["pt_photon_clip_inf"]->fill(iso_photon.pT()); // comes from ana specific and the one fitted
       if (ev_nominal_weight>=0){_c["pos_w_final_clip_inf"]->fill();}
       else {_c["neg_w_final_clip_inf"]->fill();}
+      for (std::string& i_clip : _clips) {
+        if (i_clip == "inf") continue; // as done above without cut
+        int i_clip_num = std::stoi(i_clip);
+        std::string i_pos_c_name = "pos_w_final_clip_" + i_clip;
+        std::string i_neg_c_name = "neg_w_final_clip_" + i_clip;
+        std::string i_hist_name = "pt_photon_clip_" + i_clip;
+        if (hs_diboson_mass < i_clip_num) {
+          _h[i_hist_name]->fill(iso_photon.pT());
+          if (ev_nominal_weight >= 0) { _c[i_pos_c_name]->fill(); }
+          else { _c[i_neg_c_name]->fill(); }
+        }
+      }
 
     } // end of analyze()
 
@@ -343,7 +308,7 @@ namespace Rivet {
     map<string, Histo2DPtr> _h2;
     // map<string, Profile1DPtr> _p;
     map<string, CounterPtr> _c;
-    int _docut;
+    std::string _cut_mode;
     Cut _electron_eta_cut;
     Cut _photon_eta_cut;
     Cut _muon_eta_cut;
@@ -351,7 +316,7 @@ namespace Rivet {
     json _jcuts;
     Cutflows _cutflows;
     std::vector<std::string> _hist_names;
-
+    std::vector<std::string> _clips {"inf", "3000", "2000", "1500", "1000", "700"};
     /// @}
 
 
