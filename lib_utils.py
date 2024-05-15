@@ -122,10 +122,11 @@ def get_evnt_log_files(base_dir,i_job_name):
     print("returning log file", log_file)
     return evnt_candidates_out, log_file
 
-def get_plotdir(prod_dec, DOCUT_str):
-    my_dir = f"/exp/atlas/kurdysh/vbs_cross_terms_study/plots/{prod_dec}/{DOCUT_str}/"
+def get_plotdir(prod_dec, routine, cut):
+    routine_dir = f"routine_{routine}_cut_{cut}"
+    my_dir = f"/exp/atlas/kurdysh/vbs_cross_terms_study/plots/{prod_dec}/{routine_dir}"
     if not os.path.exists(my_dir): os.makedirs(my_dir)
-    return my_dir
+    return my_dir, routine_dir
 
 def get_pair_str(op1,op2):
     mypair = sorted([op1,op2])

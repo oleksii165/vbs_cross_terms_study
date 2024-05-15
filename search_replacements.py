@@ -22,18 +22,23 @@ import pandas as pd
 from pandas.plotting import table
 from optparse import OptionParser
 parser = OptionParser()
-parser.add_option("--tProd", default = "Zy")
-parser.add_option("--tDec", default = "vvy")
-parser.add_option("--runWithCuts", default = "yes")
+parser.add_option("--tGenProd", default = "Zy")
+parser.add_option("--tGenDec", default = "vvy")
+parser.add_option("--routine", default = "Zy_vvy")
+parser.add_option("--cut", default = "SR")
+parser.add_option("--searchClips", default = "inf,3000,2000")
+parser.add_option("--additionalClips", default = "1500,1000") # ignore 700
+parser.add_option("--doReshuffling", default = 1, type="int")
+parser.add_option("--doReplacement", default = 0, type="int")
+parser.add_option("--doINT", default = 0, type="int")
 opts, _ = parser.parse_args()
 
-prod_dec = f"{opts.tProd}_{opts.tDec}"
+prod_dec = f"{opts.tGenProd}_{opts.tGenDec}"
 _, top_files_dir = lu.find_prod_dec_and_dir(f"user.okurdysh.MadGraph_{prod_dec}_FM0_SM")
-docut_dir = "DOCUT_YES" if opts.runWithCuts=="yes" else "DOCUT_NO"
-base_plot_dir = lu.get_plotdir(prod_dec, docut_dir)
+base_plot_dir, routine_dir = lu.get_plotdir(prod_dec, opts.routine, opts.cut)
 
-search_clips = ["inf","3000","2000"]  # search based on this, avoid 1000,700 for rep search as they are super low stat
-all_clips = search_clips + ["1500", "1000", "700"] # to check later what search gives
+search_clips = opts.searchClips.split(",")  # search based on this, avoid 1000,700 for rep search as they are super low stat
+all_clips = search_clips + opts.additionalClips.split(",") # to check later what search gives
 fit_plot_str, fit_plot_bins = lu.get_fitted_plot(prod_dec)
 xlabel = lu.get_var_latex(fit_plot_str)
 def plotname(i_clip):
@@ -46,7 +51,7 @@ effs = {}
 eff_uncerts = {}
 for i_clip in all_clips: # separate seach per clipping
     for op_dir in [i_obj for i_obj in os.listdir(top_files_dir) if os.path.isdir(top_files_dir + "/" + i_obj)]:
-        full_op_dir = os.path.join(top_files_dir,op_dir,docut_dir,"")
+        full_op_dir = os.path.join(top_files_dir,op_dir,routine_dir,"")
         _, order, op = lu.get_op_from_dir(op_dir, prod_dec)
         # if order not in all_orders: 
         #     continue
@@ -123,9 +128,10 @@ def save_pairs_find_rep(arr_ops_1, arr_ops_2, order1, order2, make_rep_df=False)
         return sum_chi2_df
     else:
         return 0
+
 # find replacements
 have_ops_int_quad = sorted(list(set([ihist[2] for ihist in hists.keys() if ihist[1]!="CROSS"])))
-have_ops_cross = ["FM0vsFM1", "FT0vsFT5", "FT8vsFT9"] #sorted(list(set([ihist[2] for ihist in hists.keys() if ihist[1]=="CROSS"])))
+# have_ops_cross = ["FM0vsFM1", "FT0vsFT5", "FT8vsFT9"] #sorted(list(set([ihist[2] for ihist in hists.keys() if ihist[1]=="CROSS"])))
 sum_chi2_df_quad = save_pairs_find_rep(have_ops_int_quad, have_ops_int_quad, "QUAD", "QUAD", make_rep_df=True)
 # save_pairs_find_rep(have_ops_int_quad, have_ops_int_quad, "INT", "INT") # dont search based on INT, apply what was found in QUAD selected terms - just save plots
 # sum_chi2_df_cross = save_pairs_find_rep(have_ops_int_quad, have_ops_cross, "QUAD", "CROSS", make_rep_df=True)
@@ -175,11 +181,16 @@ def make_df(df_to_search, to_be_replaced_ops, search_within_ops, order_to_replac
     lu.save_df(df_norm, out_name+f"_norms_{order_to_replace}.pdf", save_csv=True, aspect=(6,6))
     lu.save_df(df_norm_unc, out_name+f"_norms_unc_{order_to_replace}.pdf", save_csv=True, aspect=(6,6))
     return rep_df
-print("##### reshuffling based on QUAD - find INT and QUAD coeficienes") # find good reps for non-closure
-df_resh = make_df(sum_chi2_df_quad, existing_ops_quad, existing_ops_quad, "QUAD", "QUAD", f"{base_plot_dir}/reshuffling_ws_table.pdf")
-# df_resh = make_df(sum_chi2_df_quad, existing_ops_quad, existing_ops_quad, "INT", "INT", f"{base_plot_dir}/reshuffling_ws_table.pdf")
-print("##### replace missing QUAD - find INT and QUAD coeficienes") # find good reps for missing
-df_rep = make_df(sum_chi2_df_quad, missing_ops_quad, existing_ops_quad, "QUAD", "QUAD", f"{base_plot_dir}/replacement_ws_table.pdf")
-# df_rep = make_df(sum_chi2_df_quad, missing_ops_quad, existing_ops_quad, "INT", "INT", f"{base_plot_dir}/replacement_ws_table.pdf")
+
+if opts.doReshuffling:
+    print("##### reshuffling based on QUAD - find QUAD coeficienes and INT?", opts.doINT) # find good reps for non-closure
+    df_resh_q = make_df(sum_chi2_df_quad, existing_ops_quad, existing_ops_quad, "QUAD", "QUAD", f"{base_plot_dir}/reshuffling_ws_table.pdf")
+    if opts.doINT: df_resh_i = make_df(sum_chi2_df_quad, existing_ops_quad, existing_ops_quad, "INT", "INT", f"{base_plot_dir}/reshuffling_ws_table.pdf")
+
+if opts.doReplacement:
+    print("##### replace missing QUAD - find  QUAD coeficienes and INT?", opts.doINT) # find good reps for missing
+    df_rep_q = make_df(sum_chi2_df_quad, missing_ops_quad, existing_ops_quad, "QUAD", "QUAD", f"{base_plot_dir}/replacement_ws_table.pdf")
+    df_rep_i = make_df(sum_chi2_df_quad, missing_ops_quad, existing_ops_quad, "INT", "INT", f"{base_plot_dir}/replacement_ws_table.pdf")
+
 # print("##### replace missing CROSS") # find way to insert missing crosses
 # df_rep = make_df(sum_chi2_df_cross, missing_ops_cross, existing_ops_quad, "CROSS", "QUAD", f"{base_plot_dir}/cross_ws_table.pdf")
