@@ -29,7 +29,7 @@ task_names = [i_task['taskname'].replace("/","") for i_task in tasks
               and f"{opts.tGenDec}_" in i_task['taskname']
               and "rivet" not in i_task['taskname']]
 all_ops, op_pairs = lu.get_ops(include_fs0_2=False)
-splitedSize = opts.numLocJobsParallel if opts.runLocally else 1
+splitedSize =  1 if not opts.runLocally and opts.runRivet else opts.numLocJobsParallel
 blocks_of_single_ops = [all_ops[x:x + splitedSize] for x in range(0, len(all_ops), splitedSize)]
 blocks_of_op_pairs = [op_pairs[x:x + splitedSize] for x in range(0, len(op_pairs), splitedSize)]
 ###########
