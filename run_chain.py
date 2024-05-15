@@ -119,7 +119,10 @@ def get_ext_in_files(routine):
         files = standard_pack + "lepton_hists.json"
     elif routine=="Wy_lvy":
         files = standard_pack + "photon_hists.json,lepton_hists.json"
-
+    elif routine=="ssWW_lvlv":
+        files = standard_pack + "lepton_hists.json"
+    else:
+        raise Exception("dont know files for this analysis", routine)
     return files
 
 
