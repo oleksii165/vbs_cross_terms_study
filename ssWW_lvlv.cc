@@ -29,16 +29,11 @@ namespace Rivet {
 
     /// Book histograms and initialise projections before the run
     void init() {
-        std::string cut_mode = getOption("cut");
+        _cut_mode = getOption("cut");
+    
+        std::cout << "++++++received cut_mode" << _cut_mode << "will do them accordingly \n";
 
-        _docut = 0; // most cuts on number of particles are always applied to avoid segfault
-        if (cut_mode.find("SR") != string::npos) _docut = 1;
-        std::cout << "++++++received outidir" << cut_mode << "meaning _docut is " << _docut << "\n";
-
-        std::string jsonfilestr = "ssWW_lvlv_cuts.json";
-        std::cout << "++++++assume .json for this ssWW_lvlv" << "is " << jsonfilestr << "\n";
-        std::ifstream json_file(jsonfilestr);
-
+        std::ifstream json_file("ssWW_lvlv_cuts.json");
         _jcuts = json::parse(json_file);
         std::cout << "++++++ to check json 1 var got photon pt min" << _jcuts["abs_diff_m_z"] << "\n";
 
@@ -64,16 +59,9 @@ namespace Rivet {
 
         // Dress the bare direct leptons with direct photons within dR < 0.1,
         // and apply some fiducial cuts on the dressed leptons depending on param passed
-        if (_docut==1){
-            _electron_eta_cut = Cuts::absetaIn(0.0, _jcuts["eta_electron"]);
-            _muon_eta_cut = Cuts::absetaIn(0.0, _jcuts["eta_muon"]);
-            _lepton_pt_cut = Cuts::pT > dbl(_jcuts["pt_lepton"])*GeV;
-        }
-        else{
-            _electron_eta_cut = Cuts::absetaIn(0.0, 10.0);
-            _muon_eta_cut= _electron_eta_cut;
-            _lepton_pt_cut = Cuts::pT > 0.001*GeV;
-        }
+        _electron_eta_cut = (Cuts::absetaIn(_jcuts["eta_electron"][0][0], _jcuts["eta_electron"][0][1])) ||
+                            (Cuts::absetaIn(_jcuts["eta_electron"][1][0], _jcuts["eta_electron"][1][1]));
+        _muon_eta_cut = Cuts::absetaIn(0.0, _jcuts["eta_muon"]);
 
         declare(MissingMomentum(), "METFinder");
 
@@ -127,7 +115,7 @@ namespace Rivet {
 
         const MissingMomentum& METfinder = apply<MissingMomentum>(event, "METFinder");
         const double scalar_MET = METfinder.missingPt()/GeV;
-        if (_docut==1 && scalar_MET<_jcuts["pt_MET"]) vetoEvent;
+        if (_cut_mode!="NO" && scalar_MET<_jcuts["pt_MET"]) vetoEvent;
         _cutflows.fillnext();
 
         const FourMomentum fourvec_MET = METfinder.missingMomentum();
@@ -139,8 +127,8 @@ namespace Rivet {
         // Retrieve dressed leptons, sorted by pT
         Particles e_stable;
         Particles mu_stable;
-        e_stable = apply<FinalState>(event, "e_stable").particlesByPt(_electron_eta_cut && _lepton_pt_cut);
-        mu_stable = apply<FinalState>(event, "mu_stable").particlesByPt(_muon_eta_cut && _lepton_pt_cut);
+        e_stable = apply<FinalState>(event, "e_stable").particlesByPt(_electron_eta_cut);
+        mu_stable = apply<FinalState>(event, "mu_stable").particlesByPt(_muon_eta_cut);
 
         // Remove jet if lepton too close
         idiscardIfAny(jets, e_stable, [](const Jet& jet, const Particle& lep) {
@@ -157,42 +145,59 @@ namespace Rivet {
         std::sort(leptons.begin(), leptons.end(), [](Particle const &a, Particle const &b) {
             return a.pT() > b.pT(); // biggest pT will be first in array
         });
+
         int nlep_stable = leptons.size();
-        if (nlep_stable!=_jcuts["n_lepton_stable"])  vetoEvent;
+        int cut_nlep = _jcuts["n_lepton_stable"];
+        if ((_cut_mode=="SR" || _cut_mode=="LowmjjCR") && nlep_stable<cut_nlep)  vetoEvent;
+        if (_cut_mode=="WZCR" && nlep_stable<cut_nlep+1)  vetoEvent;
         _cutflows.fillnext();
 
         const Particle& lep1 = leptons[0];
         const Particle& lep2 = leptons[1];
+        if (_cut_mode!="NO" && lep1.pT()<dbl(_jcuts["pt_lepton12"])*GeV) vetoEvent;
+        if (_cut_mode!="NO" && lep2.pT()<dbl(_jcuts["pt_lepton12"])*GeV) vetoEvent;
+        if (_cut_mode=="WZCR" && leptons[2].pT()<dbl(_jcuts["pt_lepton3"])*GeV) vetoEvent;
+        double eta_ee = _jcuts["eta_electron_ee"];
+        if (_cut_mode!="NO" && fabs(lep1.pid())==11 && fabs(lep2.pid())==11 && (lep1.eta()>eta_ee || lep2.eta()>eta_ee)) vetoEvent;
+
+
         if (lep1.charge() * lep2.charge() < 0) vetoEvent; // want same charge leptons
         if (deltaR(lep1, lep2) < 0.2)  vetoEvent;
         _cutflows.fillnext();
 
         const FourMomentum fourvec_ll = lep1.mom() + lep2.mom();
         const double m_ll = fourvec_ll.mass()/GeV;
-        if (_docut==1 && m_ll<_jcuts["m_ll"]) vetoEvent;
+        if (_cut_mode!="NO" && m_ll<_jcuts["m_ll"]) vetoEvent;
         _cutflows.fillnext();
+
+        if (_cut_mode=="WZCR"){
+          const FourMomentum fourvec_lll = fourvec_ll + leptons[2].mom();
+          if (fourvec_lll.mass()/GeV < _jcuts["m_lll"]) vetoEvent;
+        }
 
         const double lep1_abs_pid = lep1.pid();
         const double lep2_abs_pid = lep2.pid();
         double m_z = 91.18;
-        if (_docut==1 && (lep1_abs_pid == 11 && lep2_abs_pid == 11 && fabs(m_ll - m_z) < _jcuts["abs_diff_m_z"])) vetoEvent;
+        if ((_cut_mode=="SR" || _cut_mode=="LowmjjCR") && (lep1_abs_pid == 11 && lep2_abs_pid == 11 && fabs(m_ll - m_z) < _jcuts["abs_diff_m_z"])) vetoEvent;
 
         int njets = jets.size();
         if (njets < _jcuts["n_jets"])  vetoEvent;
         int nbtags = count(btagging_jets, hasBTag());
-        if (_docut==1 && nbtags>_jcuts["n_b_jets"]) vetoEvent;
+        if (_cut_mode!="NO" && nbtags>_jcuts["n_b_jets"]) vetoEvent;
         _cutflows.fillnext();
 
         const FourMomentum tag1_jet = jets[0].mom();
         const FourMomentum tag2_jet = jets[1].mom();
-        if (_docut==1 && (tag1_jet.pT()<_jcuts["pt_tagjet1"] || tag2_jet.pT()<_jcuts["pt_tagjet2"])) vetoEvent;
+        if (_cut_mode!="NO" && (tag1_jet.pT()<_jcuts["pt_tagjet1"] || tag2_jet.pT()<_jcuts["pt_tagjet2"])) vetoEvent;
 
         const double m_tagjets = (tag1_jet + tag2_jet).mass()/GeV;
-        if (_docut==1 && m_tagjets<_jcuts["m_tagjets"]) vetoEvent;
+        if (_cut_mode=="SR" && m_tagjets<_jcuts["m_tagjetsSR"]) vetoEvent;
+        if (_cut_mode=="LowmjjCR" && (m_tagjets<_jcuts["m_tagjets_LowmjjCR"][0] || m_tagjets>_jcuts["m_tagjets_LowmjjCR"][1])) vetoEvent;
+        if (_cut_mode=="WZCR" && m_tagjets<_jcuts["m_tagjets_WZCR"]) vetoEvent;
         _cutflows.fillnext();
 
         const double dy_tagjets = fabs(tag1_jet.rap() - tag2_jet.rap());
-        if (_docut==1 && dy_tagjets<_jcuts["dy_tagjets"]) vetoEvent;
+        if (_cut_mode!="NO" && dy_tagjets<_jcuts["dy_tagjets"]) vetoEvent;
         _cutflows.fillnext();
 
         const double m_T = (fourvec_MET + fourvec_ll).mass()/GeV;
@@ -239,9 +244,9 @@ namespace Rivet {
         _h["n_b_jet"]->fill(nbtags);
         _h["MET"]->fill(scalar_MET);
         _h["m_T"]->fill(m_T);
-        _h["m_WW"]->fill(hs_diboson_mass);
 
         // clipping-related
+        _h["m_diboson"]->fill(hs_diboson_mass);
         _h["m_ll_clip_inf"]->fill(m_ll);
         if (ev_nominal_weight>=0){_c["pos_w_final_clip_inf"]->fill();}
         else {_c["neg_w_final_clip_inf"]->fill();}
@@ -274,7 +279,6 @@ namespace Rivet {
 
         // normalize all to 1 since in case of mostly negative weights not clear what it will do
         for (auto & i_name : _hist_names){
-            std::cout << "normalizeing hist " << i_name <<" to 1; " ;
             normalize(_h[i_name], 1.0);
         }
 
@@ -289,10 +293,9 @@ namespace Rivet {
     map<string, Histo2DPtr> _h2;
     // map<string, Profile1DPtr> _p;
     map<string, CounterPtr> _c;
-    int _docut;
+    std::string _cut_mode;
     Cut _electron_eta_cut;
     Cut _muon_eta_cut;
-    Cut _lepton_pt_cut;
     json _jcuts;
     Cutflows _cutflows;
     std::vector<std::string> _hist_names;
