@@ -10,21 +10,24 @@ ROOT.gStyle.SetOptStat(0)
 ROOT.gROOT.SetBatch(ROOT.kTRUE)
 from optparse import OptionParser
 parser = OptionParser()
-parser.add_option("--runWithCuts", default = "yes")
-parser.add_option("--sumAna", default = "ssWW_lvlv")
+parser.add_option("--sumGenAna", default = "ssWW_lvlv")
+parser.add_option("--routine", default = "ssWW_lvlv")
+parser.add_option("--cut", default = "SR")
 opts, _ = parser.parse_args()
-docut_dir = "DOCUT_YES" if opts.runWithCuts=="yes" else "DOCUT_NO"
-if opts.sumAna=="ssWW_lvlv":
-    ana_plus,ana_minus = "WpWp_lvlv","WmWm_lvlv"
+_, routine_cut_dir = lu.get_plotdir(opts.sumGenAna, opts.routine, opts.cut)
+if opts.sumGenAna == "ssWW_lvlv":
+    genAna_plus,genAna_minus = "WpWp_lvlv", "WmWm_lvlv"
+elif opts.sumGenAna == "WZ_lllv":
+    genAna_plus,genAna_minus = "WpZ_lllv", "WmZ_lllv"
 clips_not_inf = ["3000","2000", "1500", "1000", "700"]
 debug = False
 
-_, top_files_dir_sum = lu.find_prod_dec_and_dir(f"user.okurdysh.MadGraph_{opts.sumAna}_FM0_SM")
-_, top_files_dir_plus = lu.find_prod_dec_and_dir(f"user.okurdysh.MadGraph_{ana_plus}_FM0_SM")
-_, top_files_dir_minus = lu.find_prod_dec_and_dir(f"user.okurdysh.MadGraph_{ana_minus}_FM0_SM")
+_, top_files_dir_sum = lu.find_prod_dec_and_dir(f"user.okurdysh.MadGraph_{opts.sumGenAna}_FM0_SM")
+_, top_files_dir_plus = lu.find_prod_dec_and_dir(f"user.okurdysh.MadGraph_{genAna_plus}_FM0_SM")
+_, top_files_dir_minus = lu.find_prod_dec_and_dir(f"user.okurdysh.MadGraph_{genAna_minus}_FM0_SM")
 #arr of elements like ["QUAD","FT7"]
-confs_plus = [lu.get_op_from_dir(conf_dir,ana_plus)[1:] for conf_dir in os.listdir(top_files_dir_plus)]
-confs_minus = [lu.get_op_from_dir(conf_dir,ana_minus)[1:] for conf_dir in os.listdir(top_files_dir_minus)]
+confs_plus = [lu.get_op_from_dir(conf_dir,genAna_plus)[1:] for conf_dir in os.listdir(top_files_dir_plus)]
+confs_minus = [lu.get_op_from_dir(conf_dir,genAna_minus)[1:] for conf_dir in os.listdir(top_files_dir_minus)]
 confs_common = list(set(confs_plus).intersection(confs_minus))
 print("configs plus with len",len(confs_plus),confs_plus)
 print("configs minus of len",len(confs_minus),confs_minus )
@@ -36,8 +39,10 @@ def read_xsec(xsec_file):
     return fid_xsec_fb
 
 for i_order_op in confs_common:
-    i_dir_plus_cand = glob(f"{top_files_dir_plus}/*{i_order_op[1]}_{i_order_op[0]}*EXT0/{docut_dir}/")
-    i_dir_minus_cand = glob(f"{top_files_dir_minus}/*{i_order_op[1]}_{i_order_op[0]}*EXT0/{docut_dir}/")
+    print("looking for input dirs of form", f"{top_files_dir_plus}/*{i_order_op[1]}_{i_order_op[0]}*EXT0/{routine_cut_dir}/")
+    i_dir_plus_cand = glob(f"{top_files_dir_plus}/*{i_order_op[1]}_{i_order_op[0]}*EXT0/{routine_cut_dir}/")
+    i_dir_minus_cand = glob(f"{top_files_dir_minus}/*{i_order_op[1]}_{i_order_op[0]}*EXT0/{routine_cut_dir}/")
+    print("found input dirs", i_dir_plus_cand, i_dir_minus_cand)
     if len(i_dir_plus_cand)!=1 or len(i_dir_minus_cand)!=1: continue
     i_dir_plus, i_dir_minus = i_dir_plus_cand[0], i_dir_minus_cand[0]
     i_rootname_plus, i_rootname_minus = f"{i_dir_plus}/hists.root", f"{i_dir_minus}/hists.root"
@@ -77,7 +82,7 @@ for i_order_op in confs_common:
     i_root_plus.Close()
     i_root_minus.Close()
     # push xsec and plots and sum dir
-    i_dir_sum = i_dir_plus.replace(ana_plus, opts.sumAna)
+    i_dir_sum = i_dir_plus.replace(genAna_plus, opts.sumGenAna)
     if not os.path.exists(i_dir_sum): os.makedirs(i_dir_sum)
     i_root_sum = ROOT.TFile(i_dir_sum+"hists.root", "recreate")
     for i_hist in i_plots_sum.values():

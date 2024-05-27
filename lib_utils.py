@@ -14,19 +14,19 @@ import json
 import re
 from pandas.plotting import table
 
-def get_fitted_plot(prod_dec):
-    mystr,bins="",[]
-    if prod_dec=="Zy_vvy":
+def get_fitted_plot(routine):
+    mystr,bins = "",[]
+    if routine == "Zy_vvy":
         mystr = "pt_photon"
         bins = array('d', [150,300,450,600,750,900,1050,1200,2000])
-    elif prod_dec in ["WmZ_lllv","WpZ_lllv","WZ_lllv"]:
+    elif routine in ["WmZ_lllv","WpZ_lllv","WZ_lllv"]:
         mystr="m_WZ_T"
         bins = array('d', [0,400,750,1050,1350,4000])
-    elif prod_dec=="ZZ_llvv":
+    elif routine == "ZZ_llvv":
         mystr="pt_Z"
         bins = array('d', [50,100,150,200,250,350,1500])
         # bins = array('d', [50,110,130,150,170,200,250,350,1500])
-    elif prod_dec in ["WmWm_lvlv","WpWp_lllv","ssWW_lvlv"]:
+    elif routine in ["WmWm_lvlv","WpWp_lllv","ssWW_lvlv"]:
         mystr = "m_ll"
         bins = array('d', [0,250,500,750,1000,1500])
 
@@ -124,7 +124,7 @@ def get_evnt_log_files(base_dir,i_job_name):
 
 def get_plotdir(prod_dec, routine, cut):
     routine_dir = f"routine_{routine}_cut_{cut}"
-    my_dir = f"/exp/atlas/kurdysh/vbs_cross_terms_study/plots/{prod_dec}/{routine_dir}"
+    my_dir = f"/exp/atlas/kurdysh/vbs_cross_terms_study/plots/{prod_dec}/{routine_dir}/"
     if not os.path.exists(my_dir): os.makedirs(my_dir)
     return my_dir, routine_dir
 
