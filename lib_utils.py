@@ -460,4 +460,16 @@ def arr_to_hist1d(arr_counts, hname, bin_edges):
         my_hist.SetBinContent(i_num_bin, i_bin_count)
     return my_hist.Clone()
 
+def get_rivet_resub_name(last_job_name):
+    rivet_str_ind = last_job_name.find("rivet")
+    rivet_part_name = last_job_name[rivet_str_ind:]
+    if "try" not in rivet_part_name:
+        job_name = rivet_part_name + "_try2"
+    else:
+        last_job_name_try_part = rivet_part_name[rivet_part_name.find("try"):]
+        last_job_name_try_attempt = int(last_job_name_try_part[3:])
+        job_name = rivet_part_name.replace(last_job_name_try_part,"try"+str(last_job_name_try_attempt+1))
+    full_job_name = last_job_name[:rivet_str_ind] + job_name
+    return full_job_name
+
     

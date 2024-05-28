@@ -42,8 +42,7 @@ def prepare_grid_files(i_job_name):
     else:
         print("dont untar since did it before res in ", untared_dir_cand[0])
 
-def prepare_grid_rivet_files():
-    rivet_job_name = lu.get_rivet_job_name(opts.genJobName,opts.routine,opts.cut)
+def prepare_grid_rivet_files(rivet_job_name):
     rivet_job_files = rivet_job_name.replace("/","") + "_EXT0"
     print("will download yoda files for", rivet_job_name)
     _, evnt_dir, _, _ = lu.get_envt_log_names_dirs(base_dir,opts.genJobName)
@@ -56,8 +55,6 @@ def prepare_grid_rivet_files():
         subprocess.call(f"rmdir {rivet_job_files}", shell=True, cwd=conf_cut_dir)
     else:
         print("have yoda in", conf_cut_dir ,"already so dont download")
-
-
 
 def save_job_infos(mydir, xsec_no_cuts_fb, runLocally):
     merged_yoda_name = mydir + "MyOutput.yoda.gz"
@@ -109,7 +106,6 @@ def save_job_infos(mydir, xsec_no_cuts_fb, runLocally):
         lu.write_to_f(mydir + f"frac_after_cuts{clip_out_suff}.txt", i_frac_cut)
         lu.write_to_f(mydir + f"frac_after_cuts_error_bar{clip_out_suff}.txt", i_frac_cut_er_bar)
 
-
 def get_ext_in_files(routine):
     standard_pack = f"Rivet{routine}.so,{routine}_cuts.json,{routine}_hists.json,"
     standard_pack += "jet_hists.json,"
@@ -124,7 +120,6 @@ def get_ext_in_files(routine):
     else:
         raise Exception("dont know files for this analysis", routine)
     return files
-
 
 def main():
     parser = OptionParser()
@@ -148,7 +143,7 @@ def main():
         print("provide job name without any EXT or .log")
         return
 
-    print("##################### \n ############# will work on job", opts.genJobName)
+    print("##################### \n ############# will work on gen job", opts.genJobName)
     prod_dec, base_dir = lu.find_prod_dec_and_dir(opts.genJobName) # dir where all files are stored
     if opts.genDoDownload:
         prepare_grid_files(opts.genJobName)
@@ -156,30 +151,45 @@ def main():
         if (evnt_file==-1 or log_file==-1) and opts.runLocally: return
         if log_file==-1 and not opts.runLocally: return
 
+    tasks = c.get_tasks(limit=10000000, days=13000, username="Oleksii Kurdysh")
+    def check_job(job_name):
+        matched_tasks=[] # for same taskname but with try2, try3 last try should be first
+        for i_task in tasks:
+            i_name = i_task['taskname']
+            if job_name in i_name: matched_tasks.append(i_task)
+        print("found tasks with this name pattern", job_name, "are")
+        for i_task in matched_tasks:
+            print(i_task['status'], " ", i_task['taskname'].replace("/",""))
+
+        if len(matched_tasks)>0:
+            last_task = matched_tasks[0]
+            return last_task['status'], last_task['taskname'].replace("/",""), last_task['jeditaskid']
+        else:
+            return -1,-1,-1
+
+    rivet_job_name = lu.get_rivet_job_name(opts.genJobName,opts.routine,opts.cut)
     if opts.runRivet:
         if opts.runLocally:
             run_com = f'athena rivet_job.py '
             run_com += f'''-c 'runLocally=1;conf="{opts.genJobName}";routine="{opts.routine}";cut="{opts.cut}"' '''
             run_com += f'--evtMax {opts.evtMax}'
         else:
+            last_job_status, last_job_name, _ = check_job(rivet_job_name)
+            new_job_name = lu.get_rivet_resub_name(last_job_name) if last_job_status != -1 else rivet_job_name
             ext_files_str = get_ext_in_files(opts.routine)
             run_com = 'pathena rivet_job.py '
             run_com += f'''-c 'runLocally=0;conf="{opts.genJobName}";routine="{opts.routine}";cut="{opts.cut}"' '''
             run_com += f'--extOutFile=MyOutput.yoda.gz --extFile={ext_files_str} '
-            run_com += f'--inDS={opts.genJobName}_EXT0 --outDS={lu.get_rivet_job_name(opts.genJobName,opts.routine,opts.cut)}'
+            run_com += f'--inDS={opts.genJobName}_EXT0 --outDS={new_job_name}'
         print("#### will run rivet with", run_com)
         subprocess.call(run_com, shell=True)
 
     if not opts.runLocally and opts.saveInfoAfterRivet:
-        tasks = c.get_tasks(limit=100000000, days=13000, username="Oleksii Kurdysh", status="done")
-        rivet_done_task_names = [i_task['taskname'].replace("/","") for i_task in tasks if "rivet" in i_task['taskname']]
-        rivet_job_name = lu.get_rivet_job_name(opts.genJobName,opts.routine,opts.cut)
-        rivet_job_done = 0
-        if rivet_job_name in rivet_done_task_names: rivet_job_done = 1
-        if not rivet_job_done:
+        job_status, job_name, _ = check_job(rivet_job_name)
+        if job_status!='done':
             print("********** rivet task for this job is not finished", rivet_job_name)
             return
-        prepare_grid_rivet_files()
+        prepare_grid_rivet_files(job_name)
 
     if opts.saveInfoAfterRivet:
         _, log_file = lu.get_evnt_log_files(base_dir,opts.genJobName)

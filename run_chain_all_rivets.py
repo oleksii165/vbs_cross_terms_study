@@ -46,7 +46,7 @@ def get_com(jobname):
         com = (f'python run_chain.py '
                f'--runLocally 0 --runRivet {opts.runRivet} '
                f'--genDoDownload {param_download_proc} --saveInfoAfterRivet {param_download_proc} --doMakeHtml {opts.doMakeHtml} '
-               f'--genJobName "{jobname}" --routine "{opts.routine}" --cut "{opts.cut}" ')
+               f'--genJobName "{jobname}" --routine "{opts.routine}" --cut "{opts.cut}"')
     return com
 
 def call_bloc_proc(op_blocks, eft_config):
