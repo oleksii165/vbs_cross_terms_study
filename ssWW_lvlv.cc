@@ -148,8 +148,8 @@ namespace Rivet {
 
         int nlep_stable = leptons.size();
         int cut_nlep = _jcuts["n_lepton_stable"];
-        if ((_cut_mode=="SR" || _cut_mode=="LowmjjCR") && nlep_stable<cut_nlep)  vetoEvent;
-        if (_cut_mode=="WZCR" && nlep_stable<cut_nlep+1)  vetoEvent;
+        if ((_cut_mode=="SR" || _cut_mode=="LowmjjCR") && nlep_stable!=cut_nlep)  vetoEvent;
+        if (_cut_mode=="WZCR" && nlep_stable!=(cut_nlep+1))  vetoEvent;
         _cutflows.fillnext();
 
         const Particle& lep1 = leptons[0];
