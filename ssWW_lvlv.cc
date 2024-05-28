@@ -248,6 +248,7 @@ namespace Rivet {
         // clipping-related
         _h["m_diboson"]->fill(hs_diboson_mass);
         _h["m_ll_clip_inf"]->fill(m_ll);
+        _h["m_tagjets_clip_inf"]->fill(m_tagjets);
         if (ev_nominal_weight>=0){_c["pos_w_final_clip_inf"]->fill();}
         else {_c["neg_w_final_clip_inf"]->fill();}
         for (std::string& i_clip : _clips){
@@ -255,15 +256,17 @@ namespace Rivet {
             int i_clip_num = std::stoi(i_clip);
             std::string i_pos_c_name = "pos_w_final_clip_" + i_clip;
             std::string i_neg_c_name = "neg_w_final_clip_" + i_clip;
-            std::string i_hist_name = "m_ll_clip_" + i_clip;
+            std::string i_hist_name_m_ll = "m_ll_clip_" + i_clip;
+            std::string i_hist_name_m_tagjets = "m_tagjets_clip_" + i_clip;
             if (hs_diboson_mass < i_clip_num) {
-                _h[i_hist_name]->fill(m_ll);
+                _h[i_hist_name_m_ll]->fill(m_ll);
+                _h[i_hist_name_m_tagjets]->fill(m_tagjets);
                 if (ev_nominal_weight>=0){_c[i_pos_c_name]->fill();}
                 else {_c[i_neg_c_name]->fill();}
             }
         }
 
-    }
+    } // end of anylize
 
 
     /// Normalise histograms etc., after the run
