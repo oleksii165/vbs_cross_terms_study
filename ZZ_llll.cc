@@ -93,9 +93,13 @@ namespace Rivet {
 
         //counter for efficiency - in this ana not doing hists myself so can ignore clippings
         book(_c["pos_w_initial"],"pos_w_initial");
-        book(_c["pos_w_final"],"pos_w_final");
         book(_c["neg_w_initial"],"neg_w_initial");
-        book(_c["neg_w_final"],"neg_w_final");
+        for (std::string& i_clip : _clips){
+          std::string i_pos_c_name = "pos_w_final_clip_" + i_clip;
+          std::string i_neg_c_name = "neg_w_final_clip_" + i_clip;
+          book(_c[i_pos_c_name], i_pos_c_name);
+          book(_c[i_neg_c_name], i_neg_c_name);
+        }
 
         // Cut-flows
         _cutflows.addCutflow("ZZ_llll_selections", {"have_four_lep","pt_lep1_2","dR_all_pairs","SFOC_2pairs_min",
@@ -223,6 +227,26 @@ namespace Rivet {
             if ((i_jet_rap < tag1_jet.rap() && i_jet_rap > tag2_jet.rap()) || (i_jet_rap < tag2_jet.rap() && i_jet_rap > tag1_jet.rap()))  ++n_gap_jets;
         }
 
+        // do clipping - sometimes there are two Z and one gamma - in this case to avoid much work take Z with highest pt and gamma
+        std::vector<FourMomentum> hs_bosons_z = {};
+        for(const Particle& p_rivet : event.allParticles()){
+          ConstGenParticlePtr p_hepmc = p_rivet.genParticle();
+          int status = p_hepmc->status();
+          if (abs(status)==23 or abs(status)==22){
+            int i_pid = p_hepmc->pid();
+            FourMomentum i_mom = p_hepmc->momentum();
+            if (abs(i_pid) == 23){hs_bosons_z.push_back(i_mom);}
+          }
+        }
+        std::sort(hs_bosons_z.begin(), hs_bosons_z.end(), [](FourMomentum const &a, FourMomentum const &b) {return a.pT() > b.pT(); }); // biggest pT will be first in array
+        bool have_two_hs_bosons = false;
+        double hs_diboson_mass = 0.0;
+        if (hs_bosons_z.size()>1){
+          hs_diboson_mass = (hs_bosons_z[0]+hs_bosons_z[1]).mass()/GeV;
+          have_two_hs_bosons = true;
+        }
+        if (!have_two_hs_bosons) vetoEvent; // just in case reject events where dont have z+y
+
         //jet plots
         _h["n_jets"]->fill(n_jets);
         _h["pt_tagjet1"]->fill(tag1_jet.pt());
@@ -249,8 +273,18 @@ namespace Rivet {
         _h["pt_lllljj"]->fill(fourvec_lllljj.pT());
 
         // save weights after cuts
-        if (ev_nominal_weight>=0){_c["pos_w_final"]->fill();}
-        else {_c["neg_w_final"]->fill();}
+        if (ev_nominal_weight>=0){_c["pos_w_final_clip_inf"]->fill();}
+        else {_c["neg_w_final_clip_inf"]->fill();}
+        for (std::string& i_clip : _clips) {
+          if (i_clip == "inf") continue; // as done above without cut
+          int i_clip_num = std::stoi(i_clip);
+          std::string i_pos_c_name = "pos_w_final_clip_" + i_clip;
+          std::string i_neg_c_name = "neg_w_final_clip_" + i_clip;
+          if (hs_diboson_mass < i_clip_num) {
+            if (ev_nominal_weight >= 0) { _c[i_pos_c_name]->fill(); }
+            else { _c[i_neg_c_name]->fill(); }
+          }
+        }
     }
 
     double pair_m_dist_m_z(const Particle& lep_1, const Particle& lep_2){
@@ -265,22 +299,18 @@ namespace Rivet {
 
         double pos_w_sum_initial = dbl(*_c["pos_w_initial"]); // from which also number of entries can be obtained
         double neg_w_sum_initial = dbl(*_c["neg_w_initial"]);
-        double pos_w_sum_final = dbl(*_c["pos_w_final"]);
-        double neg_w_sum_final = dbl(*_c["neg_w_final"]);
-        MSG_INFO("\n pos weights initial final ratio " << pos_w_sum_initial <<" " << pos_w_sum_final <<" "<< pos_w_sum_final/pos_w_sum_initial << "\n" );
-        MSG_INFO("\n neg weights initial final ratio " << neg_w_sum_initial <<" " << neg_w_sum_final <<" "<< neg_w_sum_final/neg_w_sum_initial << "\n" );
+        double pos_w_sum_final = dbl(*_c["pos_w_final_clip_inf"]);
+        double neg_w_sum_final = dbl(*_c["neg_w_final_clip_inf"]);
+        double sel_eff = (pos_w_sum_final+neg_w_sum_final)/(pos_w_sum_initial + neg_w_sum_initial); // from which also number of entries can be obtained
+        MSG_INFO("\n pos weights initial final" << pos_w_sum_initial << " " << pos_w_sum_final <<" "<< "\n" );
+        MSG_INFO("\n neg weights initial final" << neg_w_sum_initial << " " << neg_w_sum_final <<" "<< "\n" );
+        MSG_INFO("\n total sel eff " << sel_eff << "\n" );
 
-        // normalize all to 1 since in case of mostly negative weights not clear what it will do
+//         normalize all to 1 since in case of mostly negative weights not clear what it will do
         for (auto & i_name : _hist_names){
-            std::cout << "normalizeing hist " << i_name <<" to 1; " ;
             normalize(_h[i_name], 1.0);
         }
-      //const double norm = crossSection()/sumOfWeights()/femtobarn; // Does not work in EFT Interference term
-//      const double norm = 1./femtobarn/numEvents(); // For EFT Interference term
-//      for (auto & i_name : _hist_names){
-//        std::cout << "scaling  hist " << i_name <<" by " << norm << "\n" ;
-//        scale(_h[i_name], norm);
-//      }
+
     }
 
     /// @}
@@ -300,6 +330,7 @@ namespace Rivet {
     json _jcuts;
     Cutflows _cutflows;
     std::vector<std::string> _hist_names;
+    std::vector<std::string> _clips {"inf", "3000", "2000", "1500", "1000", "700"};
     /// @}
 
 
