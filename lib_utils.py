@@ -14,7 +14,7 @@ import json
 import re
 from pandas.plotting import table
 
-def get_fitted_plot(routine):
+def get_fitted_plot(routine, cut):
     mystr,bins = "",[]
     if routine == "Zy_vvy":
         mystr = "pt_photon"
@@ -27,8 +27,15 @@ def get_fitted_plot(routine):
         bins = array('d', [50,100,150,200,250,350,1500])
         # bins = array('d', [50,110,130,150,170,200,250,350,1500])
     elif routine in ["WmWm_lvlv","WpWp_lllv","ssWW_lvlv"]:
-        mystr = "m_ll"
-        bins = array('d', [0,250,500,750,1000,1500])
+        if cut=="SR":
+            mystr, bins = "m_ll", array('d', [0,250,500,750,1000,1500])
+        elif cut=="LowmjjCR":
+            mystr, bins = "m_ll", array('d', [0,1500])
+        elif cut=="WZCR":
+            mystr, bins = "m_tagjets", array('d', [0,3000])
+    elif routine in ["Wmy_lvy","Wpy_lvy","Wy_lvy"]:
+        mystr = "pt_lepton"
+        bins = array('d', [30,43,60,85,130,550])
 
     return mystr, bins
 
