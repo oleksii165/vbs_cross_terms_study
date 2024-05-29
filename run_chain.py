@@ -14,7 +14,6 @@ import lib_utils as lu
 from optparse import OptionParser
 import math
 
-
 def prepare_grid_files(i_job_name):
     print("will download+untar files evnt and log for", i_job_name)
     evnt_did, evnt_dir, log_did, log_dir = lu.get_envt_log_names_dirs(base_dir,i_job_name)
@@ -113,7 +112,7 @@ def get_ext_in_files(routine):
         files = standard_pack + "photon_hists.json"
     elif routine=="WZ_lllv":
         files = standard_pack + "lepton_hists.json"
-    elif routine=="Wy_lvy":
+    elif routine in ["Wy_lvy","Wy_John"]:
         files = standard_pack + "photon_hists.json,lepton_hists.json"
     elif routine=="ssWW_lvlv":
         files = standard_pack + "lepton_hists.json"
