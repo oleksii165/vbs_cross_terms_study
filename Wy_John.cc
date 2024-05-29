@@ -14,11 +14,11 @@ namespace Rivet {
 
 
   /// @brief Wyjj production at 13 TeV
-  class ATLAS_2023_Wyjj_Diff : public Analysis {
+  class Wy_John : public Analysis {
   public:
 
     /// Constructor
-    DEFAULT_RIVET_ANALYSIS_CTOR(ATLAS_2023_Wyjj_Diff);
+    DEFAULT_RIVET_ANALYSIS_CTOR(Wy_John);
 
 
     /// @name Analysis methods
@@ -27,6 +27,7 @@ namespace Rivet {
     /// Book histograms and initialise projections before the run
     void init() {
 
+      _cut_mode = getOption("cut");
       // Initialise and register projections
 
       // The basic final-state projection:
@@ -104,12 +105,25 @@ namespace Rivet {
       book(_hist_jj_pt,"hist_jj_pt",jj_pt_bins);
       book(_hist_jj_dphi_signed,"hist_jj_dphi_signed",jj_dphi_signed_bins);
       book(_hist_cutflow,"hist_cutflow", 25, -0.5, 24.5);
+
+      //counter for efficiency
+      book(_c["pos_w_initial"],"pos_w_initial");
+      book(_c["neg_w_initial"],"neg_w_initial");
+      for (std::string& i_clip : _clips){
+        std::string i_pos_c_name = "pos_w_final_clip_" + i_clip;
+        std::string i_neg_c_name = "neg_w_final_clip_" + i_clip;
+        book(_c[i_pos_c_name], i_pos_c_name);
+        book(_c[i_neg_c_name], i_neg_c_name);
+      }
+
     }
 
 
     /// Perform the per-event analysis
     void analyze(const Event& event) {
-
+      double ev_nominal_weight =  event.weights()[0];
+      if (ev_nominal_weight>=0){_c["pos_w_initial"]->fill();} // dont need anything in bracket as this will be weight on weight
+      else {_c["neg_w_initial"]->fill();}
 
       const size_t numWeights = event.weights().size();
       for (size_t m = 0; m < numWeights; ++m) {
@@ -423,7 +437,9 @@ namespace Rivet {
       _hist_jj_m->fill(dijetMass);
       _hist_jj_pt->fill(dijetpT);
       _hist_jj_dphi_signed->fill(jj_dphi_signed);
-      
+
+      if (ev_nominal_weight>=0){_c["pos_w_final_clip_inf"]->fill();}
+      else {_c["neg_w_final_clip_inf"]->fill();}
     }
 
 
@@ -432,14 +448,22 @@ namespace Rivet {
 
       const double sf = crossSection() / femtobarn / sumOfWeights();
       std::cout << "scale factor: " << sf << " = " << crossSection() << " / " << femtobarn << " / " << sumOfWeights() << std::endl;
-      scale(_hist_xs,sf);
-      scale(_hist_total_xs,sf);
-      scale(_hist_lep_pt,sf);
-      scale(_hist_ly_m,sf);
-      scale(_hist_lepgam_dphi_signed,sf);
-      scale(_hist_jj_m,sf);
-      scale(_hist_jj_pt,sf);
-      scale(_hist_jj_dphi_signed,sf);
+      normalize(_hist_xs, 1.0);
+      normalize(_hist_total_xs, 1.0);
+      normalize(_hist_lep_pt, 1.0);
+      normalize(_hist_ly_m, 1.0);
+      normalize(_hist_lepgam_dphi_signed, 1.0);
+      normalize(_hist_jj_m, 1.0);
+      normalize(_hist_jj_pt, 1.0);
+      normalize(_hist_jj_dphi_signed, 1.0);
+//      scale(_hist_xs,sf);
+//      scale(_hist_total_xs,sf);
+//      scale(_hist_lep_pt,sf);
+//      scale(_hist_ly_m,sf);
+//      scale(_hist_lepgam_dphi_signed,sf);
+//      scale(_hist_jj_m,sf);
+//      scale(_hist_jj_pt,sf);
+//      scale(_hist_jj_dphi_signed,sf);
 
     }
 
@@ -458,11 +482,13 @@ namespace Rivet {
     
       /// Histograms
       Histo1DPtr _hist_xs,_hist_total_xs,_hist_lep_pt, _hist_ly_m, _hist_lepgam_dphi_signed,_hist_jj_m,_hist_jj_pt,_hist_mtw,_hist_jj_dphi_signed,_hist_cutflow;
-
+      std::string _cut_mode;
+      map<string, CounterPtr> _c;
+      std::vector<std::string> _clips {"inf", "3000", "2000", "1500", "1000", "700"};
   };
 
 
-  DECLARE_RIVET_PLUGIN(ATLAS_2023_Wyjj_Diff);
+  DECLARE_RIVET_PLUGIN(Wy_John);
 
 }
 
