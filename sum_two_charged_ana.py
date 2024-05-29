@@ -19,6 +19,8 @@ if opts.sumGenAna == "ssWW_lvlv":
     genAna_plus,genAna_minus = "WpWp_lvlv", "WmWm_lvlv"
 elif opts.sumGenAna == "WZ_lllv":
     genAna_plus,genAna_minus = "WpZ_lllv", "WmZ_lllv"
+elif opts.sumGenAna == "Wy_lvy":
+    genAna_plus,genAna_minus = "Wpy_lvy", "Wmy_lvy"
 clips_not_inf = ["3000","2000", "1500", "1000", "700"]
 debug = False
 
