@@ -5,27 +5,28 @@ ROOT.gStyle.SetOptStat(0)
 ROOT.gROOT.SetBatch(ROOT.kTRUE)
 from optparse import OptionParser
 parser = OptionParser()
-parser.add_option("--runWithCuts", default = "yes")
+parser.add_option("--gen_prod_dec", default = "Zy_vvy")
 opts, _ = parser.parse_args()
+cut = "SR"
 
-prod_dec = "Zy_vvy"
-_, top_files_dir = lu.find_prod_dec_and_dir(f"user.okurdysh.MadGraph_{prod_dec}_FM0_SM")
-docut_dir = "DOCUT_YES" if opts.runWithCuts=="yes" else "DOCUT_NO"
-base_plot_dir = lu.get_plotdir(prod_dec, docut_dir)
+_, top_files_dir = lu.find_prod_dec_and_dir(f"user.okurdysh.MadGraph_{opts.gen_prod_dec}_FM0_SM")
+base_plot_dir, routine_dir = lu.get_plotdir(opts.gen_prod_dec, opts.gen_prod_dec, cut)
 
-clips = ["inf","3000","2000", "1500", "1000", "700"] # M1_quad_pt_photon_clip_1000
+# names are like  M1_quad_pt_photon_clip_1000 or T2_quad_pt_lepton_clip_3000
+clips = ["inf","3000","2000","1500","1000","700"] if opts.gen_prod_dec=="Zy_vvy" else ["inf","3000","2000","1500","1000"]
 def get_clip_hist_name(fitvar,clip):
     return f"{fitvar}_clip_{clip}"
 
-fit_plot_str, fit_plot_bins = lu.get_fitted_plot(prod_dec)
+fit_plot_str, fit_plot_bins = lu.get_fitted_plot(opts.gen_prod_dec, cut)
 plots_to_save = [get_clip_hist_name(fit_plot_str, i_clip) for i_clip in clips]
 print("plots to save", plots_to_save)
 
-ws_hist_file = ROOT.TFile("../../fits/ws_extracted_hists/Zvvy.root", "read")
+ws_hists_name = "Zvvy" if opts.gen_prod_dec=="Zy_vvy" else "Wy"
+ws_hist_file = ROOT.TFile(f"../../fits/ws_extracted_hists/{ws_hists_name}.root", "read")
 ws_hist_list = [ih.GetName() for ih in list(ws_hist_file.GetListOfKeys())]
 for op_dir in [i_obj for i_obj in os.listdir(top_files_dir) if os.path.isdir(top_files_dir + "/" + i_obj)]:
-    full_op_dir = os.path.join(top_files_dir,op_dir,docut_dir,"")
-    op, order, _ = lu.get_op_from_dir(op_dir, prod_dec)
+    full_op_dir = os.path.join(top_files_dir,op_dir,routine_dir,"")
+    op, order, _ = lu.get_op_from_dir(op_dir, opts.gen_prod_dec)
     if order=="CROSS":
         continue
     hists_file = full_op_dir + "hists.root"
@@ -41,7 +42,8 @@ for op_dir in [i_obj for i_obj in os.listdir(top_files_dir) if os.path.isdir(top
         i_fid_xsec_file = full_op_dir+f"xsec_times_frac_fb_clip_{i_clip}.txt" 
         with open(i_fid_xsec_file, 'r') as f: i_fid_xsec_fb = float(f.read())
         i_full_hist_name = f"{op[0]}_{order}_{i_clip_hist_name}"
-        i_clip_hist_dressed = lu.dress_hist(i_clip_hist, "rivet_"+i_full_hist_name, 2, i_fid_xsec_fb*139, re_bins=fit_plot_bins)
+        i_clip_hist_dressed = lu.dress_hist(i_clip_hist, "rivet_"+i_full_hist_name, 2, i_fid_xsec_fb*139,
+                                            re_bins=fit_plot_bins, re_overflow=0)
         # print(i_clip_hist_dressed)
         #
         rivet_h_name = i_full_hist_name.replace("QUAD", "quad").replace("INT", "lin")[1:] # 1: for FT1->T1
