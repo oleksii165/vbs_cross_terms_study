@@ -113,7 +113,13 @@ namespace Rivet {
       std::ifstream ana_hist_file( "Wy_lvy_hists.json");
       json ana_hist = json::parse(ana_hist_file);
       for (json::iterator it = ana_hist.begin(); it != ana_hist.end(); ++it) {
-        book(_h[it.key()], it.key(), it.value()[0], it.value()[1], it.value()[2]);
+        std::vector<double> h_bins = it.value();
+        if (h_bins.size()==3) {
+          book(_h[it.key()], it.key(), h_bins[0], h_bins[1], h_bins[2]);
+        }
+        else{
+          book(_h[it.key()], it.key(), h_bins);
+        }
         _hist_names.push_back(it.key());
       }
 
@@ -175,7 +181,7 @@ namespace Rivet {
       _cutflows.fillnext();
 
       //photons
-      Particles photons = apply<FinalState>(event, "photons").particlesByPt(_photon_eta_cut);
+      Particles photons = apply<FinalState>(event, "photons").particlesByPt(_photon_eta_cut && Cuts::pT > 12*GeV);
       if (photons.empty())  vetoEvent;
       //photon cone calculation and photon OR with leptons 
       Particles isolated_photons;
@@ -185,6 +191,9 @@ namespace Rivet {
         // check photon isolation
         double i_high_pt_photon_cone_E = 0.0;
         for (const Particle &i_p_cone : cone_sum_particles) {
+          if (isSame(i_high_pt_photon,i_p_cone) || !isStable(i_p_cone)){
+            continue;
+          }
           if (deltaR(i_high_pt_photon, i_p_cone) < 0.4) { // etcone40
             i_high_pt_photon_cone_E += i_p_cone.Et();
           }
@@ -207,7 +216,7 @@ namespace Rivet {
       _cutflows.fillnext();
 
       // Retrieve clustered jets, sorted by pT, with a minimum pT cut
-      Jets jets = apply<FastJets>(event, "jets").jetsByPt(Cuts::pT > 20*GeV); // then will do cut on two leading pt>50
+      Jets jets = apply<FastJets>(event, "jets").jetsByPt(Cuts::absrap < 4.4 && Cuts::pT > 25*GeV); // then will do cut on two leading pt>50
       Jets btagging_jets = apply<FastJets>(event, "jets").jetsByPt(Cuts::absrap < 2.5 && Cuts::pT > 20*GeV);
       // Remove all jets within certain dR of a dressed lepton
       double dR_cut = _jcuts["dR_particles"];
@@ -248,7 +257,6 @@ namespace Rivet {
       const double dy_tagjets =  fabs(deltaRap(tag1_jet, tag2_jet));
       if (_cut_mode=="SR" && dy_tagjets<_jcuts["dy_tagjets"]) vetoEvent;
       _cutflows.fillnext();
-
 
       const double centrality_jjly = fabs(0.5 * (fourvec_ly.rap() - (tag1_jet.rap()+tag2_jet.rap())/2) / (tag1_jet.rap()-tag2_jet.rap()));
       if (_cut_mode=="SR" && centrality_jjly > _jcuts["centrality_jjly"])  vetoEvent;
