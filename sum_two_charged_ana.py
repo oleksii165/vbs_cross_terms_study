@@ -51,13 +51,26 @@ for i_order_op in confs_common:
     if not os.path.exists(i_rootname_plus) or not os.path.exists(i_rootname_minus): continue
     if debug: print("will work with +- root files", i_rootname_plus, i_rootname_minus)
     i_xsecname_plus_inf, i_xsecname_minus_inf = f"{i_dir_plus}/xsec_times_frac_fb_clip_inf.txt", f"{i_dir_minus}/xsec_times_frac_fb_clip_inf.txt"
+    i_seleff_plus_inf, i_seleff_minus_inf = f"{i_dir_plus}/frac_after_cuts_clip_inf.txt", f"{i_dir_minus}/frac_after_cuts_clip_inf.txt"
+    i_seleff_error_plus_inf, i_seleff_error_minus_inf = f"{i_dir_plus}/frac_after_cuts_error_bar_clip_inf.txt", f"{i_dir_minus}/frac_after_cuts_error_bar_clip_inf.txt"
     if not os.path.exists(i_xsecname_plus_inf) or not os.path.exists(i_xsecname_minus_inf): continue
+    if not os.path.exists(i_seleff_plus_inf) or not os.path.exists(i_seleff_minus_inf): continue
+    if not os.path.exists(i_seleff_error_plus_inf) or not os.path.exists(i_seleff_error_minus_inf): continue
     # save xsecs
     i_xsecs_plus, i_xsecs_minus = {},{}
+    i_seleff_plus, i_seleff_minus = {},{}
+    i_seleff_error_plus, i_seleff_error_minus = {},{}
     i_xsecs_plus["inf"],i_xsecs_minus["inf"] = read_xsec(i_xsecname_plus_inf), read_xsec(i_xsecname_minus_inf)
+    i_seleff_plus["inf"],i_seleff_minus["inf"] = read_xsec(i_seleff_plus_inf), read_xsec(i_seleff_minus_inf)
+    i_seleff_error_plus["inf"],i_seleff_error_minus["inf"] = read_xsec(i_seleff_error_plus_inf), read_xsec(i_seleff_error_minus_inf)
     for i_clip in clips_not_inf:
         i_xsecs_plus[i_clip] = read_xsec(i_xsecname_plus_inf.replace("clip_inf",f"clip_{i_clip}"))
         i_xsecs_minus[i_clip] = read_xsec(i_xsecname_minus_inf.replace("clip_inf",f"clip_{i_clip}"))
+        i_seleff_plus[i_clip] = read_xsec(i_seleff_plus_inf.replace("clip_inf",f"clip_{i_clip}"))
+        i_seleff_minus[i_clip] = read_xsec(i_seleff_minus_inf.replace("clip_inf",f"clip_{i_clip}"))
+        i_seleff_error_plus[i_clip] = read_xsec(i_seleff_error_plus_inf.replace("clip_inf",f"clip_{i_clip}"))
+        i_seleff_error_minus[i_clip] = read_xsec(i_seleff_error_minus_inf.replace("clip_inf",f"clip_{i_clip}"))
+
     if debug: print("got pos xsecs", i_xsecs_plus)
     if debug: print("got min xsecs",i_xsecs_minus)
     # save plots
@@ -95,7 +108,11 @@ for i_order_op in confs_common:
         i_clip_xsec_sum = float(i_xsecs_plus[i_clip]) + float(i_xsecs_minus[i_clip])
         i_clip_xsecname_sum = f"{i_dir_sum}/xsec_times_frac_fb_clip_{i_clip}.txt"
         lu.write_to_f(i_clip_xsecname_sum, i_clip_xsec_sum)
-
+    for i_clip in i_seleff_plus.keys():
+        i_clip_seleff_ave = (float(i_seleff_plus[i_clip]) + float(i_seleff_minus[i_clip])) / 2
+        lu.write_to_f(f"{i_dir_sum}/frac_after_cuts_clip_{i_clip}.txt", i_clip_seleff_ave)
+        i_clip_seleff_error_ave = (float(i_seleff_error_plus[i_clip]) + float(i_seleff_error_minus[i_clip])) / 2
+        lu.write_to_f(f"{i_dir_sum}/frac_after_cuts_error_bar_clip_{i_clip}.txt", i_clip_seleff_error_ave)
 
 
 
