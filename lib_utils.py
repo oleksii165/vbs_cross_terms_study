@@ -33,7 +33,7 @@ def get_fitted_plot(routine, cut):
             mystr, bins = "m_ll", array('d', [0,1500])
         elif cut=="WZCR":
             mystr, bins = "m_tagjets", array('d', [0,3000])
-    elif routine in ["Wmy_lvy","Wpy_lvy","Wy_lvy"]:
+    elif routine in ["Wmy_lvy","Wpy_lvy","Wy_lvy", "Wy_John"]:
         mystr = "pt_lepton"
         bins = array('d', [30,43,60,85,130,550])
 
