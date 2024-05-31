@@ -39,7 +39,7 @@ base_plot_dir, routine_dir = lu.get_plotdir(prod_dec, opts.routine, opts.cut)
 
 search_clips = opts.searchClips.split(",")  # search based on this, avoid 1000,700 for rep search as they are super low stat
 all_clips = search_clips + opts.additionalClips.split(",") # to check later what search gives
-fit_plot_str, fit_plot_bins = lu.get_fitted_plot(prod_dec)
+fit_plot_str, fit_plot_bins = lu.get_fitted_plot(opts.routine,opts.cut)
 xlabel = lu.get_var_latex(fit_plot_str)
 def plotname(i_clip):
     return f"{fit_plot_str}_clip_{i_clip}"
@@ -117,14 +117,14 @@ def save_pairs_find_rep(arr_ops_1, arr_ops_2, order1, order2, make_rep_df=False)
             for i_pair, i_rchi2 in zip(pairs_arr, rchi2_arr):
                 i_op1, i_op2 = i_pair[0], i_pair[1]
                 df.at[i_op1, i_op2] = round(i_rchi2,2)
-            lu.save_df(df, f"{base_plot_dir}/{order2}_tests_table_clip_{i_clip}.pdf")
+            lu.save_df(df, f"{base_plot_dir}/{order2}_tests_table_clip_{i_clip}.pdf", save_csv=True)
             chi2_dfs[i_clip] = df
     if make_rep_df:
         sum_chi2_df = chi2_dfs[search_clips[0]].add(chi2_dfs[search_clips[1]])
         for i_clip_add in search_clips[2:]:
             sum_chi2_df = sum_chi2_df.add(chi2_dfs[i_clip_add])
         # sum_chi2_df.astype('float64').round(2)
-        lu.save_df(sum_chi2_df, f"{base_plot_dir}/{order2}_tests_table_clip_sum.pdf")
+        lu.save_df(sum_chi2_df, f"{base_plot_dir}/{order2}_tests_table_clip_sum.pdf", save_csv=True)
         return sum_chi2_df
     else:
         return 0
@@ -169,12 +169,6 @@ def make_df(df_to_search, to_be_replaced_ops, search_within_ops, order_to_replac
             rel_eff_err_to_replace = eff_unc_to_replace / eff_to_replace
             rel_eff_err_rep = eff_unc_rep / eff_rep
             uncert = abs(norm) * math.sqrt(rel_eff_err_to_replace**2 + rel_eff_err_rep**2)
-            # print("###")
-            # print("for", (i_clip, order_to_replace, to_replace), "got eff and uncert", eff_to_replace, eff_unc_to_replace, "so rel unc", rel_eff_err_to_replace)
-            # print("for", (i_clip, order_to_replace, rep), "got eff and uncert", eff_rep, eff_unc_rep, "so rel unc", rel_eff_err_rep)
-            # print("including renorm", norm, "uncert on renorm", uncert)
-            # print("###")
-            # df_norm_unc.at[to_replace, i_clip] = f"{uncert/norm:.2f} ({rel_eff_err_to_replace:.2f}, {rel_eff_err_rep:.2f})"
             df_norm_unc.at[to_replace, i_clip] = f"{uncert/norm:.2f}"
             df_norm_unc.at[to_replace, "rep"] = rep
             
@@ -185,12 +179,14 @@ def make_df(df_to_search, to_be_replaced_ops, search_within_ops, order_to_replac
 if opts.doReshuffling:
     print("##### reshuffling based on QUAD - find QUAD coeficienes and INT?", opts.doINT) # find good reps for non-closure
     df_resh_q = make_df(sum_chi2_df_quad, existing_ops_quad, existing_ops_quad, "QUAD", "QUAD", f"{base_plot_dir}/reshuffling_ws_table.pdf")
-    if opts.doINT: df_resh_i = make_df(sum_chi2_df_quad, existing_ops_quad, existing_ops_quad, "INT", "INT", f"{base_plot_dir}/reshuffling_ws_table.pdf")
+    if opts.doINT:
+        df_resh_i = make_df(sum_chi2_df_quad, existing_ops_quad, existing_ops_quad, "INT", "INT", f"{base_plot_dir}/reshuffling_ws_table.pdf")
 
 if opts.doReplacement:
     print("##### replace missing QUAD - find  QUAD coeficienes and INT?", opts.doINT) # find good reps for missing
     df_rep_q = make_df(sum_chi2_df_quad, missing_ops_quad, existing_ops_quad, "QUAD", "QUAD", f"{base_plot_dir}/replacement_ws_table.pdf")
-    df_rep_i = make_df(sum_chi2_df_quad, missing_ops_quad, existing_ops_quad, "INT", "INT", f"{base_plot_dir}/replacement_ws_table.pdf")
+    if opts.doINT:
+        df_rep_i = make_df(sum_chi2_df_quad, missing_ops_quad, existing_ops_quad, "INT", "INT", f"{base_plot_dir}/replacement_ws_table.pdf")
 
 # print("##### replace missing CROSS") # find way to insert missing crosses
 # df_rep = make_df(sum_chi2_df_cross, missing_ops_cross, existing_ops_quad, "CROSS", "QUAD", f"{base_plot_dir}/cross_ws_table.pdf")
