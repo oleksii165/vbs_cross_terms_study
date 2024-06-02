@@ -31,6 +31,7 @@ parser.add_option("--additionalClips", default = "1500,1000") # ignore 700
 parser.add_option("--doReshuffling", default = 1, type="int")
 parser.add_option("--doReplacement", default = 0, type="int")
 parser.add_option("--doINT", default = 0, type="int")
+parser.add_option("--doCROSS", default = 0, type="int")
 opts, _ = parser.parse_args()
 
 prod_dec = f"{opts.tGenProd}_{opts.tGenDec}"
@@ -131,10 +132,13 @@ def save_pairs_find_rep(arr_ops_1, arr_ops_2, order1, order2, make_rep_df=False)
 
 # find replacements
 have_ops_int_quad = sorted(list(set([ihist[2] for ihist in hists.keys() if ihist[1]!="CROSS"])))
-# have_ops_cross = ["FM0vsFM1", "FT0vsFT5", "FT8vsFT9"] #sorted(list(set([ihist[2] for ihist in hists.keys() if ihist[1]=="CROSS"])))
 sum_chi2_df_quad = save_pairs_find_rep(have_ops_int_quad, have_ops_int_quad, "QUAD", "QUAD", make_rep_df=True)
-# save_pairs_find_rep(have_ops_int_quad, have_ops_int_quad, "INT", "INT") # dont search based on INT, apply what was found in QUAD selected terms - just save plots
-# sum_chi2_df_cross = save_pairs_find_rep(have_ops_int_quad, have_ops_cross, "QUAD", "CROSS", make_rep_df=True)
+if opts.doINT:
+    save_pairs_find_rep(have_ops_int_quad, have_ops_int_quad, "INT", "INT") # dont search based on INT, apply what was found in QUAD selected terms - just save plots
+if opts.doCROSS:
+    have_ops_cross = sorted(list(set([ihist[2] for ihist in hists.keys() if ihist[1]=="CROSS"]))) # ["FM0vsFM1", "FT0vsFT5", "FT8vsFT9"]
+    sum_chi2_df_cross = save_pairs_find_rep(have_ops_int_quad, have_ops_cross, "QUAD", "CROSS", make_rep_df=True)
+    missing_ops_cross = list(sum_chi2_df_cross.columns)
 
 # save table for reshuffling and replacement and also of renormalizations
 missing_ops_ana = lu.get_missing_ops(prod_dec)
@@ -142,7 +146,6 @@ missing_ops_quad = [i_op for i_op in missing_ops_ana if i_op in list(sum_chi2_df
 existing_ops_quad = [i_op for i_op in list(sum_chi2_df_quad.keys()) if i_op not in missing_ops_quad]
 print("have existing ops", existing_ops_quad)
 print("have missing ops", missing_ops_quad)
-# missing_ops_cross = list(sum_chi2_df_cross.columns)
 cols_rep_df = ["toreplace", "replacement","sumchi2"]
 def make_df(df_to_search, to_be_replaced_ops, search_within_ops, order_to_replace, order_rep, out_name):
     rep_df = pd.DataFrame(columns=cols_rep_df)
@@ -164,8 +167,8 @@ def make_df(df_to_search, to_be_replaced_ops, search_within_ops, order_to_replac
             df_norm.at[to_replace, i_clip] = norm
             df_norm.at[to_replace, "rep"] = rep
             #
-            eff_to_replace, eff_rep = effs[(i_clip, order_rep, to_replace)], effs[(i_clip, order_rep, rep)]
-            eff_unc_to_replace, eff_unc_rep = eff_uncerts[(i_clip, order_rep, to_replace)], eff_uncerts[(i_clip, order_rep, rep)]
+            eff_to_replace, eff_rep = effs[(i_clip, order_to_replace, to_replace)], effs[(i_clip, order_rep, rep)]
+            eff_unc_to_replace, eff_unc_rep = eff_uncerts[(i_clip, order_to_replace, to_replace)], eff_uncerts[(i_clip, order_rep, rep)]
             rel_eff_err_to_replace = eff_unc_to_replace / eff_to_replace
             rel_eff_err_rep = eff_unc_rep / eff_rep
             uncert = abs(norm) * math.sqrt(rel_eff_err_to_replace**2 + rel_eff_err_rep**2)
@@ -181,12 +184,11 @@ if opts.doReshuffling:
     df_resh_q = make_df(sum_chi2_df_quad, existing_ops_quad, existing_ops_quad, "QUAD", "QUAD", f"{base_plot_dir}/reshuffling_ws_table.pdf")
     if opts.doINT:
         df_resh_i = make_df(sum_chi2_df_quad, existing_ops_quad, existing_ops_quad, "INT", "INT", f"{base_plot_dir}/reshuffling_ws_table.pdf")
-
 if opts.doReplacement:
     print("##### replace missing QUAD - find  QUAD coeficienes and INT?", opts.doINT) # find good reps for missing
     df_rep_q = make_df(sum_chi2_df_quad, missing_ops_quad, existing_ops_quad, "QUAD", "QUAD", f"{base_plot_dir}/replacement_ws_table.pdf")
     if opts.doINT:
         df_rep_i = make_df(sum_chi2_df_quad, missing_ops_quad, existing_ops_quad, "INT", "INT", f"{base_plot_dir}/replacement_ws_table.pdf")
-
-# print("##### replace missing CROSS") # find way to insert missing crosses
-# df_rep = make_df(sum_chi2_df_cross, missing_ops_cross, existing_ops_quad, "CROSS", "QUAD", f"{base_plot_dir}/cross_ws_table.pdf")
+if opts.doCROSS:
+    print("##### replace missing CROSS") # find way to insert missing crosses
+    df_rep = make_df(sum_chi2_df_cross, missing_ops_cross, existing_ops_quad, "CROSS", "QUAD", f"{base_plot_dir}/cross_ws_table.pdf")
