@@ -33,7 +33,6 @@ parser.add_option("--doReshuffling", default = 1, type="int")
 parser.add_option("--doReplacement", default = 0, type="int")
 parser.add_option("--doINT", default = 0, type="int")
 parser.add_option("--doCROSS", default = 0, type="int")
-parser.add_option("--convertToCounts", default=0, type="int")
 parser.add_option("--savePdf", default=1, type="int")
 opts, _ = parser.parse_args()
 
@@ -196,7 +195,8 @@ if opts.doCROSS:
     print("##### replace missing CROSS") # find way to insert missing crosses
     df_rep_c, df_norms_rep_c = make_df(sum_chi2_df_cross, missing_ops_cross, existing_ops_quad, "CROSS", "QUAD", f"{base_plot_dir}/cross_ws_table.pdf")
 
-if opts.convertToCounts and opts.routine=="ssWW_lvlv":
+# convert to counts for mathieu
+if opts.doCROSS and opts.routine=="ssWW_lvlv":
     clips_for_counts = ["inf","1500"] # currently only have this json from Mathieu
     gen_prod_dec = f"{opts.tGenProd}_{opts.tGenDec}"
     base_plot_dir, _ = lu.get_plotdir(gen_prod_dec, opts.routine, opts.cut)
