@@ -1,5 +1,6 @@
 import lib_utils as lu
 import os
+import json
 import ROOT
 ROOT.gStyle.SetOptStat(0)
 ROOT.gROOT.SetBatch(ROOT.kTRUE)
@@ -32,6 +33,8 @@ parser.add_option("--doReshuffling", default = 1, type="int")
 parser.add_option("--doReplacement", default = 0, type="int")
 parser.add_option("--doINT", default = 0, type="int")
 parser.add_option("--doCROSS", default = 0, type="int")
+parser.add_option("--convertToCounts", default=0, type="int")
+parser.add_option("--savePdf", default=1, type="int")
 opts, _ = parser.parse_args()
 
 prod_dec = f"{opts.tGenProd}_{opts.tGenDec}"
@@ -118,14 +121,14 @@ def save_pairs_find_rep(arr_ops_1, arr_ops_2, order1, order2, make_rep_df=False)
             for i_pair, i_rchi2 in zip(pairs_arr, rchi2_arr):
                 i_op1, i_op2 = i_pair[0], i_pair[1]
                 df.at[i_op1, i_op2] = round(i_rchi2,2)
-            lu.save_df(df, f"{base_plot_dir}/{order2}_tests_table_clip_{i_clip}.pdf", save_csv=True)
+            lu.save_df(df, f"{base_plot_dir}/{order2}_tests_table_clip_{i_clip}.pdf", save_csv=True, save_pdf=opts.savePdf)
             chi2_dfs[i_clip] = df
     if make_rep_df:
         sum_chi2_df = chi2_dfs[search_clips[0]].add(chi2_dfs[search_clips[1]])
         for i_clip_add in search_clips[2:]:
             sum_chi2_df = sum_chi2_df.add(chi2_dfs[i_clip_add])
         # sum_chi2_df.astype('float64').round(2)
-        lu.save_df(sum_chi2_df, f"{base_plot_dir}/{order2}_tests_table_clip_sum.pdf", save_csv=True)
+        lu.save_df(sum_chi2_df, f"{base_plot_dir}/{order2}_tests_table_clip_sum.pdf", save_csv=True, save_pdf=opts.savePdf)
         return sum_chi2_df
     else:
         return 0
@@ -141,7 +144,7 @@ if opts.doCROSS:
     missing_ops_cross = list(sum_chi2_df_cross.columns)
 
 # save table for reshuffling and replacement and also of renormalizations
-missing_ops_ana = lu.get_missing_ops(prod_dec)
+missing_ops_ana = lu.get_missing_ops(opts.routine)
 missing_ops_quad = [i_op for i_op in missing_ops_ana if i_op in list(sum_chi2_df_quad.keys())] # like can miss because irrelevant for process
 existing_ops_quad = [i_op for i_op in list(sum_chi2_df_quad.keys()) if i_op not in missing_ops_quad]
 print("have existing ops", existing_ops_quad)
@@ -153,7 +156,7 @@ def make_df(df_to_search, to_be_replaced_ops, search_within_ops, order_to_replac
         rep_op, resh_chi2 = lu.get_replacement(df_to_search, i_op_to_rep, search_within_ops)
         print("for op", i_op_to_rep, "replacement op is", rep_op, "with sum of chi2 across clips", resh_chi2)
         rep_df.loc[len(rep_df.index)] = [i_op_to_rep, rep_op, resh_chi2] 
-    lu.save_df(rep_df, out_name, save_csv=True, aspect=(6,6))
+    lu.save_df(rep_df, out_name, save_csv=True, aspect=(6,6), save_pdf=opts.savePdf)
     # find renormalizations 
     df_norm = pd.DataFrame(index=list(rep_df["toreplace"]),columns=["rep"]+all_clips)
     df_norm_unc = pd.DataFrame(index=list(rep_df["toreplace"]),columns=["rep"]+all_clips)
@@ -169,26 +172,59 @@ def make_df(df_to_search, to_be_replaced_ops, search_within_ops, order_to_replac
             #
             eff_to_replace, eff_rep = effs[(i_clip, order_to_replace, to_replace)], effs[(i_clip, order_rep, rep)]
             eff_unc_to_replace, eff_unc_rep = eff_uncerts[(i_clip, order_to_replace, to_replace)], eff_uncerts[(i_clip, order_rep, rep)]
-            rel_eff_err_to_replace = eff_unc_to_replace / eff_to_replace
+            rel_eff_err_to_replace = eff_unc_to_replace / eff_to_replace if eff_to_replace!=0 else 0
             rel_eff_err_rep = eff_unc_rep / eff_rep
             uncert = abs(norm) * math.sqrt(rel_eff_err_to_replace**2 + rel_eff_err_rep**2)
-            df_norm_unc.at[to_replace, i_clip] = f"{uncert/norm:.2f}"
+            df_norm_unc.at[to_replace, i_clip] = f"{uncert/norm:.2f}" if norm!=0 else 0
             df_norm_unc.at[to_replace, "rep"] = rep
             
-    lu.save_df(df_norm, out_name+f"_norms_{order_to_replace}.pdf", save_csv=True, aspect=(6,6))
-    lu.save_df(df_norm_unc, out_name+f"_norms_unc_{order_to_replace}.pdf", save_csv=True, aspect=(6,6))
-    return rep_df
+    lu.save_df(df_norm, out_name+f"_norms_{order_to_replace}.pdf", save_csv=True, aspect=(6,6), save_pdf=opts.savePdf)
+    lu.save_df(df_norm_unc, out_name+f"_norms_unc_{order_to_replace}.pdf", save_csv=True, aspect=(6,6), save_pdf=opts.savePdf)
+    return rep_df, df_norm
 
 if opts.doReshuffling:
     print("##### reshuffling based on QUAD - find QUAD coeficienes and INT?", opts.doINT) # find good reps for non-closure
-    df_resh_q = make_df(sum_chi2_df_quad, existing_ops_quad, existing_ops_quad, "QUAD", "QUAD", f"{base_plot_dir}/reshuffling_ws_table.pdf")
+    df_resh_q, df_norms_resh_q = make_df(sum_chi2_df_quad, existing_ops_quad, existing_ops_quad, "QUAD", "QUAD", f"{base_plot_dir}/reshuffling_ws_table.pdf")
     if opts.doINT:
-        df_resh_i = make_df(sum_chi2_df_quad, existing_ops_quad, existing_ops_quad, "INT", "INT", f"{base_plot_dir}/reshuffling_ws_table.pdf")
+        df_resh_i, df_norms_resh_i = make_df(sum_chi2_df_quad, existing_ops_quad, existing_ops_quad, "INT", "INT", f"{base_plot_dir}/reshuffling_ws_table.pdf")
 if opts.doReplacement:
     print("##### replace missing QUAD - find  QUAD coeficienes and INT?", opts.doINT) # find good reps for missing
-    df_rep_q = make_df(sum_chi2_df_quad, missing_ops_quad, existing_ops_quad, "QUAD", "QUAD", f"{base_plot_dir}/replacement_ws_table.pdf")
+    df_rep_q, df_norms_rep_q = make_df(sum_chi2_df_quad, missing_ops_quad, existing_ops_quad, "QUAD", "QUAD", f"{base_plot_dir}/replacement_ws_table.pdf")
     if opts.doINT:
-        df_rep_i = make_df(sum_chi2_df_quad, missing_ops_quad, existing_ops_quad, "INT", "INT", f"{base_plot_dir}/replacement_ws_table.pdf")
+        df_rep_i, df_norms_rep_i = make_df(sum_chi2_df_quad, missing_ops_quad, existing_ops_quad, "INT", "INT", f"{base_plot_dir}/replacement_ws_table.pdf")
 if opts.doCROSS:
     print("##### replace missing CROSS") # find way to insert missing crosses
-    df_rep = make_df(sum_chi2_df_cross, missing_ops_cross, existing_ops_quad, "CROSS", "QUAD", f"{base_plot_dir}/cross_ws_table.pdf")
+    df_rep_c, df_norms_rep_c = make_df(sum_chi2_df_cross, missing_ops_cross, existing_ops_quad, "CROSS", "QUAD", f"{base_plot_dir}/cross_ws_table.pdf")
+
+if opts.convertToCounts and opts.routine=="ssWW_lvlv":
+    clips_for_counts = ["inf","1500"] # currently only have this json from Mathieu
+    gen_prod_dec = f"{opts.tGenProd}_{opts.tGenDec}"
+    base_plot_dir, _ = lu.get_plotdir(gen_prod_dec, opts.routine, opts.cut)
+    workspaces = {}
+    for clip in clips_for_counts:
+        with open(f'{os.path.dirname(base_plot_dir[:-1])}/ws_{clip}.json') as f:
+            ws = json.load(f)
+            workspaces[clip] = ws
+    def get_original_ws_array(clip,op, order_capital):
+        assert order_capital!="CROSS", "man you're doing something wrong machinery not adapted to get CROSS"
+        clip_h_name = lu.get_clip_hist_name(fit_plot_str, clip)
+        _, arr_counts = lu.ssWW_get_ws_hist(workspaces[clip], op, order_capital,
+                                            f"{op}_{order}_{clip_h_name}", gen_prod_dec, opts.cut)
+        return arr_counts
+
+    def save_counts(clip, df_with_norms, order_rep,order_to_rep,out_file):
+        f = open(out_file, "w")
+        for to_replace, rep_row in df_with_norms.iterrows():
+            rep = rep_row["rep"]
+            rep_arr_no_coef = get_original_ws_array(clip,rep, order_rep)
+            # print("arr from ws for QUAD", clip,rep, "is", rep_arr_no_coef)
+            renorm = rep_row[clip]
+            rep_arr_scaled = np.array(rep_arr_no_coef) * renorm
+            # print("which is scaled by", renorm, "is", rep_arr_scaled, "and this is now", to_replace)
+            f.write(f"{to_replace}_{order_to_rep}:{','.join([str(count) for count in rep_arr_scaled])}\n")
+        f.close()
+
+    for clip in clips_for_counts:
+        if opts.doCROSS:
+            save_counts(clip, df_norms_rep_c,
+                        "QUAD", "CROSS",f"{base_plot_dir}/counts_CROSS_clip_{clip}.txt")

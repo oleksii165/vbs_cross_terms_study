@@ -15,11 +15,9 @@ base_plot_dir, routine_dir = lu.get_plotdir(opts.gen_prod_dec, opts.routine, cut
 
 # names are like  M1_quad_pt_photon_clip_1000 or T2_quad_pt_lepton_clip_3000
 clips = ["inf","3000","2000","1500","1000","700"] if opts.gen_prod_dec=="Zy_vvy" else ["inf","3000","2000","1500","1000"]
-def get_clip_hist_name(fitvar,clip):
-    return f"{fitvar}_clip_{clip}"
 
 fit_plot_str, fit_plot_bins = lu.get_fitted_plot(opts.routine, cut)
-plots_to_save = [get_clip_hist_name(fit_plot_str, i_clip) for i_clip in clips]
+plots_to_save = [lu.get_clip_hist_name(fit_plot_str, i_clip) for i_clip in clips]
 print("plots to save", plots_to_save)
 
 ws_hists_name = "Zvvy" if opts.gen_prod_dec=="Zy_vvy" else "Wy"
@@ -36,7 +34,7 @@ for op_dir in [i_obj for i_obj in os.listdir(top_files_dir) if os.path.isdir(top
         i_plot_dir = f"{base_plot_dir}/ws_rivet_hists/clip_{i_clip}/"
         if not os.path.exists(i_plot_dir): os.makedirs(i_plot_dir)
         # print("working on clip", i_clip)
-        i_clip_hist_name = get_clip_hist_name(fit_plot_str, i_clip)
+        i_clip_hist_name = lu.get_clip_hist_name(fit_plot_str, i_clip)
         if i_clip_hist_name not in op_hists_default_bin.keys():
             continue 
         i_clip_hist = op_hists_default_bin[i_clip_hist_name]

@@ -42,20 +42,23 @@ def get_fitted_plot(routine, cut):
 def get_rivet_job_name(genJobName,routine,cut):
     return f'{genJobName}_rivet_{routine}_cut_{cut}'
 
-def get_missing_ops(prod_dec):
-    if prod_dec=="Zy_vvy":
+def get_missing_ops(routine):
+    if routine=="Zy_vvy":
         ops = ["FS0", "FS1", "FS2", "FS02",
                        "FM7",
                        "FM3", "FM4", "FM5",
                        "FT1", "FT2",
                        "FT6", "FT7"]
-    elif prod_dec in ["WpZ_lllv","WmZ_lllv"]:
+    elif routine in ["WpZ_lllv","WmZ_lllv", "WZ_lllv"]:
         ops = ["FM2", "FM3", "FM4", "FM5",
                "FT5", "FT6", "FT7",
                "FT8", "FT9"]
-    elif prod_dec in ["ZZ_llvv"]:
+    elif routine in ["ZZ_llvv"]:
         ops = ["FS02", "FS1", 
                 "FM0", "FM1", "FM2", "FM3", "FM4", "FM5", "FM7"]
+    elif routine in ["WmWm_lvlv","WpWp_lvlv","ssWW_lvlv"]:
+        ops = ["FM2", "FM3", "FM4", "FM5", "FT5", "FT6", "FT7", "FT8", "FT9",
+               "FT2"] # not missing but bad agreement with ws at clip inf for quad
     else:
         ops=[]
     return ops
@@ -450,16 +453,17 @@ def get_replacement(df, op_miss, list_to_search_in):
     return best_rep, best_chi2
 
 
-def save_df(df, out_path, save_csv=False, aspect = (16, 9)):
+def save_df(df, out_path, save_csv=False, aspect = (16, 9), save_pdf=True):
     if save_csv: df.to_csv(out_path+".csv", sep=";")
-    plt.clf()
-    fig, ax = plt.subplots(figsize=aspect)
-    ax.axis('tight')
-    ax.axis('off')
-    table_quad_pairs = ax.table(cellText = df.values, rowLabels = df.index, colLabels = df.columns, loc='center')
-    with PdfPages(out_path) as pdf:
-        pdf.savefig(fig, bbox_inches='tight')
-        plt.close()
+    if save_pdf:
+        plt.clf()
+        fig, ax = plt.subplots(figsize=aspect)
+        ax.axis('tight')
+        ax.axis('off')
+        table_quad_pairs = ax.table(cellText = df.values, rowLabels = df.index, colLabels = df.columns, loc='center')
+        with PdfPages(out_path) as pdf:
+            pdf.savefig(fig, bbox_inches='tight')
+            plt.close()
 
 def arr_to_hist1d(arr_counts, hname, bin_edges):
     my_hist = ROOT.TH1F(hname, hname, len(bin_edges)-1, bin_edges)
@@ -478,5 +482,43 @@ def get_rivet_resub_name(last_job_name):
         job_name = rivet_part_name.replace(last_job_name_try_part,"try"+str(last_job_name_try_attempt+1))
     full_job_name = last_job_name[:rivet_str_ind] + job_name
     return full_job_name
+
+def ssWW_get_ws_hist(ws_json_clip,op,order_capital, i_hist_out_name,
+                gen_prod_dec, cut):
+    substr_cut_rivet_to_ws_dict = {"SR": "CutSR", "LowmjjCR": "CutLowMjj", "WZCR": "CutCRWZ3Lep"}
+    eft_substr = "EFTWZ_" if gen_prod_dec=="WZ_lllv" else "EFT_"
+    op_substr = op[1:] if "F" in op else op
+    arr_counts = -1
+    # to select certain region it's "cutSR"
+    index_region_dict= {"SR": 3, "WZCR": 0, "LowmjjCR": 2}
+    sr_samples = ws_json_clip['distributions'][index_region_dict[cut]]['samples']
+    for i_hist_json in sr_samples:
+        i_name = i_hist_json['name'] # like 'EFTWZ_M1_28_quad_CutSR_all_overallSyst_x_StatUncert'
+        if eft_substr not in i_name: continue
+        if op_substr not in i_name: continue
+        if order_capital.lower() not in i_name: continue
+        if substr_cut_rivet_to_ws_dict[cut] not in i_name: continue
+        arr_counts = i_hist_json['data']['contents']
+    _, fit_plot_bins = get_fitted_plot("ssWW_lvlv", cut)
+    i_hist = arr_to_hist1d(arr_counts, i_hist_out_name, fit_plot_bins) if arr_counts!=-1 else -1
+    return i_hist, arr_counts
+
+def ssWW_get_wilson_coef(ops_arr, gen_prod_dec, order):
+    # final wilson = 8 * their wilson. table gives those numbers. theis is brough up for some reason
+    wilson_corr_coef = {}
+    wilson_corr_coef["ssWW_lvlv"] = {"FS02":8.0,"FS1":20.0,"FM0":6.0,"FM1":10.0,"FM7":13.0,"FT0":0.6,"FT1":0.3,"FT2":1.0}
+    wilson_corr_coef["WZ_lllv"] = {"FS02":82,"FS1":128,"FM0":27,"FM1":28,"FM7":30,"FT0":2.4,"FT1":1.6,"FT2":5.5}
+    mult_factor_on_my_xsec = -1
+    op_search = ops_arr[0]
+    if op_search in wilson_corr_coef[gen_prod_dec].keys():
+        coef = wilson_corr_coef[gen_prod_dec][op_search]
+        if order == "QUAD":
+            mult_factor_on_my_xsec = coef ** 2
+        elif order == "INT":
+            mult_factor_on_my_xsec = coef
+    return mult_factor_on_my_xsec
+
+def get_clip_hist_name(fitvar,clip):
+    return f"{fitvar}_clip_{clip}"
 
     
