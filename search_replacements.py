@@ -110,7 +110,7 @@ def save_pairs_find_rep(arr_ops_1, arr_ops_2, order1, order2, make_rep_df=False)
                 i_stack.Add(i_hist1)
                 i_stack.Add(i_hist2)
                 lu.draw_stack_with_ratio(i_stack, ratio_plot, xlabel, pairs_dir+f"/{i_key1}vs{i_key2}.pdf")
-                if make_rep_df and i_clip in search_clips:
+                if make_rep_df:
                     pairs_arr.append([i_key1, i_key2])
                     rchi2_arr.append(rchi2)
         # for each clip
