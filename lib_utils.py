@@ -132,8 +132,8 @@ def get_evnt_log_files(base_dir,i_job_name):
     print("returning log file", log_file)
     return evnt_candidates_out, log_file
 
-def get_plotdir(prod_dec, routine, cut):
-    routine_dir = f"routine_{routine}_cut_{cut}"
+def get_plotdir(prod_dec, routine, cut, DOCUT_format=False):
+    routine_dir = f"routine_{routine}_cut_{cut}" if not DOCUT_format else f"routine_{routine}_cut_{cut}"
     my_dir = f"/exp/atlas/kurdysh/vbs_cross_terms_study/plots/{prod_dec}/{routine_dir}/"
     if not os.path.exists(my_dir): os.makedirs(my_dir)
     return my_dir, routine_dir
@@ -309,6 +309,8 @@ def get_op_from_dir(mydir,prod_dec):
     return sorted(ops_arr), regime, ops
 
 def save_plot(plot,path_to_save, draw_option = "text45", log_scale = False, legend=False):
+    if not os.path.exists(os.path.dirname(path_to_save)):
+        os.makedirs(os.path.dirname(path_to_save))
     c=ROOT.TCanvas()
     plot.Draw(draw_option)
     if log_scale: ROOT.gPad.SetLogy()
