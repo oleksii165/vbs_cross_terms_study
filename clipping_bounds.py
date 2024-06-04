@@ -37,6 +37,8 @@ for ana in list(h_name.keys()):
         hfile =  ROOT.TFile.Open(full_op_dir+"hists.root", "READ")
         diboson_hist = hfile.Get(h_name[ana])
         diboson_hist.RebinX(2)
+        peak_mass = diboson_hist.GetBinCenter(diboson_hist.GetMaximumBin())
+        diboson_hist.SetTitle(diboson_hist.GetTitle()+f"_peak_{peak_mass:.2f}")
         lu.save_plot(diboson_hist,plots_dir_diboson+pdfname, draw_option = "")
         diboson_hist_cumulative = diboson_hist.GetCumulative()
         lu.save_plot(diboson_hist_cumulative,plots_dir_integ+pdfname, draw_option = "")
