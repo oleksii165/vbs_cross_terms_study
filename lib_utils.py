@@ -20,8 +20,8 @@ def get_fitted_plot(routine, cut):
         mystr = "pt_photon"
         bins = array('d', [150,300,450,600,750,900,1050,1200,2000])
     elif routine in ["WmZ_lllv","WpZ_lllv","WZ_lllv"]:
-        mystr="m_WZ_T"
-        bins = array('d', [0,400,750,1050,1350,4000])
+        mystr="m_T_WZ"
+        bins = array('d', [0,400,750,1050,1350,1800])
     elif routine == "ZZ_llvv":
         mystr="pt_Z"
         bins = array('d', [50,100,150,200,250,350,1500])
