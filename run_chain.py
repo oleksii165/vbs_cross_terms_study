@@ -115,7 +115,7 @@ def get_ext_in_files(routine):
     elif routine=="Wy_lvy":
         files = standard_pack + "photon_hists.json,lepton_hists.json"
     elif routine=="Wy_John":
-	    files = f"Rivet{routine}.so"
+        files = f"Rivet{routine}.so"
     elif routine=="ssWW_lvlv":
         files = standard_pack + "lepton_hists.json"
     else:
