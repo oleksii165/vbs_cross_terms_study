@@ -8,10 +8,12 @@ ROOT.gROOT.ProcessLine( "gErrorIgnoreLevel = 1001;")
 
 h_name = {"ZZ_llvv": "m_ZZ",
           "ssWW_lvlv": "m_diboson",
-          "Zy_vvy": "m_Zy"}
+          "Zy_vvy": "m_Zy",
+          "WZ_lllv":"m_WZ"}
 plot_folder = {"ZZ_llvv": "DOCUT_YES", # didnt update it to new format yet
                "ssWW_lvlv": "routine_ssWW_lvlv_cut_SR",
-               "Zy_vvy": "routine_Zy_vvy_cut_SR"}
+               "Zy_vvy": "routine_Zy_vvy_cut_SR",
+               "WZ_lllv": "routine_WZ_lllv_cut_SR"}
 
 def x_val_for_y(cdf_h1, y_val, tolerance=0.01):
     x_val = -1
