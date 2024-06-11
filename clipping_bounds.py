@@ -5,6 +5,14 @@ import ROOT
 import pandas as pd
 ROOT.gROOT.SetBatch(ROOT.kTRUE)
 ROOT.gROOT.ProcessLine( "gErrorIgnoreLevel = 1001;")
+ROOT.gROOT.LoadMacro("~/atlasstyle/AtlasStyle.C")
+ROOT.SetAtlasStyle()
+ROOT.gROOT.LoadMacro("~/atlasstyle/AtlasLabels.C")
+ROOT.gROOT.LoadMacro("~/atlasstyle/AtlasUtils.C")
+ROOT.gStyle.SetLegendBorderSize(0)
+ROOT.gStyle.SetLegendFillColor(0)
+# ROOT.gStyle.SetLegendFont(42)
+ROOT.gStyle.SetLegendTextSize(0.04)
 
 h_name = {"ZZ_llvv": "m_ZZ",
           "ssWW_lvlv": "m_diboson",
@@ -60,4 +68,4 @@ for i_ana in plot_folder.keys():
     for i_op in dict_bounds[i_ana].keys():
         b_arr = dict_bounds[i_ana][i_op]
         df_sum.at[i_op, i_ana] = f"{b_arr[0]}, {b_arr[1]}"
-lu.save_df(df_sum, f"{base_plot_folder}/clipping_reasonable_bounds.pdf", aspect = (9, 9))
+lu.save_df(df_sum, f"{base_plot_folder}/clipping_reasonable_bounds.pdf", aspect = (9, 9), save_latex=True)

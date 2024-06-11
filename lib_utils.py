@@ -455,8 +455,12 @@ def get_replacement(df, op_miss, list_to_search_in):
     return best_rep, best_chi2
 
 
-def save_df(df, out_path, save_csv=False, aspect = (16, 9), save_pdf=True):
+def save_df(df, out_path, save_csv=False, aspect = (16, 9), save_pdf=True, save_latex=False):
     if save_csv: df.to_csv(out_path+".csv", sep=";")
+    if save_latex:
+        fname_no_dir_ext = os.path.basename(out_path)
+        label = fname_no_dir_ext[:fname_no_dir_ext.find(".pdf")]
+        df.to_latex(out_path+".tex", label="table:"+label)
     if save_pdf:
         plt.clf()
         fig, ax = plt.subplots(figsize=aspect)
