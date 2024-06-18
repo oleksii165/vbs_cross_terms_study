@@ -20,7 +20,7 @@ if opts.gen_prod_dec=="Zy_vvy":
     ws_hists_name = "Zvvy"
 elif opts.gen_prod_dec=="Wy_lvy":
     clips = ["inf","3000","2000","1500","1000"]
-    additional_rivet_norm_division_by = (2.4**2 * 1.55)
+    additional_rivet_norm_division_by = (2.4**2)
     ws_hists_name = "Wy"
 elif opts.gen_prod_dec=="WZ_lllv":
     clips=["inf"]
@@ -28,6 +28,7 @@ elif opts.gen_prod_dec=="WZ_lllv":
     ws_hists_name = "WZ"
 
 last_overflow_bin = 1 if opts.gen_prod_dec=="WZ_lllv" else 0
+exclude_underverflow_from_norm = 1 if opts.gen_prod_dec=="Wy_lvy" else 0
 
 fit_plot_str, fit_plot_bins = lu.get_fitted_plot(opts.routine, cut)
 plots_to_save = [lu.get_clip_hist_name(fit_plot_str, i_clip) for i_clip in clips]
@@ -53,10 +54,11 @@ for op_dir in [i_obj for i_obj in os.listdir(top_files_dir) if os.path.isdir(top
         i_fid_xsec_file = full_op_dir+f"xsec_times_frac_fb_clip_{i_clip}.txt" 
         with open(i_fid_xsec_file, 'r') as f: i_fid_xsec_fb = float(f.read())
         i_full_hist_name = f"{op[0]}_{order}_{i_clip_hist_name}"
-        i_clip_hist_dressed = lu.dress_hist(i_clip_hist, "rivet_"+i_full_hist_name, 2, i_fid_xsec_fb*139 / additional_rivet_norm_division_by,
+        rivet_norm = i_fid_xsec_fb*139 / additional_rivet_norm_division_by
+        i_clip_hist_dressed = lu.dress_hist(i_clip_hist, "rivet_"+i_full_hist_name, 2, rivet_norm,
                                             re_bins=fit_plot_bins,
-                                            re_overflow=last_overflow_bin
-                                            )
+                                            re_overflow=last_overflow_bin,
+                                            exclude_underverflow_from_norm=exclude_underverflow_from_norm)
         # print(i_clip_hist_dressed)
         #
         rivet_h_name = i_full_hist_name.replace("QUAD", "quad").replace("INT", "lin")[1:] # 1: for FT1->T1

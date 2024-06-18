@@ -94,6 +94,8 @@ namespace Rivet {
 
         // Book histograms
         const std::vector<double> lep_pt_bins = {30, 43, 60, 85, 130, 550};
+        // last bin included only to exclude it later from integral (to have normalization same as they have)
+        const std::vector<double> lep_pt_bins_with_underoverflow = {0, 30, 43, 60, 85, 130, 550, 20000};
         const std::vector<double> ly_m_bins = {0, 125, 180, 245, 350, 1200};
         const std::vector<double> lepgam_dphi_signed_bins = {-3.1416, -2.55, -2.0, -1.1, 0.0, 1.1, 2.0, 2.55, 3.1416};
         const std::vector<double> jj_m_bins = {1000, 1400, 1700, 2100, 5300};
@@ -103,12 +105,13 @@ namespace Rivet {
         book(_hist_xs, "hist_xs", 1, 0., 1.);
         book(_hist_total_xs, "hist_total_xs", 1, 0., 1.);
         book(_hist_lep_pt, "hist_lep_pt", lep_pt_bins);
-        book(_pt_lepton_clip_inf, "pt_lepton_clip_inf", lep_pt_bins);
-        book(_pt_lepton_clip_3000, "pt_lepton_clip_3000", lep_pt_bins);
-        book(_pt_lepton_clip_2000, "pt_lepton_clip_2000", lep_pt_bins);
-        book(_pt_lepton_clip_1500, "pt_lepton_clip_1500", lep_pt_bins);
-        book(_pt_lepton_clip_1000, "pt_lepton_clip_1000", lep_pt_bins);
-        book(_pt_lepton_clip_700, "pt_lepton_clip_700", lep_pt_bins);
+        book(_pt_lepton_clip_inf, "pt_lepton_clip_inf", lep_pt_bins_with_underoverflow);
+        book(_pt_lepton_clip_3000, "pt_lepton_clip_3000", lep_pt_bins_with_underoverflow);
+        book(_pt_lepton_clip_2000, "pt_lepton_clip_2000", lep_pt_bins_with_underoverflow);
+        book(_pt_lepton_clip_1500, "pt_lepton_clip_1500", lep_pt_bins_with_underoverflow);
+        book(_pt_lepton_clip_1000, "pt_lepton_clip_1000", lep_pt_bins_with_underoverflow);
+        book(_pt_lepton_clip_700, "pt_lepton_clip_700", lep_pt_bins_with_underoverflow);
+        book(_m_Wy, "m_Wy", 600, 0, 10000);
         book(_hist_ly_m, "hist_ly_m", ly_m_bins);
         book(_hist_lepgam_dphi_signed, "hist_lepgam_dphi_signed", lepgam_dphi_signed_bins);
         book(_hist_jj_m, "hist_jj_m", jj_m_bins);
@@ -482,6 +485,7 @@ namespace Rivet {
         }
         if (!have_two_hs_bosons) vetoEvent; // just in case reject events where dont have wz somehow
 
+        _m_Wy->fill(hs_diboson_mass);
         if (ev_nominal_weight >= 0) { _c["pos_w_final_clip_inf"]->fill(); }
         else { _c["neg_w_final_clip_inf"]->fill(); }
         for (std::string &i_clip: _clips) {
@@ -508,7 +512,7 @@ namespace Rivet {
     /// Normalise histograms etc., after the run
     void finalize() {
 
-      normalize(_hist_xs,1.0);
+      normalize(_hist_xs,1.0); // last argument is inclusion or not of overflow to normalization
       normalize(_hist_total_xs,1.0);
       normalize(_hist_lep_pt,1.0);
       normalize(_hist_ly_m,1.0);
@@ -516,14 +520,16 @@ namespace Rivet {
       normalize(_hist_jj_m,1.0);
       normalize(_hist_jj_pt,1.0);
       normalize(_hist_jj_dphi_signed,1.0);
+
       normalize(_pt_lepton_clip_inf,1.0);
       normalize(_pt_lepton_clip_3000,1.0);
       normalize(_pt_lepton_clip_2000,1.0);
       normalize(_pt_lepton_clip_1500,1.0);
       normalize(_pt_lepton_clip_1000,1.0);
       normalize(_pt_lepton_clip_700,1.0);
+      normalize(_m_Wy,1.0);
 
-    }
+      }
 
 
     double mpi_pi(double angle){
@@ -539,7 +545,7 @@ namespace Rivet {
     private:
     
       /// Histograms
-      Histo1DPtr _hist_xs,_hist_total_xs,_hist_lep_pt,_pt_lepton_clip_inf,_pt_lepton_clip_3000,_pt_lepton_clip_2000,_pt_lepton_clip_1500,_pt_lepton_clip_1000,_pt_lepton_clip_700,_hist_ly_m, _hist_lepgam_dphi_signed,_hist_jj_m,_hist_jj_pt,_hist_mtw,_hist_jj_dphi_signed,_hist_cutflow;
+      Histo1DPtr _hist_xs,_hist_total_xs,_hist_lep_pt,_pt_lepton_clip_inf,_pt_lepton_clip_3000,_pt_lepton_clip_2000,_pt_lepton_clip_1500,_pt_lepton_clip_1000,_pt_lepton_clip_700,_m_Wy,_hist_ly_m, _hist_lepgam_dphi_signed,_hist_jj_m,_hist_jj_pt,_hist_mtw,_hist_jj_dphi_signed,_hist_cutflow;
       std::string _cut_mode;
       map<string, CounterPtr> _c;
       std::vector<std::string> _clips {"inf", "3000", "2000", "1500", "1000", "700"};

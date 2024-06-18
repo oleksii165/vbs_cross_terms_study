@@ -218,7 +218,7 @@ def get_hists_bounds_cuts(prod_dec):
     return return_dict 
 
 def find_prod_dec_and_dir(conf):
-    prod_temp = conf[conf.find("_")+1:]
+    prod_temp = conf[conf.find(".MadGraph_")+len(".MadGraph_") : ]
     print("start from string", prod_temp)
     prod_dec = prod_temp[:prod_temp.find("_F")]
     print("from conf found production dec", prod_dec)
@@ -338,18 +338,17 @@ def read_hists(root_file_name, h_names_arr):
         h_file.Close()
     return hists
 
-def dress_hist(my_hist, my_title, my_color, my_norm = 1.0, re_bins=-1, re_overflow=0):
+def dress_hist(my_hist, my_title, my_color, my_norm = 1.0, re_bins=-1, re_overflow=0, exclude_underverflow_from_norm=False):
+    if exclude_underverflow_from_norm and re_overflow:
+        raise ValueError("doesnt make sense when both exclude_underverflow_from_norm and re_overflow")
     my_hist.SetTitle(my_title)
     my_hist.SetName(my_title)
     my_hist.SetLineColor(my_color)
     my_hist.SetMarkerColor(my_color)
-    hist_integ = my_hist.Integral()
-    if hist_integ!=0:
-        my_hist.Scale(my_norm/hist_integ)
     if re_bins!=-1 and re_overflow==0:
         my_hist = my_hist.Rebin(len(re_bins) - 1, my_hist.GetName(), re_bins)
-    elif re_bins!=-1 and re_overflow:
         print("hi")
+    elif re_bins!=-1 and re_overflow:
         orig_nbins = my_hist.GetNbinsX()
         orig_end_x = my_hist.GetBinLowEdge(orig_nbins) + my_hist.GetBinWidth(orig_nbins)
         orig_hist_rebin_with_overflow = my_hist.Clone()
@@ -360,6 +359,21 @@ def dress_hist(my_hist, my_title, my_color, my_norm = 1.0, re_bins=-1, re_overfl
         rebin_nbins = my_hist.GetNbinsX()
         # keep visually same binning but include everything in last bin
         my_hist.SetBinContent(rebin_nbins,orig_hist_rebin_with_overflow.GetBinContent(rebin_nbins))
+
+    hist_integ = my_hist.Integral()
+    print("target norm before possible underover corr", my_norm)
+    if exclude_underverflow_from_norm:
+        under_c = my_hist.GetBinContent(0)
+        over_c = my_hist.GetBinContent(my_hist.GetNbinsX()+1)
+        integ_with_under_over = hist_integ + over_c + under_c
+        my_norm_corr = (hist_integ / integ_with_under_over) * my_norm
+    else:
+        my_norm_corr = my_norm
+    print("integ before norm", hist_integ, "target after possible underover corr", my_norm_corr)
+    if hist_integ!=0:
+        my_hist.Scale(my_norm_corr/hist_integ)
+    print("integ after norm", my_hist.Integral(), "target was", my_norm_corr)
+
     return my_hist.Clone()
 
 def make_stack(hist_arr, title="",norm=-1):
