@@ -69,9 +69,11 @@ def save_job_infos(mydir, xsec_no_cuts_fb, runLocally):
         print("dont see yoda  files for merging in dir ", mydir, ",return")
         return
 
+    suff = "" #"[127]" # dont understand why but this is there for original ssWW samples
     yoda_f = yoda.read(merged_yoda_name)
     print("reading from yoda file ", merged_yoda_name, "wherehist naes will save those to root")
     all_hists_in_yoda = [iname  for iname in yoda_f.keys() if "[" not in iname and "RAW" not in iname]
+    # all_hists_in_yoda = [iname  for iname in yoda_f.keys() if suff in iname and "RAW" not in iname]
     hists_1h_in_yoda = []
     for i_name in all_hists_in_yoda:
         if yoda_f[i_name].type()=="Histo1D": hists_1h_in_yoda.append(i_name)  
@@ -86,12 +88,12 @@ def save_job_infos(mydir, xsec_no_cuts_fb, runLocally):
     lu.write_to_f(mydir + "xsec_fb.txt", xsec_no_cuts_fb) # before cuts
     rivet_internal_conf_name = f"/{opts.routine}:cut={opts.cut}/"
     print("looking for prefix in counter",rivet_internal_conf_name)
-    pos_n_in, pos_w_in = yoda_f[f"{rivet_internal_conf_name}pos_w_initial"].numEntries(), yoda_f[f"{rivet_internal_conf_name}pos_w_initial"].sumW()
-    neg_n_in, neg_w_in= yoda_f[f"{rivet_internal_conf_name}neg_w_initial"].numEntries(), yoda_f[f"{rivet_internal_conf_name}neg_w_initial"].sumW()
+    pos_n_in, pos_w_in = yoda_f[f"{rivet_internal_conf_name}pos_w_initial{suff}"].numEntries(), yoda_f[f"{rivet_internal_conf_name}pos_w_initial{suff}"].sumW()
+    neg_n_in, neg_w_in= yoda_f[f"{rivet_internal_conf_name}neg_w_initial{suff}"].numEntries(), yoda_f[f"{rivet_internal_conf_name}neg_w_initial{suff}"].sumW()
     for i_clip in ["700", "1000", "1500", "2000", "3000", "inf"]:
-        i_counter_pos = yoda_f[f"{rivet_internal_conf_name}pos_w_final_clip_{i_clip}"]
+        i_counter_pos = yoda_f[f"{rivet_internal_conf_name}pos_w_final_clip_{i_clip}{suff}"]
         i_pos_n_f, i_pos_w_f = i_counter_pos.numEntries(), i_counter_pos.sumW()
-        i_counter_neg = yoda_f[f"{rivet_internal_conf_name}neg_w_final_clip_{i_clip}"]
+        i_counter_neg = yoda_f[f"{rivet_internal_conf_name}neg_w_final_clip_{i_clip}{suff}"]
         i_neg_n_f, i_neg_w_f = i_counter_neg.numEntries(), i_counter_neg.sumW()
         print("for clip", i_clip, "num neg and pos w after cuts", i_pos_w_f, i_neg_w_f, "sum", i_pos_w_f+i_neg_w_f)
         i_frac_cut = (i_pos_w_f+i_neg_w_f) / (pos_w_in+neg_w_in)
@@ -118,6 +120,8 @@ def get_ext_in_files(routine):
         files = f"Rivet{routine}.so"
     elif routine=="ssWW_lvlv":
         files = standard_pack + "lepton_hists.json"
+    elif routine=="ATLAS_2023_I2729396":
+        files = f"Rivet{routine}.so,{routine}.yoda.gz"
     else:
         raise Exception("dont know files for this analysis", routine)
     return files
