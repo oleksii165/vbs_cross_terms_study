@@ -19,9 +19,9 @@ if opts.gen_prod_dec=="Zy_vvy":
     additional_rivet_norm_division_by = 1
     ws_hists_name = "Zvvy"
 elif opts.gen_prod_dec=="Wy_lvy":
-    clips = ["inf","3000","2000","1500","1000"]
-    additional_rivet_norm_division_by = (2.4**2)
-    ws_hists_name = "Wy"
+    clips = ["inf","3000","2000","1500","1000","700"]
+    additional_rivet_norm_division_by = 1 # dont need 2.4 for new WS
+    ws_hists_name = "Wy_fixed_clip"
 elif opts.gen_prod_dec=="WZ_lllv":
     clips=["inf"]
     additional_rivet_norm_division_by = 1.55 # TODO why is this 1.55 again? heere dont care though
@@ -59,7 +59,6 @@ for op_dir in [i_obj for i_obj in os.listdir(top_files_dir) if os.path.isdir(top
                                             re_bins=fit_plot_bins,
                                             re_overflow=last_overflow_bin,
                                             exclude_underverflow_from_norm=exclude_underverflow_from_norm)
-        # print(i_clip_hist_dressed)
         #
         rivet_h_name = i_full_hist_name.replace("QUAD", "quad").replace("INT", "lin")[1:] # 1: for FT1->T1
         if rivet_h_name not in ws_hist_list:

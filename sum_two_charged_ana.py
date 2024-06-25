@@ -79,21 +79,24 @@ for i_order_op in confs_common:
     for i_hist_name in [ih.GetName() for ih in list(i_root_plus.GetListOfKeys())]:
         if debug: print("---working with var", i_hist_name)
         i_hist_plus, i_hist_minus = i_root_plus.Get(i_hist_name).Clone(), i_root_minus.Get(i_hist_name).Clone()
+        i_hist_plus_int, i_hist_minus_int = i_hist_plus.Integral(), i_hist_minus.Integral()
+        if i_hist_plus_int==0 or i_hist_minus_int==0:
+            print("################### skip as for var clip op", i_hist_name, i_clip, i_order_op, "have intergral zero in one of charges")
+            continue
+        else:
         # in the end will norm one but for now norm to xsec to get relative fraction right
         # assume fraction at differenct clippings is the same at clip=inf
-        i_hist_plus.Scale(i_xsecs_plus["inf"]/1) # as intial norm is 1
-        i_hist_minus.Scale(i_xsecs_minus["inf"]/1) # as intial norm is 1
-        if debug: print("after scaling by xsec integral of plus and minus", i_hist_plus.Integral(), i_hist_minus.Integral())
-        i_hist_sum = i_hist_plus.Clone()
-        i_hist_sum.Add(i_hist_minus)
-        if debug: print("integral of sum", i_hist_sum.Integral())
-        if i_hist_sum.Integral()!=0:
-            i_hist_sum.Scale(1/i_hist_sum.Integral())
-        else:
-            print("################### for var clip op", i_hist_name, i_clip, i_order_op, "have intergral zero")
-        if debug: print("integral of sum after norm to 1", i_hist_sum.Integral())
-        i_hist_sum.SetDirectory(0)
-        i_plots_sum[i_hist_name] = i_hist_sum
+            # as intial norm is typically  1 but can be not 1 like for Wy because of overflow bin in norm
+            i_hist_plus.Scale(i_xsecs_plus["inf"]/i_hist_plus_int) 
+            i_hist_minus.Scale(i_xsecs_minus["inf"]/i_hist_minus_int)
+            if debug: print("after scaling by xsec integral of plus and minus", i_hist_plus.Integral(), i_hist_minus.Integral())
+            i_hist_sum = i_hist_plus.Clone()
+            i_hist_sum.Add(i_hist_minus)
+            if debug: print("integral of sum", i_hist_sum.Integral())
+            i_hist_sum.Scale(1/i_hist_sum.Integral())        
+            if debug: print("integral of sum after norm to 1", i_hist_sum.Integral())
+            i_hist_sum.SetDirectory(0)
+            i_plots_sum[i_hist_name] = i_hist_sum
     i_root_plus.Close()
     i_root_minus.Close()
     # push xsec and plots and sum dir
