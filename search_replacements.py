@@ -120,14 +120,16 @@ def save_pairs_find_rep(arr_ops_1, arr_ops_2, order1, order2, make_rep_df=False)
             for i_pair, i_rchi2 in zip(pairs_arr, rchi2_arr):
                 i_op1, i_op2 = i_pair[0], i_pair[1]
                 df.at[i_op1, i_op2] = round(i_rchi2,2)
-            lu.save_df(df, f"{base_plot_dir}/{order2}_tests_table_clip_{i_clip}.pdf", save_csv=True, save_pdf=opts.savePdf)
+            lu.save_df(df, f"{base_plot_dir}/{order2}_tests_table_clip_{i_clip}.pdf",
+                       save_csv=True, save_pdf=opts.savePdf, save_latex=1)
             chi2_dfs[i_clip] = df
     if make_rep_df:
         sum_chi2_df = chi2_dfs[search_clips[0]].add(chi2_dfs[search_clips[1]])
         for i_clip_add in search_clips[2:]:
             sum_chi2_df = sum_chi2_df.add(chi2_dfs[i_clip_add])
         # sum_chi2_df.astype('float64').round(2)
-        lu.save_df(sum_chi2_df, f"{base_plot_dir}/{order2}_tests_table_clip_sum.pdf", save_csv=True, save_pdf=opts.savePdf)
+        lu.save_df(sum_chi2_df, f"{base_plot_dir}/{order2}_tests_table_clip_sum.pdf",
+                   save_csv=True, save_pdf=opts.savePdf, save_latex=1)
         return sum_chi2_df
     else:
         return 0
@@ -155,7 +157,7 @@ def make_df(df_to_search, to_be_replaced_ops, search_within_ops, order_to_replac
         rep_op, resh_chi2 = lu.get_replacement(df_to_search, i_op_to_rep, search_within_ops)
         print("for op", i_op_to_rep, "replacement op is", rep_op, "with sum of chi2 across clips", resh_chi2)
         rep_df.loc[len(rep_df.index)] = [i_op_to_rep, rep_op, resh_chi2] 
-    lu.save_df(rep_df, out_name, save_csv=True, aspect=(6,6), save_pdf=opts.savePdf)
+    lu.save_df(rep_df, out_name, save_csv=True, aspect=(6,6), save_pdf=opts.savePdf, save_latex=1)
     # find renormalizations 
     df_norm = pd.DataFrame(index=list(rep_df["toreplace"]),columns=["rep"]+all_clips)
     df_norm_unc = pd.DataFrame(index=list(rep_df["toreplace"]),columns=["rep"]+all_clips)
@@ -177,8 +179,10 @@ def make_df(df_to_search, to_be_replaced_ops, search_within_ops, order_to_replac
             df_norm_unc.at[to_replace, i_clip] = f"{uncert/norm:.2f}" if norm!=0 else 0
             df_norm_unc.at[to_replace, "rep"] = rep
             
-    lu.save_df(df_norm, out_name+f"_norms_{order_to_replace}.pdf", save_csv=True, aspect=(6,6), save_pdf=opts.savePdf)
-    lu.save_df(df_norm_unc, out_name+f"_norms_unc_{order_to_replace}.pdf", save_csv=True, aspect=(6,6), save_pdf=opts.savePdf)
+    lu.save_df(df_norm, out_name+f"_norms_{order_to_replace}.pdf", save_csv=True, aspect=(6,6),
+               save_pdf=opts.savePdf, save_latex=1)
+    lu.save_df(df_norm_unc, out_name+f"_norms_unc_{order_to_replace}.pdf", save_csv=True, aspect=(6,6),
+               save_pdf=opts.savePdf, save_latex=1)
     return rep_df, df_norm
 
 if opts.doReshuffling:
