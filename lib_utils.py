@@ -339,7 +339,7 @@ def read_hists(root_file_name, h_names_arr):
         h_file.Close()
     return hists
 
-def dress_hist(my_hist, my_title, my_color, my_norm = 1.0, re_bins=-1, re_overflow=0, exclude_underverflow_from_norm=False):
+def dress_hist(my_hist, my_title, my_color=1, my_norm = 1.0, re_bins=-1, re_overflow=0, exclude_underverflow_from_norm=False):
     if exclude_underverflow_from_norm and re_overflow:
         raise ValueError("doesnt make sense when both exclude_underverflow_from_norm and re_overflow")
     my_hist.SetTitle(my_title)
@@ -362,18 +362,18 @@ def dress_hist(my_hist, my_title, my_color, my_norm = 1.0, re_bins=-1, re_overfl
         my_hist.SetBinContent(rebin_nbins,orig_hist_rebin_with_overflow.GetBinContent(rebin_nbins))
 
     hist_integ = my_hist.Integral()
-    print("target norm before possible underover corr", my_norm)
     if exclude_underverflow_from_norm:
         under_c = my_hist.GetBinContent(0)
         over_c = my_hist.GetBinContent(my_hist.GetNbinsX()+1)
         integ_with_under_over = hist_integ + over_c + under_c
-        my_norm_corr = (hist_integ / integ_with_under_over) * my_norm
+        if integ_with_under_over!=0:
+            my_norm_corr = (hist_integ / integ_with_under_over) * my_norm
+        else:
+            my_norm_corr = 0
     else:
         my_norm_corr = my_norm
-    print("integ before norm", hist_integ, "target after possible underover corr", my_norm_corr)
     if hist_integ!=0:
         my_hist.Scale(my_norm_corr/hist_integ)
-    print("integ after norm", my_hist.Integral(), "target was", my_norm_corr)
 
     return my_hist.Clone()
 
@@ -541,5 +541,10 @@ def ssWW_get_wilson_coef(ops_arr, gen_prod_dec, order):
 
 def get_clip_hist_name(fitvar,clip):
     return f"{fitvar}_clip_{clip}"
+
+def read_oneline_file(xsec_file):
+    with open(xsec_file, 'r') as f:
+        fid_xsec_fb = float(f.read())
+    return fid_xsec_fb
 
     
