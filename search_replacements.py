@@ -73,7 +73,9 @@ for i_clip in all_clips: # separate seach per clipping
             continue
         # get hist
         i_hist_in, i_hist_name = op_hists_default_bin[plotname(i_clip)], plotname(i_clip)
-        i_hist_dressed = lu.dress_hist(i_hist_in, i_hist_name, 1, 1, re_bins=fit_plot_bins)
+        i_hist_dressed = lu.dress_hist(i_hist_in, i_hist_name, 1, 1, 
+        # re_bins=fit_plot_bins
+        )
         hists[dictkey] = i_hist_dressed
         # get xsec and eff uncert
         with open(xsec_file, 'r') as f: 
@@ -200,7 +202,7 @@ if opts.doCROSS:
     df_rep_c, df_norms_rep_c = make_df(sum_chi2_df_cross, missing_ops_cross, existing_ops_quad, "CROSS", "QUAD", f"{base_plot_dir}/cross_ws_table.pdf")
 
 # convert to counts for mathieu
-if opts.doCROSS and opts.routine=="ssWW_lvlv":
+if opts.doCROSS and opts.routine in ["ssWW_lvlv","ATLAS_2023_I2729396"]:
     clips_for_counts = ["inf","1500"] # currently only have this json from Mathieu
     gen_prod_dec = f"{opts.tGenProd}_{opts.tGenDec}"
     base_plot_dir, _ = lu.get_plotdir(gen_prod_dec, opts.routine, opts.cut)

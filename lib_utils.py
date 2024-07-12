@@ -26,7 +26,7 @@ def get_fitted_plot(routine, cut):
         mystr="pt_Z"
         bins = array('d', [50,100,150,200,250,350,1500])
         # bins = array('d', [50,110,130,150,170,200,250,350,1500])
-    elif routine in ["WmWm_lvlv","WpWp_lllv","ssWW_lvlv"]:
+    elif routine in ["WmWm_lvlv","WpWp_lllv","ssWW_lvlv","ATLAS_2023_I2729396"]:
         if cut=="SR":
             mystr, bins = "m_ll", array('d', [0,250,500,750,1000,1500])
         elif cut=="LowmjjCR":
@@ -58,7 +58,8 @@ def get_missing_ops(routine):
                 "FM0", "FM1", "FM2", "FM3", "FM4", "FM5", "FM7"]
     elif routine in ["WmWm_lvlv","WpWp_lvlv","ssWW_lvlv"]:
         ops = ["FM2", "FM3", "FM4", "FM5", "FT5", "FT6", "FT7", "FT8", "FT9",
-               "FT2"] # not missing but bad agreement with ws at clip inf for quad
+            #    "FT2"
+               ] # not missing but bad agreement with ws at clip inf for quad
     else:
         ops=[]
     return ops
@@ -270,7 +271,7 @@ def get_xsec(log_file):
                 xsec_unit = line[line.find('(')+1:line.find(')')]
     conv_fact_to_pb = {"mb":1e9, "um":1e6, "nb":1e3, "pb":1, "fb":1e-3}
     xsec_fb = xsec_val * conv_fact_to_pb[xsec_unit] * 1000
-    print("found xsec value ",xsec_val,"with unit",xsec_unit,"converting to fb get in fb",xsec_fb)
+    # print("found xsec value ",xsec_val,"with unit",xsec_unit,"converting to fb get in fb",xsec_fb)
     return xsec_fb
 
 def write_to_f(product_file,product):

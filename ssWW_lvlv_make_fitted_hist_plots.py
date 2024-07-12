@@ -11,11 +11,11 @@ parser.add_option("--cut", default = "SR")
 parser.add_option("--gen_prod_dec", default = "ssWW_lvlv") #WZ_lllv
 opts, _ = parser.parse_args()
 assert opts.cut in ["SR", "WZCR", "LowmjjCR"]
-overflow_dict = {"SR": 1, "LowmjjCR": 1, "WZCR": 1}
+overflow_dict = {"SR": 0, "LowmjjCR": 1, "WZCR": 1}
 include_overflow = overflow_dict[opts.cut]
 
 clips = ["inf","1500"]
-routine = "ssWW_lvlv"
+routine = "ATLAS_2023_I2729396" #"ssWW_lvlv"
 fit_plot_str, fit_plot_bins = lu.get_fitted_plot(routine, opts.cut)
 
 plots_to_save = [lu.get_clip_hist_name(fit_plot_str, i_clip) for i_clip in clips]
@@ -47,7 +47,8 @@ for op_dir in [i_obj for i_obj in os.listdir(top_files_dir) if os.path.isdir(top
         h_name = f"{op_str}_{order}_{i_rivet_clip_hist_name}"
         i_rivet_norm = i_rivet_fid_xsec_fb * 139 * mult_factor_on_my_xsec
         i_rivet_clip_hist_dressed = lu.dress_hist(i_rivet_clip_hist, "rivet_" + h_name, 2, i_rivet_norm,
-                                                  re_bins=fit_plot_bins, re_overflow=include_overflow)
+                                                #   re_bins=fit_plot_bins, 
+                                                  re_overflow=include_overflow)
         print("getting name from ws", h_name, op_str, order, opts.gen_prod_dec, "clip", i_clip)
         ws_hist, _ = lu.ssWW_get_ws_hist(workspaces[i_clip], op_str,order, h_name, opts.gen_prod_dec, opts.cut)
         if ws_hist==-1:

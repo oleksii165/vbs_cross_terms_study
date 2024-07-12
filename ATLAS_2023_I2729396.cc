@@ -22,7 +22,7 @@ namespace Rivet {
 
     /// Book histograms and initialise projections before the run
     void init() {
-        _cut_mode = getOption("cut");
+      _cut_mode = getOption("cut");
 
 
       // Projection for dressed electrons and muons
@@ -46,38 +46,37 @@ namespace Rivet {
       declare(InvisibleFinalState(), "MET");
       // Histograms --- enforce to have the sames in SR and CR
 
-      book(_h["mll"],      1, 1, 1);
-      book(_h["mt"],       2, 1, 1);
-      book(_h["mjj"],      3, 1, 1);
-      book(_h["ngapjets"], 4, 1, 1);
-      book(_h["zeppj3"],   5, 1, 1);
+      book(_h_original["mll"],      1, 1, 1);
+      book(_h_original["mt"],       2, 1, 1);
+      book(_h_original["mjj"],      3, 1, 1);
+      book(_h_original["ngapjets"], 4, 1, 1);
+      book(_h_original["zeppj3"],   5, 1, 1);
 
       book(_h["m_diboson"],"m_diboson", 600, 0.0, 10000.0);
       // last edge kind of irrelevant as overflow will be merged there
-        const std::vector<double> m_ll_SM_bins = {20, 80, 130, 170, 220, 320, 500};
-        book(_h["m_ll_SM_clip_inf"],"m_ll_SM_clip_inf", m_ll_SM_bins);
-        book(_h["m_ll_SM_clip_3000"],"m_ll_SM_clip_3000", m_ll_SM_bins);
-        book(_h["m_ll_SM_clip_2000"],"m_ll_SM_clip_2000", m_ll_SM_bins);
-        book(_h["m_ll_SM_clip_1500"],"m_ll_SM_clip_1500", m_ll_SM_bins);
-        book(_h["m_ll_SM_clip_1000"],"m_ll_SM_clip_1000", m_ll_SM_bins);
-        book(_h["m_ll_SM_clip_700"],"m_ll_SM_clip_700", m_ll_SM_bins);
-        const std::vector<double> m_ll_bins = {0, 250, 500, 750, 1000, 1500};
-        book(_h["m_ll_clip_inf"],"m_ll_clip_inf", m_ll_bins);
-        book(_h["m_ll_clip_3000"],"m_ll_clip_3000", m_ll_bins);
-        book(_h["m_ll_clip_2000"],"m_ll_clip_2000", m_ll_bins);
-        book(_h["m_ll_clip_1500"],"m_ll_clip_1500", m_ll_bins);
-        book(_h["m_ll_clip_1000"],"m_ll_clip_1000", m_ll_bins);
-        book(_h["m_ll_clip_700"],"m_ll_clip_700", m_ll_bins);
+      const std::vector<double> m_ll_bins = {0, 250, 500, 750, 1000, 1500};
+      book(_h["m_ll_clip_inf"],"m_ll_clip_inf", m_ll_bins);
+      book(_h["m_ll_clip_3000"],"m_ll_clip_3000", m_ll_bins);
+      book(_h["m_ll_clip_2000"],"m_ll_clip_2000", m_ll_bins);
+      book(_h["m_ll_clip_1500"],"m_ll_clip_1500", m_ll_bins);
+      book(_h["m_ll_clip_1000"],"m_ll_clip_1000", m_ll_bins);
+      book(_h["m_ll_clip_700"],"m_ll_clip_700", m_ll_bins);
+      const std::vector<double> m_tagjets_bins = {0, 3000};
+      book(_h["m_tagjets_clip_inf"],"m_tagjets_clip_inf", m_tagjets_bins);
+      book(_h["m_tagjets_clip_3000"],"m_tagjets_clip_3000", m_tagjets_bins);
+      book(_h["m_tagjets_clip_2000"],"m_tagjets_clip_2000", m_tagjets_bins);
+      book(_h["m_tagjets_clip_1500"],"m_tagjets_clip_1500", m_tagjets_bins);
+      book(_h["m_tagjets_clip_1000"],"m_tagjets_clip_1000", m_tagjets_bins);
+      book(_h["m_tagjets_clip_700"],"m_tagjets_clip_700", m_tagjets_bins);
 
-
-        book(_c["pos_w_initial"],"pos_w_initial");
-        book(_c["neg_w_initial"],"neg_w_initial");
-        for (std::string& i_clip : _clips){
-            std::string i_pos_c_name = "pos_w_final_clip_" + i_clip;
-            std::string i_neg_c_name = "neg_w_final_clip_" + i_clip;
-            book(_c[i_pos_c_name], i_pos_c_name);
-            book(_c[i_neg_c_name], i_neg_c_name);
-        }
+      book(_c["pos_w_initial"],"pos_w_initial");
+      book(_c["neg_w_initial"],"neg_w_initial");
+      for (std::string& i_clip : _clips){
+          std::string i_pos_c_name = "pos_w_final_clip_" + i_clip;
+          std::string i_neg_c_name = "neg_w_final_clip_" + i_clip;
+          book(_c[i_pos_c_name], i_pos_c_name);
+          book(_c[i_neg_c_name], i_neg_c_name);
+      }
     }
 
     /// Perform the per-event analysis
@@ -194,7 +193,7 @@ namespace Rivet {
 
         _h["m_diboson"]->fill(hs_diboson_mass);
         _h["m_ll_clip_inf"]->fill(dilep.mass()/GeV);
-        _h["m_ll_SM_clip_inf"]->fill(dilep.mass()/GeV);
+        _h["m_tagjets_clip_inf"]->fill(mjj);
         // _h["m_tagjets_clip_inf"]->fill(m_tagjets);
         if (ev_nominal_weight>=0){_c["pos_w_final_clip_inf"]->fill();}
         else {_c["neg_w_final_clip_inf"]->fill();}
@@ -203,13 +202,11 @@ namespace Rivet {
             int i_clip_num = std::stoi(i_clip);
             std::string i_pos_c_name = "pos_w_final_clip_" + i_clip;
             std::string i_neg_c_name = "neg_w_final_clip_" + i_clip;
-            std::string i_hist_name_m_ll_SM = "m_ll_SM_clip_" + i_clip;
             std::string i_hist_name_m_ll = "m_ll_clip_" + i_clip;
-            // std::string i_hist_name_m_tagjets = "m_tagjets_clip_" + i_clip;
+            std::string i_hist_name_m_tagjets = "m_tagjets_clip_" + i_clip;
             if (hs_diboson_mass < i_clip_num) {
-                _h[i_hist_name_m_ll_SM]->fill(dilep.mass()/GeV);
                 _h[i_hist_name_m_ll]->fill(dilep.mass()/GeV);
-                // _h[i_hist_name_m_tagjets]->fill(m_tagjets);
+                _h[i_hist_name_m_tagjets]->fill(mjj);
                 if (ev_nominal_weight>=0){_c[i_pos_c_name]->fill();}
                 else {_c[i_neg_c_name]->fill();}
             }
@@ -217,19 +214,19 @@ namespace Rivet {
 
       // original Histograms
       // mll
-      _h["mll"]->fill(dilep.mass()/GeV);
+      _h_original["mll"]->fill(dilep.mass()/GeV);
       // mt
       double etll = sqrt(dilep.pt2() + dilep.mass2());
       double mt = sqrt(sqr(etll + met_vec.mod()) - (dilep.perpVec() + met_vec.perpVec()).mod2());
-      _h["mt"]->fill(mt/GeV);
+      _h_original["mt"]->fill(mt/GeV);
       // m_jj
-      _h["mjj"]->fill(mjj/GeV);
+      _h_original["mjj"]->fill(mjj/GeV);
       // zeppj3
       double avgj12 = 0.5*(jet1.eta()+jet2.eta());
       double norm12 = abs(jet1.eta()-jet2.eta());
       if (jets.size() > 2) {
         double z = abs(jets[2].eta() - avgj12)/norm12;
-        _h["zeppj3"]->fill(z);
+        _h_original["zeppj3"]->fill(z);
       }
       // ngapjets
       double ngapjets = 0;
@@ -239,28 +236,35 @@ namespace Rivet {
           ++ngapjets;
         }
       }
-      _h["ngapjets"]->fill(ngapjets);
+      _h_original["ngapjets"]->fill(ngapjets);
     }
 
     /// Normalise histograms etc after the run
     void finalize() {
-      for (auto& item : _h) {
+      for (auto& item : _h_original) {
         scale(item.second, crossSection()/sumOfWeights());
         // merge overflow bin into the last bin
         item.second->fillBin(item.second->numBins()-1, item.second->overflow().sumW());
         item.second->overflow().reset();
       }
-
       // in the paper, the differential cross section is per 10 GeV for mll and mt and per 100 GeV for mjj
-      scale(_h["mll"], 10);
-      scale(_h["mt"], 10);
-      scale(_h["mjj"], 100);
+      scale(_h_original["mll"], 10);
+      scale(_h_original["mt"], 10);
+      scale(_h_original["mjj"], 100);
+
+      for (auto& item : _h) {
+        // merge overflow bin into the last bin
+        item.second->fillBin(item.second->numBins()-1, item.second->overflow().sumW());
+        item.second->overflow().reset();
+        normalize(item.second, 1.0, false); // dont unclude overflow in norm as it's not merged to last bin
+      }
     }
 
     //@}
 
     /// @name Histograms
     //@{
+    map<string, Histo1DPtr> _h_original;
     map<string, Histo1DPtr> _h;
     map<string, CounterPtr> _c;
     std::vector<std::string> _clips {"inf", "3000", "2000", "1500", "1000", "700"};
