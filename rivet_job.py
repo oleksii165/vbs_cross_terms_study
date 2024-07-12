@@ -1,4 +1,4 @@
-# example of running:   athena rivet_example.py -c 'runLocally=1/0;conf="user.okurdysh.MadGraph_WmWm_lvlv_FT0_FULL";routine="WmWm_lvlv";cut="SR"'
+# example of running:   athena rivet_example.py -c 'runLocally=1/0;conf="user.okurdysh.MadGraph_WmWm_lvlv_FT0_FULL";routine="WmWm_lvlv";cut="SR;rivetXsecSet1=1"'
 
 theApp.EvtMax = -1
 print("#####received conf from cmd through -c 'runLocally=Z;conf=X;routine=R;cut=Y;':  ",runLocally,conf,routine,cut)
@@ -27,6 +27,7 @@ rivet.AnalysisPath = os.environ['PWD']
 rivet.Analyses += [f'{routine}:cut={cut}']
 rivet.RunName = ''
 rivet.HistoFile = f'{conf_cut_dir}/MyOutput.yoda.gz' if runLocally else 'MyOutput.yoda.gz'
-rivet.CrossSection = 1.0 #xsec_pb
+if rivetXsecSet1:
+    rivet.CrossSection = 1.0 #xsec_pb
 job += rivet
 

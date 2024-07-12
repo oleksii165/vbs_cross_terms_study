@@ -137,6 +137,7 @@ def main():
     parser.add_option("--runLocally", default = 0, type='int')
     parser.add_option("--saveInfoAfterRivet", default = 0, type='int')
     parser.add_option("--doMakeHtml", default = 0, type='int')
+    parser.add_option("--rivetXsecSet1", default = 1, type='int')
     global opts
     opts, _ = parser.parse_args()
     print("got opts", opts)
@@ -174,18 +175,19 @@ def main():
 
     rivet_job_name = lu.get_rivet_job_name(opts.genJobName,opts.routine,opts.cut)
     if opts.runRivet:
+        str_for_athenaJO = f'''-c 'runLocally=1;conf="{opts.genJobName}";routine="{opts.routine}";cut="{opts.cut}";rivetXsecSet1="{opts.rivetXsecSet1}"' ''' 
         if opts.runLocally:
-            run_com = f'athena rivet_job.py '
-            run_com += f'''-c 'runLocally=1;conf="{opts.genJobName}";routine="{opts.routine}";cut="{opts.cut}"' '''
-            run_com += f'--evtMax {opts.evtMax}'
+            run_com = f'athena rivet_job.py ' 
+            run_com += str_for_athenaJO
+            run_com += f'--evtMax {opts.evtMax} '
         else:
             last_job_status, last_job_name, _ = check_job(rivet_job_name)
             new_job_name = lu.get_rivet_resub_name(last_job_name) if last_job_status != -1 else rivet_job_name
             ext_files_str = get_ext_in_files(opts.routine)
             run_com = 'pathena rivet_job.py '
-            run_com += f'''-c 'runLocally=0;conf="{opts.genJobName}";routine="{opts.routine}";cut="{opts.cut}"' '''
+            run_com += str_for_athenaJO
             run_com += f'--extOutFile=MyOutput.yoda.gz --extFile={ext_files_str} '
-            run_com += f'--inDS={opts.genJobName}_EXT0 --outDS={new_job_name}'
+            run_com += f'--inDS={opts.genJobName}_EXT0 --outDS={new_job_name} '
         print("#### will run rivet with", run_com)
         subprocess.call(run_com, shell=True)
 
