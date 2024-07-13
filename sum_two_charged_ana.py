@@ -14,15 +14,15 @@ parser.add_option("--sumGenAna", default = "WpyWmy_lvy")
 parser.add_option("--routine", default = "Wy_John")
 parser.add_option("--cut", default = "SR")
 opts, _ = parser.parse_args()
-assert opts.sumGenAna in ["WpyWmy_lvy"], "not sure can work with this ana"
+assert opts.sumGenAna in ["WpyWmy_lvy","WpZWmZ_lllv"], "not sure can work with this ana"
 _, routine_cut_dir = lu.get_plotdir(opts.sumGenAna, opts.routine, opts.cut)
 if opts.sumGenAna == "ssWW_lvlv":
     genAna_plus,genAna_minus = "WpWp_lvlv", "WmWm_lvlv"
-elif opts.sumGenAna == "WZ_lllv":
+elif opts.sumGenAna == "WpZWmZ_lllv":
     genAna_plus,genAna_minus = "WpZ_lllv", "WmZ_lllv"
 elif opts.sumGenAna == "WpyWmy_lvy":
     genAna_plus,genAna_minus = "Wpy_lvy", "Wmy_lvy"
-debug = True
+debug = False
 
 _, top_files_dir_sum = lu.find_prod_dec_and_dir(f"user.okurdysh.MadGraph_{opts.sumGenAna}_FM0_SM")
 _, top_files_dir_plus = lu.find_prod_dec_and_dir(f"user.okurdysh.MadGraph_{genAna_plus}_FM0_SM")

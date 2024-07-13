@@ -30,7 +30,7 @@ elif opts.gen_prod_dec=="WZ_lllv":
 last_overflow_bin = 1 if opts.gen_prod_dec=="WZ_lllv" else 0
 exclude_underverflow_from_norm = 1 if opts.gen_prod_dec=="Wy_lvy" else 0
 
-fit_plot_str, fit_plot_bins = lu.get_fitted_plot(opts.routine, cut)
+fit_plot_str, fit_plot_bins, _, _ = lu.get_fitted_plot(opts.routine, cut)
 plots_to_save = [lu.get_clip_hist_name(fit_plot_str, i_clip) for i_clip in clips]
 print("plots to save", plots_to_save)
 

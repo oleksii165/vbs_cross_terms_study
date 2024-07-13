@@ -42,7 +42,7 @@ base_plot_dir, routine_dir = lu.get_plotdir(prod_dec, opts.routine, opts.cut)
 
 search_clips = opts.searchClips.split(",")  # search based on this, avoid 1000,700 for rep search as they are super low stat
 all_clips = search_clips + opts.additionalClips.split(",") # to check later what search gives
-fit_plot_str, fit_plot_bins = lu.get_fitted_plot(opts.routine,opts.cut)
+fit_plot_str, fit_plot_bins, _, _ = lu.get_fitted_plot(opts.routine,opts.cut)
 xlabel = lu.get_var_latex(fit_plot_str)
 def plotname(i_clip):
     return f"{fit_plot_str}_clip_{i_clip}"

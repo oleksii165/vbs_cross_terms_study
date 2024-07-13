@@ -16,7 +16,7 @@ include_overflow = overflow_dict[opts.cut]
 
 clips = ["inf","1500"]
 routine = "ATLAS_2023_I2729396" #"ssWW_lvlv"
-fit_plot_str, fit_plot_bins = lu.get_fitted_plot(routine, opts.cut)
+fit_plot_str, fit_plot_bins, _, _ = lu.get_fitted_plot(routine, opts.cut)
 
 plots_to_save = [lu.get_clip_hist_name(fit_plot_str, i_clip) for i_clip in clips]
 print("plots to save", plots_to_save)

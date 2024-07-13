@@ -4,14 +4,16 @@ import os
 import ROOT
 import lib_utils as lu
 
-wy_routine_cut = ["Wy_John", "SR"]
-ana_dirs = {"Wmy_lvy": wy_routine_cut, "Wpy_lvy": wy_routine_cut}
+# ana_dirs = {"Wmy_lvy": ["Wy_John", "SR"], "Wpy_lvy": ["Wy_John", "SR"]}
+
+# ana_dirs = {"WmZ_lllv": ["WZ_lllv", "SR"], "WpZ_lllv": ["WZ_lllv", "SR"]}
+ana_dirs = {"WZ_lllv": ["WZ_lllv", "SR"]}
 
 base_dir = "/sps/atlas/kurdysh/vbs_cross_terms_study/eft_files/"
 clips = ["inf","3000","2000","1500","1000","700"]
 for i_ana_dir in ana_dirs.keys():
     routine, cut = ana_dirs[i_ana_dir][0], ana_dirs[i_ana_dir][1]
-    fit_var, fit_bins = lu.get_fitted_plot(routine, cut)
+    fit_var, fit_bins, re_overflow, exclude_underverflow_from_norm = lu.get_fitted_plot(routine, cut)
     full_ana_dir = f"{base_dir}/{i_ana_dir}/"
     op_dirs = [i_dir for i_dir in os.listdir(full_ana_dir) if "_EXT0" in i_dir]
     for i_op_dir in op_dirs:
@@ -45,7 +47,8 @@ for i_ana_dir in ana_dirs.keys():
             i_h_name = f"{var_clip_str}{i_clip_found}"
             i_h = hist_root_in.Get(i_h_name)
             i_h_normed = lu.dress_hist(i_h, i_h_name, my_norm = xsecs[i_clip_found]*139,
-                          re_bins = fit_bins, exclude_underverflow_from_norm=1)
+                                       re_bins = fit_bins,re_overflow = re_overflow,
+                                       exclude_underverflow_from_norm = exclude_underverflow_from_norm)
             i_h_normed.Write("", ROOT.TObject.kOverwrite)
         hist_root_out.Close()
 

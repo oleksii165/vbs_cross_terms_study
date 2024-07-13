@@ -16,12 +16,14 @@ from pandas.plotting import table
 
 def get_fitted_plot(routine, cut):
     mystr,bins = "",[]
+    overflow_bin, exclude_underverflow_from_norm = -1, -1
     if routine == "Zy_vvy":
         mystr = "pt_photon"
         bins = array('d', [150,300,450,600,750,900,1050,1200,2000])
     elif routine in ["WmZ_lllv","WpZ_lllv","WZ_lllv"]:
         mystr="m_T_WZ"
-        bins = array('d', [0,400,750,1050,1350,1800])
+        bins = array('d', [0,400,750,1050,1350,1800]) # last bin is overflow
+        overflow_bin, exclude_underverflow_from_norm = 1, 0 # should be opposute
     elif routine == "ZZ_llvv":
         mystr="pt_Z"
         bins = array('d', [50,100,150,200,250,350,1500])
@@ -36,8 +38,8 @@ def get_fitted_plot(routine, cut):
     elif routine in ["Wmy_lvy","Wpy_lvy","Wy_lvy", "Wy_John"]:
         mystr = "pt_lepton"
         bins = array('d', [30,43,60,85,130,550])
-
-    return mystr, bins
+        overflow_bin, exclude_underverflow_from_norm = 0, 1
+    return mystr, bins, overflow_bin, exclude_underverflow_from_norm
 
 def get_rivet_job_name(genJobName,routine,cut):
     return f'{genJobName}_rivet_{routine}_cut_{cut}'
@@ -520,7 +522,7 @@ def ssWW_get_ws_hist(ws_json_clip,op,order_capital, i_hist_out_name,
         if order_capital.lower() not in i_name: continue
         if substr_cut_rivet_to_ws_dict[cut] not in i_name: continue
         arr_counts = i_hist_json['data']['contents']
-    _, fit_plot_bins = get_fitted_plot("ssWW_lvlv", cut)
+    _, fit_plot_bins, _, _ = get_fitted_plot("ssWW_lvlv", cut)
     i_hist = arr_to_hist1d(arr_counts, i_hist_out_name, fit_plot_bins) if arr_counts!=-1 else -1
     return i_hist, arr_counts
 
