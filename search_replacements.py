@@ -28,7 +28,7 @@ parser.add_option("--tGenDec", default = "vvy")
 parser.add_option("--routine", default = "Zy_vvy")
 parser.add_option("--cut", default = "SR")
 parser.add_option("--searchClips", default = "inf,3000,2000")
-parser.add_option("--additionalClips", default = "1500,1000") # ignore 700
+parser.add_option("--additionalClips", default = "1500,1000,700") # add 700 even if know it's wrong
 parser.add_option("--doReshuffling", default = 1, type="int")
 parser.add_option("--doReplacement", default = 0, type="int")
 parser.add_option("--doINT", default = 0, type="int")
@@ -150,8 +150,6 @@ def make_df(df_to_search, to_be_replaced_ops, search_within_ops, order_to_replac
             df_norm.at[to_replace, "rep"] = rep
             
     lu.save_df(df_norm, out_name+f"_norms_{order_to_replace}.pdf", save_csv=True, aspect=(6,6),
-               save_pdf=opts.savePdf, save_latex=1)
-    lu.save_df(df_norm_unc, out_name+f"_norms_unc_{order_to_replace}.pdf", save_csv=True, aspect=(6,6),
                save_pdf=opts.savePdf, save_latex=1)
     return rep_df, df_norm
 
