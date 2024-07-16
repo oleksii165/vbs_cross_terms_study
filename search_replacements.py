@@ -40,7 +40,7 @@ prod_dec = f"{opts.tGenProd}_{opts.tGenDec}"
 _, top_files_dir = lu.find_prod_dec_and_dir(f"user.okurdysh.MadGraph_{prod_dec}_FM0_SM")
 base_plot_dir, routine_dir = lu.get_plotdir(prod_dec, opts.routine, opts.cut)
 
-search_clips = opts.searchClips.split(",")  # search based on this, avoid 1000,700 for rep search as they are super low stat
+search_clips = opts.searchClips.split(",")  # search based on this, avoid too low for rep search as they are super low stat
 all_clips = search_clips + opts.additionalClips.split(",") # to check later what search gives
 fit_plot_str, fit_plot_bins, _, _ = lu.get_fitted_plot(opts.routine,opts.cut)
 xlabel = lu.get_var_latex(fit_plot_str)
@@ -49,44 +49,20 @@ def plotname(i_clip):
 
 # organize hists and xsec into dicts (save all search+ check)
 hists = {}
-fid_xsecs = {}
-effs = {}
-eff_uncerts = {}
 for i_clip in all_clips: # separate seach per clipping
     for op_dir in [i_obj for i_obj in os.listdir(top_files_dir) if os.path.isdir(top_files_dir + "/" + i_obj)]:
         full_op_dir = os.path.join(top_files_dir,op_dir,routine_dir,"")
         _, order, op = lu.get_op_from_dir(op_dir, prod_dec)
-        # if order not in all_orders: 
-        #     continue
         dictkey = (i_clip, order, op)
         # get check that hists and fid xsec file are ok
-        hists_file = full_op_dir + "hists.root"
+        hists_file = full_op_dir + "hists_norm_run2.root"
         op_hists_default_bin = lu.read_hists(hists_file, [plotname(i_clip)])
         if len(op_hists_default_bin)==0: 
             print("skip as didn't find hist", dictkey)
             continue
-        xsec_file = full_op_dir + f"xsec_times_frac_fb_clip_{i_clip}.txt"
-        eff_file = full_op_dir + f"frac_after_cuts_clip_{i_clip}.txt"
-        eff_uncert_file = full_op_dir + f"frac_after_cuts_error_bar_clip_{i_clip}.txt"
-        if not os.path.exists(xsec_file) or not os.path.exists(eff_uncert_file) or not os.path.exists(eff_file): 
-            print("skip as didnt find xsec file or eff uncert/eff", dictkey)
-            continue
         # get hist
         i_hist_in, i_hist_name = op_hists_default_bin[plotname(i_clip)], plotname(i_clip)
-        i_hist_dressed = lu.dress_hist(i_hist_in, i_hist_name, 1, 1, 
-        # re_bins=fit_plot_bins
-        )
-        hists[dictkey] = i_hist_dressed
-        # get xsec and eff uncert
-        with open(xsec_file, 'r') as f: 
-            fid_xsec_fb = float(f.read())
-        fid_xsecs[dictkey] = fid_xsec_fb
-        with open(eff_uncert_file, 'r') as f: 
-            eff_uncert = float(f.read())
-        eff_uncerts[dictkey] = eff_uncert
-        with open(eff_file, 'r') as f: 
-            eff = float(f.read())
-        effs[dictkey] = eff
+        hists[dictkey] = i_hist_in #i_hist_dressed
 
 print("collected hists and fid xsecs  and eff with uncert for", hists.keys())
 
@@ -167,19 +143,11 @@ def make_df(df_to_search, to_be_replaced_ops, search_within_ops, order_to_replac
         to_replace = rep_row["toreplace"]
         rep = rep_row["replacement"]
         for i_clip in all_clips:
-            xsec_to_replace = fid_xsecs[(i_clip, order_to_replace, to_replace)]
-            xsec_rep = fid_xsecs[(i_clip, order_rep, rep)]
+            xsec_to_replace = hists[(i_clip,order_to_replace,to_replace)].Integral() #fid_xsecs[(i_clip, order_to_replace, to_replace)]
+            xsec_rep = hists[(i_clip,order_rep,rep)].Integral() #fid_xsecs[(i_clip, order_rep, rep)]
             norm = xsec_to_replace/xsec_rep
             df_norm.at[to_replace, i_clip] = norm
             df_norm.at[to_replace, "rep"] = rep
-            #
-            eff_to_replace, eff_rep = effs[(i_clip, order_to_replace, to_replace)], effs[(i_clip, order_rep, rep)]
-            eff_unc_to_replace, eff_unc_rep = eff_uncerts[(i_clip, order_to_replace, to_replace)], eff_uncerts[(i_clip, order_rep, rep)]
-            rel_eff_err_to_replace = eff_unc_to_replace / eff_to_replace if eff_to_replace!=0 else 0
-            rel_eff_err_rep = eff_unc_rep / eff_rep
-            uncert = abs(norm) * math.sqrt(rel_eff_err_to_replace**2 + rel_eff_err_rep**2)
-            df_norm_unc.at[to_replace, i_clip] = f"{uncert/norm:.2f}" if norm!=0 else 0
-            df_norm_unc.at[to_replace, "rep"] = rep
             
     lu.save_df(df_norm, out_name+f"_norms_{order_to_replace}.pdf", save_csv=True, aspect=(6,6),
                save_pdf=opts.savePdf, save_latex=1)
