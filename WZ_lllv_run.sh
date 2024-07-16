@@ -12,4 +12,4 @@ run_1_download_0=0
 #  python run_chain.py --genJobName "user.okurdysh.MadGraph_WZ_lllv_${op}_QUAD_try2" --routine "WZ_lllv" --cut "SR" --genDoDownload 1 --runLocally 1 --runRivet 0 &
 #done
 
-python search_replacements.py --tGenProd "WpZWmZ" --tGenDec "lllv" --routine "WZ_lllv" --cut "SR" --doINT 1 --doCROSS 0 --doReplacement 0 --doReshuffling 1 --savePdf 0
+python search_replacements.py --tGenProd "WpZWmZ" --tGenDec "lllv" --routine "WZ_lllv" --cut "SR" --doINT 1 --doCROSS 1 --doReplacement 1 --doReshuffling 1 --savePdf 0
