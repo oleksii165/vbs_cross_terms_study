@@ -341,9 +341,10 @@ def read_hists(root_file_name, h_names_arr):
         h_file.Close()
     return hists
 
-def dress_hist(my_hist, my_title, my_color=1, my_norm = 1.0, re_bins=-1, re_overflow=0, exclude_underverflow_from_norm=False):
+def dress_hist(my_hist_in, my_title, my_color=1, my_norm = 1.0, re_bins=-1, re_overflow=0, exclude_underverflow_from_norm=False):
     if exclude_underverflow_from_norm and re_overflow:
         raise ValueError("doesnt make sense when both exclude_underverflow_from_norm and re_overflow")
+    my_hist = my_hist_in.Clone() # otherwise will modify name of original hist etc
     my_hist.SetTitle(my_title)
     my_hist.SetName(my_title)
     my_hist.SetLineColor(my_color)
