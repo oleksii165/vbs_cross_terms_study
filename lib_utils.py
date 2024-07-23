@@ -20,6 +20,7 @@ def get_fitted_plot(routine, cut):
     if routine == "Zy_vvy":
         mystr = "pt_photon"
         bins = array('d', [150,300,450,600,750,900,1050,1200,2000])
+        overflow_bin, exclude_underverflow_from_norm = 1, 0
     elif routine in ["WmZ_lllv","WpZ_lllv","WZ_lllv"]:
         mystr="m_T_WZ"
         bins = array('d', [0,400,750,1050,1350,1800]) # last bin is overflow

@@ -7,7 +7,9 @@ import lib_utils as lu
 # ana_dirs = {"Wmy_lvy": ["Wy_John", "SR"], "Wpy_lvy": ["Wy_John", "SR"]}
 
 # ana_dirs = {"WmZ_lllv": ["WZ_lllv", "SR"], "WpZ_lllv": ["WZ_lllv", "SR"]}
-ana_dirs = {"WZ_lllv": ["WZ_lllv", "SR"]}
+#ana_dirs = {"WZ_lllv": ["WZ_lllv", "SR"]}
+
+ana_dirs = {"Zy_vvy":["Zy_vvy","SR"]}
 
 base_dir = "/sps/atlas/kurdysh/vbs_cross_terms_study/eft_files/"
 clips = ["inf","3000","2000","1500","1000","700"]
