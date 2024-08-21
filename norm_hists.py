@@ -4,17 +4,16 @@ import os
 import ROOT
 import lib_utils as lu
 
-# ana_dirs = {"Wmy_lvy": ["Wy_John", "SR"], "Wpy_lvy": ["Wy_John", "SR"]}
+# ana_dirs = {"Wmy_lvy": ["Wy_John", "SR", "m_Wy"], "Wpy_lvy": ["Wy_John", "SR", "m_Wy"]}
 
-# ana_dirs = {"WmZ_lllv": ["WZ_lllv", "SR"], "WpZ_lllv": ["WZ_lllv", "SR"]}
-#ana_dirs = {"WZ_lllv": ["WZ_lllv", "SR"]}
+# ana_dirs = {"WmZ_lllv": ["WZ_lllv", "SR", "m_WZ"], "WpZ_lllv": ["WZ_lllv", "SR", "m_WZ"]}
 
-ana_dirs = {"Zy_vvy":["Zy_vvy","SR"]}
+ana_dirs = {"Zy_vvy":["Zy_vvy", "SR", "m_Zy"]}
 
 base_dir = "/sps/atlas/kurdysh/vbs_cross_terms_study/eft_files/"
-clips = ["inf","3000","2000","1500","1000","700"]
+clips = ["inf", "3000", "2000", "1500", "1000", "700"]
 for i_ana_dir in ana_dirs.keys():
-    routine, cut = ana_dirs[i_ana_dir][0], ana_dirs[i_ana_dir][1]
+    routine, cut, m_vv_name = ana_dirs[i_ana_dir][0], ana_dirs[i_ana_dir][1], ana_dirs[i_ana_dir][2]
     fit_var, fit_bins, re_overflow, exclude_underverflow_from_norm = lu.get_fitted_plot(routine, cut)
     full_ana_dir = f"{base_dir}/{i_ana_dir}/"
     op_dirs = [i_dir for i_dir in os.listdir(full_ana_dir) if "_EXT0" in i_dir]
@@ -52,6 +51,10 @@ for i_ana_dir in ana_dirs.keys():
                                        re_bins = fit_bins,re_overflow = re_overflow,
                                        exclude_underverflow_from_norm = exclude_underverflow_from_norm)
             i_h_normed.Write("", ROOT.TObject.kOverwrite)
+        # also save m_vv
+        # i_h = hist_root_in.Get(m_vv_name)
+        i_h_normed = lu.dress_hist(hist_root_in.Get(m_vv_name), m_vv_name, my_norm = xsecs["inf"]*139)
+        i_h_normed.Write("", ROOT.TObject.kOverwrite)
         hist_root_out.Close()
 
 
