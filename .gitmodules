@@ -1,0 +1,3 @@
+[submodule "myROOTDrawing"]
+	path = myROOTDrawing
+	url = git@github.com:oleksii165/myROOTDrawing.git
