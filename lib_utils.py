@@ -234,7 +234,7 @@ def find_evnt_dir_and_file(search_com):
     conf_dir_arr = glob.glob(search_com)
     print("found possibilities for dir", conf_dir_arr)
     conf_dir = conf_dir_arr[0] if len(conf_dir_arr)>=1 else -1  
-    if conf_dir == -1: raise ValueError("did not find folder for this config ",search_com)
+    if conf_dir == -1: raise ValueError("did not find folder for this config ", search_com)
 
     evnt_file_candidates = glob.glob(conf_dir + "/*EVNT.root")
     if len(evnt_file_candidates)==0: evnt_file_candidates=-1

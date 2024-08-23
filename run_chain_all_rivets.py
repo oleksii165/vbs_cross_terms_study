@@ -11,7 +11,8 @@ parser.add_option("--runINT", default = 0, type="int")
 parser.add_option("--runQUAD", default = 0, type="int")
 parser.add_option("--runCROSS", default = 0, type="int")
 parser.add_option("--skipOuterCROSS", default = 1, type="int")
-parser.add_option("--numLocJobsParallel", default = 15, type="int")
+parser.add_option("--numLocJobsParallel", default = 10, type="int")
+parser.add_option("--evtMax", default = 1000000000, type="int")
 parser.add_option("--runLocally", default = 0, type='int')
 parser.add_option("--runRivet", default = 0, type='int')
 parser.add_option("--routine", default = "WmWm_lvlv")
@@ -22,7 +23,6 @@ opts, _ = parser.parse_args()
 c = panda_api.get_api()
 tasks = c.get_tasks(limit=100000000, days=13000, username="Oleksii Kurdysh", status="done") # get already last try since only retry if it failed
 task_pref = "MadGraph"
-if opts.tGenDec=="llll": task_pref+="Fixed"
 task_names = [i_task['taskname'].replace("/","") for i_task in tasks
               if task_pref in i_task['taskname']
               and f"{opts.tGenProd}_" in i_task['taskname']
@@ -40,13 +40,15 @@ def get_com(jobname):
         com = (f'python run_chain.py '
                f'--runLocally 1 --runRivet {opts.runRivet} '
                f'--genJobName "{jobname}" --routine "{opts.routine}" --cut "{opts.cut}" '
-               f'--genDoDownload 1 --saveInfoAfterRivet 1 --doMakeHtml {opts.doMakeHtml}')
+               f'--genDoDownload 1 --saveInfoAfterRivet 1 --doMakeHtml {opts.doMakeHtml} '
+               f'--evtMax {opts.evtMax}')
     else:
         param_download_proc = 0 if opts.runRivet else 1 
         com = (f'python run_chain.py '
                f'--runLocally 0 --runRivet {opts.runRivet} '
                f'--genDoDownload {param_download_proc} --saveInfoAfterRivet {param_download_proc} --doMakeHtml {opts.doMakeHtml} '
-               f'--genJobName "{jobname}" --routine "{opts.routine}" --cut "{opts.cut}"')
+               f'--genJobName "{jobname}" --routine "{opts.routine}" --cut "{opts.cut}" '
+               f'--evtMax {opts.evtMax}')
     return com
 
 def call_bloc_proc(op_blocks, eft_config):
