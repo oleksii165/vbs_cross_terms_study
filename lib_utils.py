@@ -265,13 +265,19 @@ def get_envt_log_names_dirs(base_dir,i_job_name):
     print("returnning names structure log did and dir",log_did, log_dir)
     return evnt_did, evnt_dir, log_did, log_dir  
 
-def get_xsec(log_file):
+def get_xsec(log_file, prod_xsec=False):
     with open(log_file) as textf:
         xsec_val, xsec_unit = -999.0 , "fb" # here pb but later for plots will convert to fb
         for line in textf:
-            if 'MetaData: cross-section' in line:
-                xsec_val = float(line[line.find('=')+1:])
-                xsec_unit = line[line.find('(')+1:line.find(')')]
+            if prod_xsec:
+                if 'Cross-section :' in line:
+                    line_vec = line.split(" ")
+                    xsec_val = float(line_vec[10])
+                    xsec_unit = line_vec[13].strip()
+            else:
+                if 'MetaData: cross-section' in line:
+                    xsec_val = float(line[line.find('=')+1:])
+                    xsec_unit = line[line.find('(')+1:line.find(')')]
     conv_fact_to_pb = {"mb":1e9, "um":1e6, "nb":1e3, "pb":1, "fb":1e-3}
     xsec_fb = xsec_val * conv_fact_to_pb[xsec_unit] * 1000
     # print("found xsec value ",xsec_val,"with unit",xsec_unit,"converting to fb get in fb",xsec_fb)
