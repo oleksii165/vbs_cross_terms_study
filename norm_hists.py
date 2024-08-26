@@ -8,7 +8,9 @@ import lib_utils as lu
 
 # ana_dirs = {"WmZ_lllv": ["WZ_lllv", "SR", "m_WZ"], "WpZ_lllv": ["WZ_lllv", "SR", "m_WZ"]}
 
-ana_dirs = {"Zy_vvy":["Zy_vvy", "SR", "m_Zy"]}
+# ana_dirs = {"Zy_vvy":["Zy_vvy", "SR", "m_Zy"]}
+ana_dirs = {"ZZ_llll":["ZZ_llll", "SR", "m_ZZ"]}
+skip_cross = True
 
 base_dir = "/sps/atlas/kurdysh/vbs_cross_terms_study/eft_files/"
 clips = ["inf", "3000", "2000", "1500", "1000", "700"]
@@ -20,6 +22,8 @@ for i_ana_dir in ana_dirs.keys():
     for i_op_dir in op_dirs:
         print("working on ", i_op_dir)
         hist_xsec_dir = f"{full_ana_dir}/{i_op_dir}/routine_{routine}_cut_{cut}/"
+        if skip_cross:
+            if "CROSS" in i_op_dir: continue
         # find hist file and if relevant hists are there
         hist_path_in = f"{hist_xsec_dir}/hists.root"
         if not os.path.exists(hist_path_in):
@@ -46,11 +50,12 @@ for i_ana_dir in ana_dirs.keys():
         hist_root_out = ROOT.TFile(hist_path_out,"recreate")
         for i_clip_found in clips_found:
             i_h_name = f"{var_clip_str}{i_clip_found}"
-            i_h = hist_root_in.Get(i_h_name)
-            i_h_normed = lu.dress_hist(i_h, i_h_name, my_norm = xsecs[i_clip_found]*139,
-                                       re_bins = fit_bins,re_overflow = re_overflow,
-                                       exclude_underverflow_from_norm = exclude_underverflow_from_norm)
-            i_h_normed.Write("", ROOT.TObject.kOverwrite)
+            if i_h_name in hists_names_in:
+                i_h = hist_root_in.Get(i_h_name)
+                i_h_normed = lu.dress_hist(i_h, i_h_name, my_norm = xsecs[i_clip_found]*139,
+                                           re_bins = fit_bins,re_overflow = re_overflow,
+                                           exclude_underverflow_from_norm = exclude_underverflow_from_norm)
+                i_h_normed.Write("", ROOT.TObject.kOverwrite)
         # also save m_vv
         # i_h = hist_root_in.Get(m_vv_name)
         i_h_normed = lu.dress_hist(hist_root_in.Get(m_vv_name), m_vv_name, my_norm = xsecs["inf"]*139)
