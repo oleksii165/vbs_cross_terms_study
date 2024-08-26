@@ -187,62 +187,6 @@ if opts.runQUADAndCROSS=="yes":
         CROSS_geom_QUAD_h.GetXaxis().SetBinLabel(bin_x,i_op1)
         CROSS_el_area_ratio_h.GetXaxis().SetBinLabel(bin_x,i_op1)
         for i_op2 in xsec_dict["CROSS"][i_op1]:
-            bin_y = all_ops.index(i_op2) + 1
-            CROSS_h.GetYaxis().SetBinLabel(bin_y,i_op2)
-            CROSS_geom_QUAD_h.GetYaxis().SetBinLabel(bin_y,i_op2)
-            CROSS_el_area_ratio_h.GetYaxis().SetBinLabel(bin_y,i_op2)
-            cross = xsec_dict["CROSS"][i_op1][i_op2]
-            CROSS_h.SetBinContent(bin_x, bin_y, cross)
-            # fill geometric average
-
-            if i_op1 not in xsec_dict["QUAD"].keys() or i_op2 not in xsec_dict["QUAD"].keys(): continue
-
-            quad1 = xsec_dict["QUAD"][i_op1]
-            quad2 = xsec_dict["QUAD"][i_op2]
-            geom_average = cross / math.sqrt(quad1*quad2) if quad1*quad2>0 else -1
-            CROSS_geom_QUAD_h.SetBinContent(bin_x, bin_y, geom_average)
-            ##### ellipses
-            lumi = 140 # lumi of run2 in 1/fb, expect xsec to be in fb
-            el_q1_c = lumi * quad1 / 3 # dont square xsec since already squared from madgraph
-            el_q2_c = lumi * quad2 / 3 # divide by 3 since formula for are expect factor to be 1
-            el_cross_c = lumi * cross / 3
-            den_with_cross2 = 4*el_q1_c*el_q2_c - el_cross_c**2
-            if den_with_cross2 > 0:
-                area_no_cross = 2 * math.pi / math.sqrt(4*el_q1_c*el_q2_c)
-                area_with_cross = 2 * math.pi / math.sqrt(den_with_cross2)
-                area_ratio = area_with_cross/area_no_cross
-                print(f"for i_op1 i_op2 {i_op1} {i_op2} got areas no cross {area_no_cross:.2f} with cross {area_with_cross:.2f} ratio {area_ratio:.2f} used ellipse q1 q2 cross {el_q1_c:.2f} {el_q2_c:.2f} {el_cross_c:.2f}")
-            else:
-                print("for i_op1 i_op2", i_op1, i_op2, "cannot do area sqrt in this case",den_with_cross2)
-                area_ratio = -99
-            CROSS_el_area_ratio_h.SetBinContent(bin_x, bin_y, round(area_ratio,2))
-            ##### fractions
-            pair_str = lu.get_pair_str(i_op1,i_op2)
-            pairs_str_avalaible.append(pair_str)
-            area_ratios.append(area_ratio)
-            i_frac_quad1 = frac_dict["QUAD"][i_op1]
-            i_frac_quad2 = frac_dict["QUAD"][i_op2]
-            i_frac_cross = frac_dict["CROSS"][i_op1][i_op2]
-            fracs_quad1.append(i_frac_quad1)
-            fracs_quad2.append(i_frac_quad2)
-            fracs_cross.append(i_frac_cross)
-            mean_quads = mean([i_frac_quad1, i_frac_quad2])
-            geo_ave = i_frac_cross/mean_quads if mean_quads>0 else 0.0
-            fracs_ave.append(geo_ave)
-            fracs_envelope.append(max([abs(i_frac_quad1-i_frac_quad2),
-                                        abs(i_frac_quad1-i_frac_cross),
-                                        abs(i_frac_quad2-i_frac_cross)]))
-            print("for pair", pair_str, "founds fracs q1 q2 cross", i_frac_quad1, i_frac_quad2, i_frac_cross)
-            print(f"and mean of q1 q2 {mean_quads} then c/ave is {geo_ave}")
-            i_frac_quad1_unc = frac_er_dict["QUAD"][i_op1]
-            i_frac_quad2_unc = frac_er_dict["QUAD"][i_op2]
-            i_frac_cross_unc = frac_er_dict["CROSS"][i_op1][i_op2]
-            fracs_errors_quad1.append(i_frac_quad1_unc)
-            fracs_errors_quad2.append(i_frac_quad2_unc)
-            fracs_errors_cross.append(i_frac_cross_unc)
-            fracs_errors_ave.append(math.sqrt(i_frac_quad1_unc**2 + i_frac_quad2_unc**2 + i_frac_cross_unc**2))
-            print("for pair", pair_str, "founds fracs errors q1 q2 cross", i_frac_quad1_unc, i_frac_quad2_unc, i_frac_cross_unc)
-
             ########### cutflow comparison
             if opts.drawCutflow=="yes":
                 i_cutflow_quad1 = cutflow_file_dict["QUAD"][i_op1]
