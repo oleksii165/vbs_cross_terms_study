@@ -68,9 +68,36 @@ def get_missing_ops(routine):
     return ops
 
 def get_var_latex(varname): # to be used with ROOT latex
-    latexstr=varname
-    if varname=="pt_photon": latexstr="p_{T}^{\gamma} [GeV]"
-    elif varname=="m_WZ_T": latexstr="m_{T}^{WZ} [GeV]"
+    labels = { "centrality_quadjj": "centrality_{llll,tagjets}",
+               "m_ZZ": "m_{ZZ}",
+               "m_Zy": "m_{Z\gamma}",
+               "m_llll": "m_{4l}",
+               "m_tagjets": "m_{jj}",
+               "pt_lepton": "p_{T}^{lepton1}",
+               "pt_tagjets": "p_{T}^{jj}",
+               "dphi_tagjets": "\Delta\phi_{jj}",
+               "pt_llll": "p_{T}^{llll}",
+               "dy_tagjets": "\Delta\eta_{jj}",
+               "pt_lllljj": "p_{T}^{jj4l}",
+               "eta_lepton": "\eta_{lepton1}",
+               "pt_tagjet1": "p_{T}^{j1}",
+               "pt_tagjet2": "p_{T}^{j2}",
+               "eta_tagjets": "\eta_{jj}",
+               "phi_tagjets": "\phi_{jj}",
+               "pt_photon": "p_{T}^{\gamma}"
+    }
+
+    latexstr = varname
+    if "clip_" in varname:
+        clip_val = varname.split("_")[-1]
+        varname_no_clip = varname[:varname.find("_clip_")]
+        if varname_no_clip in labels.keys():
+            latexstr = labels[varname_no_clip] + "(clip=" + clip_val + ")"
+    else:
+        if varname in labels.keys():
+            latexstr = labels[varname]
+
+    # elif varname=="m_WZ_T": latexstr="m_{T}^{WZ} [GeV]"
     return latexstr
 
 def latex_ana_str(prod_dec):
@@ -164,62 +191,28 @@ def get_ops(include_fs0_2):
     return all_ops, op_pairs
 
 def get_hists_bounds_cuts(prod_dec):
-    with open(f"{prod_dec}_hists.json") as fo: total_h = json.load(fo)
-    # always load analysis specific hists and jet ones
-    with open("jet_hists.json") as fo: jet_h = json.load(fo)
-    with open("photon_hists.json") as fo: photon_h = json.load(fo)
-    with open("lepton_hists.json") as fo: lepton_h = json.load(fo)
-    total_h.update(jet_h)
-    # update others depending on ana
-    if prod_dec in ["Zy_lly", "Wmy_lvy"]:
-        total_h.update(lepton_h)
-        total_h.update(photon_h)
-    elif prod_dec=="Zy_vvy":
-        total_h.update(photon_h)
-    if prod_dec in ["WmZ_lllv", "WpZ_lllv"]:
-        total_h.update(lepton_h)
-    
-    # this loop is unncessecary
-    return_dict = {} # key is hist name, value[nbin,min,max,cut,cutdir="+,-"]
-    for i_hist, i_h_arr in total_h.items():
-        if len(i_h_arr)!=3: 
-            print("----were not able to  for",i_hist,"will not be there in kin plots")
-            continue
-        return_dict[i_hist]=i_h_arr
-    # replace original bin params with what want to have [rebin_x, x_low, x_up]
-    params={}
-    params["pt_tagjet1"]  = [10, 0, 2500]
-    params["pt_tagjet2"] = [10, 0, 1000]
-    params["eta_tagjets"] = [3, -1, -1]
-    params["phi_tagjets"] = [5, 0, 6]
-    params["m_tagjets"] = [10, -1, -1]
-    params["dy_tagjets"]= [5, 0, 9]
-    for i_dphi in ["dphi_tagjets","dphi_MET_photon", "dphi_MET_tagjet"]:
-        params[i_dphi]= [-1, 0, 3.5]
-    params["pt_lepton"]  = [10, 0, 2500]
-    params["eta_lepton"] = [3, -3, 3]
-    # params["pt_photon"]  = params["pt_MET"] = [10, 1200, 4000]
-    params["pt_MET"] = [10, 1200, 4000]
-    params["eta_photon"] = [3, -3, 3]
-    params["m_ll"] = [10,0,300]
-    params["m_lly"] =  params["m_ly"] = [10,-1,1]
-    for i_cent in ["centrality_lly","centrality_jjy","centrality_jjly"]:
-        params[i_cent] = [-1,0,0.8]
-    params["cone_frac_photon"] = [-1, 0, 0.1]
-    params["m_W_T"] = [3, 0, 150]
-    # params["m_WZ_T"] = [10, 0, 4000]
-    params["dR_lepton_photon"] = [2, 0, 6]
-    params["dR_tagjets"] = [2,0,10]
-    default_params = [-1,-1,-1]
-    for i_hist, i_h_arr in return_dict.items():
-        if i_hist in params.keys(): replace_params=params[i_hist]
-        else: replace_params = default_params
-        i_h_arr[0]=replace_params[0]
-        i_h_arr[1]=replace_params[1]
-        i_h_arr[2]=replace_params[2]
+    params = {}
+    params["ZZ_llll"] = {"centrality_quadjj":[1,0.0,0.5],
+                         "dphi_tagjets":[1,0.0,4.0],
+                         "dy_tagjets":[1,0.0,8.0],
+                         "eta_lepton":[1,-4.0,4.0],
+                         "eta_tagjets":[1,-5.0,5.0],
+                         "m_llll":[10,0.0,2500.0], "m_llll_clip_inf":[10,0.0,2500.0],
+                         "m_tagjets":[10,0.0,5000.0], "m_tagjets_clip_inf":[10,0.0,5000.0],
+                         "m_ZZ":[10,0.0,5000.0],
+                         "phi_tagjets":[1,0.0,6.0],
+                         "pt_lepton":[1,0.0,1000.0],
+                         "pt_llll":[1,0.0,1000.0],
+                         "pt_lllljj":[1,0.0,1000.0],
+                         "pt_tagjet1":[1,0.0,2000.0],
+                         "pt_tagjet2":[1,0.0,2000.0]}
 
-    print("returning plotting dict")
-    return return_dict 
+    params["Zy_vvy"] = {"m_Zy":[10,0.0,8000.0]}
+    for suff in ["","_clip_inf","_clip_3000","_clip_2000","_clip_1500","_clip_1000","_clip_700"]:
+        params["Zy_vvy"]["pt_photon"+suff] = [3, 0.0, 4000.0]
+
+    return params[prod_dec]
+
 
 def find_prod_dec_and_dir(conf):
     prod_temp = conf[conf.find(".MadGraph_")+len(".MadGraph_") : ]
