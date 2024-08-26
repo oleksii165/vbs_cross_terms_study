@@ -16,7 +16,7 @@ from pandas.plotting import table
 
 def get_fitted_plot(routine, cut):
     mystr,bins = "",[]
-    overflow_bin, exclude_underverflow_from_norm = -1, -1
+    overflow_bin, exclude_underverflow_from_norm = 0, 1
     if routine == "Zy_vvy":
         mystr = "pt_photon"
         bins = array('d', [150,300,450,600,750,900,1050,1200,2000])
@@ -40,6 +40,10 @@ def get_fitted_plot(routine, cut):
         mystr = "pt_lepton"
         bins = array('d', [30,43,60,85,130,550])
         overflow_bin, exclude_underverflow_from_norm = 0, 1
+    # elif routine in ["ZZ_llll"]:
+    #     mystr="m_llll" # take only 1 instead of (mjj,m4l pair because lazy
+    #     bins = array('d', [0,400,750,1050,1350,1800]) # last bin is overflow
+    #     overflow_bin, exclude_underverflow_from_norm = 1, 0 # should be opposute
     return mystr, bins, overflow_bin, exclude_underverflow_from_norm
 
 def get_rivet_job_name(genJobName,routine,cut):
