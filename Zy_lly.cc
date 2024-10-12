@@ -31,12 +31,7 @@ namespace Rivet {
 
     /// Book histograms and initialise projections before the run
     void init() {
-      std::string out_dir = getOption("OUTDIR");
-      
-      _docut = 0; // most cuts on number of particles are always applied to avoid segfault
-      if (out_dir.find("DOCUT_YES") != string::npos) _docut = 1;
-      // if (out_dir.find("DOCUT_NO") != string::npos) _docut = 0;
-      std::cout << "++++++received outidir" << out_dir << "meaning _docut is " << _docut << "\n";
+      _cut_mode = getOption("cut");
 
       std::string jsonfilestr = "Zy_lly_cuts.json";
       std::cout << "++++++assume .json for this Zy_lly" << "is " << jsonfilestr << "\n";
@@ -122,11 +117,16 @@ namespace Rivet {
         _hist_names.push_back(it.key());
       }
       
-      //counter for efficiency
-      book(_c["pos_w_initial"],"pos_w_initial");
-      book(_c["pos_w_final"],"pos_w_final");
-      book(_c["neg_w_initial"],"neg_w_initial");
-      book(_c["neg_w_final"],"neg_w_final");
+      //counter for efficiency - in this ana not doing hists myself so can ignore clippings
+      book(_c["pos_w_initial"], "pos_w_initial");
+      book(_c["neg_w_initial"], "neg_w_initial");
+      for (std::string &i_clip: _clips) {
+        std::string i_pos_c_name = "pos_w_final_clip_" + i_clip;
+        std::string i_neg_c_name = "neg_w_final_clip_" + i_clip;
+        book(_c[i_pos_c_name], i_pos_c_name);
+        book(_c[i_neg_c_name], i_neg_c_name);
+      }
+
       
       // Cut-flows
       _cutflows.addCutflow("Zy_lly_selections", {"n_lep_ok_pt2_eta", "lep_pid_charge", "lep_pt1", "m_ll", "have_iso_photons_ok_pt_eta",
@@ -146,7 +146,7 @@ namespace Rivet {
       // Retrieve dressed leptons, sorted by pT
       Particles e_stable;
       Particles mu_stable;
-      if (_docut==1){
+      if (_cut_mode=="SR"){
         e_stable = apply<FinalState>(event, "e_stable").particlesByPt(_electron_eta_cut && _lepton2_pt_cut);
         mu_stable = apply<FinalState>(event, "mu_stable").particlesByPt(_muon_eta_cut && _lepton2_pt_cut);
       }
@@ -165,11 +165,11 @@ namespace Rivet {
       const Particle& lep2 = leptons_stable[1];
       if (lep1.pid()+lep2.pid()!=0) vetoEvent; // want opposite charge leptons of same fravour
       _cutflows.fillnext();
-      if (_docut==1 && (lep1.pT() < dbl(_jcuts["pt_lepton1"])*GeV)) vetoEvent;
+      if (_cut_mode=="SR" && (lep1.pT() < dbl(_jcuts["pt_lepton1"])*GeV)) vetoEvent;
       _cutflows.fillnext();
       const FourMomentum fourvec_ll = lep1.mom() + lep2.mom(); 
       const double m_ll = fourvec_ll.mass()/GeV;
-      if (_docut==1 && m_ll < dbl(_jcuts["m_ll"])*GeV) vetoEvent;
+      if (_cut_mode=="SR" && m_ll < dbl(_jcuts["m_ll"])*GeV) vetoEvent;
       _cutflows.fillnext();
 
       //photons
@@ -195,12 +195,12 @@ namespace Rivet {
       }
       if (isolated_photons.empty())  vetoEvent;
       const Particle& lead_iso_photon = isolated_photons[0];
-      if (_docut==1 && lead_iso_photon.pT() < dbl(_jcuts["pt_photon"])*GeV) vetoEvent;
+      if (_cut_mode=="SR" && lead_iso_photon.pT() < dbl(_jcuts["pt_photon"])*GeV) vetoEvent;
       _cutflows.fillnext();
       
       const FourMomentum fourvec_lly = lep1.mom() + lep2.mom() + lead_iso_photon.mom();
       const double m_lly = fourvec_lly.mass();
-      if (_docut==1 && (m_ll + m_lly)<=dbl(_jcuts["m_lly"])*GeV)  vetoEvent;
+      if (_cut_mode=="SR" && (m_ll + m_lly)<=dbl(_jcuts["m_lly"])*GeV)  vetoEvent;
       _cutflows.fillnext();
 
       // Retrieve clustered jets, sorted by pT, with a minimum pT cut
@@ -215,19 +215,19 @@ namespace Rivet {
 
       const FourMomentum tag1_jet = jets[0].mom();
       const FourMomentum tag2_jet = jets[1].mom();
-      if (_docut==1 && (tag1_jet.pT()<dbl(_jcuts["pt_tagjet1"])*GeV || tag2_jet.pT()<dbl(_jcuts["pt_tagjet1"])*GeV)) vetoEvent; 
+      if (_cut_mode=="SR" && (tag1_jet.pT()<dbl(_jcuts["pt_tagjet1"])*GeV || tag2_jet.pT()<dbl(_jcuts["pt_tagjet1"])*GeV)) vetoEvent; 
       _cutflows.fillnext();
 
       const double m_tagjets = (tag1_jet + tag2_jet).mass()/GeV;
-      if (_docut==1 && m_tagjets<dbl(_jcuts["m_tagjets"])*GeV) vetoEvent;
+      if (_cut_mode=="SR" && m_tagjets<dbl(_jcuts["m_tagjets"])*GeV) vetoEvent;
       _cutflows.fillnext();
 
       const double dy_tagjets =  fabs(deltaRap(tag1_jet, tag2_jet));
-      if (_docut==1 && dy_tagjets<_jcuts["dy_tagjets"]) vetoEvent;
+      if (_cut_mode=="SR" && dy_tagjets<_jcuts["dy_tagjets"]) vetoEvent;
       _cutflows.fillnext();
 
       const double centrality_lly = fabs(0.5 * (fourvec_lly.rap() - (tag1_jet.rap()+tag2_jet.rap())/2) / (tag1_jet.rap()-tag2_jet.rap()));
-      if (_docut==1 && centrality_lly > _jcuts["centrality_lly"])  vetoEvent;
+      if (_cut_mode=="SR" && centrality_lly > _jcuts["centrality_lly"])  vetoEvent;
       _cutflows.fillnext();
 
       int n_gap_jets = 0;
@@ -235,7 +235,7 @@ namespace Rivet {
         const double i_jet_rap = jets[i].rap();
         if ((i_jet_rap < tag1_jet.rap() && i_jet_rap > tag2_jet.rap()) || (i_jet_rap < tag2_jet.rap() && i_jet_rap > tag1_jet.rap()))  ++n_gap_jets;
       }
-      if (_docut==1 && n_gap_jets > _jcuts["n_gap_jets"])  vetoEvent;
+      if (_cut_mode=="SR" && n_gap_jets > _jcuts["n_gap_jets"])  vetoEvent;
       _cutflows.fillnext();
 
       //jet common 
@@ -264,8 +264,8 @@ namespace Rivet {
       _h["centrality_lly"]->fill(centrality_lly);
 
       // save weights after cuts
-      if (ev_nominal_weight>=0){_c["pos_w_final"]->fill();}
-      else {_c["neg_w_final"]->fill();}
+      if (ev_nominal_weight >= 0) { _c["pos_w_final_clip_inf"]->fill(); }
+      else { _c["neg_w_final_clip_inf"]->fill(); }
 
     }
 
@@ -294,7 +294,7 @@ namespace Rivet {
     map<string, Histo1DPtr> _h;
     map<string, Histo2DPtr> _h2;
     map<string, CounterPtr> _c;
-    int _docut;
+    std:string _cut_mode;
     Cut _electron_eta_cut;
     Cut _photon_eta_cut;
     Cut _muon_eta_cut;
@@ -302,6 +302,8 @@ namespace Rivet {
     json _jcuts;
     Cutflows _cutflows;
     std::vector<std::string> _hist_names;
+    std::vector<std::string> _clips{"inf", "3000", "2000", "1500", "1000", "700"};
+
 
     /// @}
 
