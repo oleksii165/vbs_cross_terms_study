@@ -12,7 +12,7 @@ import lib_utils as lu
 ana_dirs = {"ZZ_llll":["ZZ_llll", "SR", "m_ZZ"]}
 skip_cross = True
 
-base_dir = "/sps/atlas/kurdysh/vbs_cross_terms_study/eft_files/"
+base_dir = "/lapp_data/atlas/kurdysh/vbs_eft_files/"
 clips = ["inf", "3000", "2000", "1500", "1000", "700"]
 for i_ana_dir in ana_dirs.keys():
     routine, cut, m_vv_name = ana_dirs[i_ana_dir][0], ana_dirs[i_ana_dir][1], ana_dirs[i_ana_dir][2]

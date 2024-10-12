@@ -169,7 +169,7 @@ def get_evnt_log_files(base_dir,i_job_name):
 
 def get_plotdir(prod_dec, routine, cut, DOCUT_format=False):
     routine_dir = f"routine_{routine}_cut_{cut}" if not DOCUT_format else f"routine_{routine}_cut_{cut}"
-    my_dir = f"/exp/atlas/kurdysh/vbs_cross_terms_study/plots/{prod_dec}/{routine_dir}/"
+    my_dir = f"/lapp_data/atlas/kurdysh/vbs_truth/plots/{prod_dec}/{routine_dir}/"
     if not os.path.exists(my_dir): os.makedirs(my_dir)
     return my_dir, routine_dir
 
@@ -223,7 +223,7 @@ def find_prod_dec_and_dir(conf):
     print("start from string", prod_temp)
     prod_dec = prod_temp[:prod_temp.find("_F")]
     print("from conf found production dec", prod_dec)
-    conf_dir = f"/sps/atlas/kurdysh/vbs_cross_terms_study/eft_files/{prod_dec}/"
+    conf_dir = f"/lapp_data/atlas/kurdysh/vbs_eft_files/{prod_dec}/"
     print("dir would be", conf_dir)
     return prod_dec, conf_dir
 
