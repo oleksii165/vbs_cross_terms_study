@@ -24,7 +24,6 @@ namespace Rivet {
     void init() {
       _cut_mode = getOption("cut");
 
-
       // Projection for dressed electrons and muons
       FinalState photons(Cuts::abspid == PID::PHOTON);
 
