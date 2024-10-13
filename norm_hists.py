@@ -9,7 +9,8 @@ import lib_utils as lu
 # ana_dirs = {"WmZ_lllv": ["WZ_lllv", "SR", "m_WZ"], "WpZ_lllv": ["WZ_lllv", "SR", "m_WZ"]}
 
 # ana_dirs = {"Zy_vvy":["Zy_vvy", "SR", "m_Zy"]}
-ana_dirs = {"ZZ_llll":["ZZ_llll", "SR", "m_ZZ"]}
+# ana_dirs = {"ZZ_llll":["ZZ_llll", "SR", "m_ZZ"]}
+ana_dirs = {"Zy_lly":["ATLAS_2023_I2663725", "SR", "m_Zy"]}
 skip_cross = True
 
 base_dir = "/lapp_data/atlas/kurdysh/vbs_eft_files/"
@@ -46,7 +47,7 @@ for i_ana_dir in ana_dirs.keys():
         print(xsecs)
         # combine hist and xsec
         clips_found = list(set(clips_hist_found).intersection(xsecs.keys()))
-        hist_path_out = hist_path_in.replace("hists.root","hists_norm_run2.root")
+        hist_path_out = hist_path_in.replace("hists.root",f"hists_{fit_var}_norm_run2.root")
         hist_root_out = ROOT.TFile(hist_path_out,"recreate")
         for i_clip_found in clips_found:
             i_h_name = f"{var_clip_str}{i_clip_found}"
