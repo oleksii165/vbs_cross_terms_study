@@ -56,6 +56,11 @@ namespace Rivet {
       FastJets jets(hadrons, FastJets::ANTIKT, 0.4, JetAlg::Muons::ALL, JetAlg::Invisibles::DECAY);
       declare(jets, "jets");
 
+      // bins for hists
+      const std::vector<double> Dphi_lly_jj_EWK_bins = {0, 2.96, 3.2};
+      const std::vector<double> pT_y1_EWK_bins = {25,40,100,500};
+      const std::vector<double> pT_lly_EWK_bins = {0,100,700};
+
       // Histograms
       //note:
       // - all the hist without _EWK denotes dist. in Extented SR (Centrality < 0.4)
@@ -66,14 +71,14 @@ namespace Rivet {
       book(_h["pT_j1_EWK"], "pT_j1_EWK", {50,150,250,1000});//
       book(_h["pT_j2"], "pT_j2", {50,100,175,300,500,1000});
       book(_h["pT_y1"], "pT_y1", {25,35,50,75,150,500});
-      book(_h["pT_y1_EWK"], "pT_y1_EWK", {25,40,100,500});//
+      book(_h["pT_y1_EWK"], "pT_y1_EWK", pT_y1_EWK_bins);//
       book(_h["pT_l1"], "pT_l1", {30,65,100,150,250,500});
       book(_h["pT_l1_EWK"], "pT_l1_EWK", {30,150,1000});//
       book(_h["pT_l2"], "pT_l2", {30,65,100,150,250,500});
       book(_h["pT_ll"], "pT_ll", {0,50,100,150,250,800});
       book(_h["pT_ll_EWK"], "pT_ll_EWK", {0,50,100,150,250,800});//
       book(_h["pT_lly"], "pT_lly", {0,50,100,150,200,500});
-      book(_h["pT_lly_EWK"], "pT_lly_EWK", {0,100,700});//
+      book(_h["pT_lly_EWK"], "pT_lly_EWK", pT_lly_EWK_bins);//
 
       book(_h["eta_j1"], "eta_j1", {0,0.5,1,1.5,2,3,4,5});
       book(_h["eta_j2"], "eta_j2", {0,0.5,1,1.5,2,3,4,5});
@@ -100,7 +105,21 @@ namespace Rivet {
       book(_h["j1rap"], "j1rap", {0,0.5,1,1.5,2,3,4,5});
       book(_h["j2rap"], "j2rap", {0,0.5,1,1.5,2,3,4,5});
       book(_h["Dphi_lly_jj"], "Dphi_lly_jj", {0,2,2.95,3.2});
-      book(_h["Dphi_lly_jj_EWK"], "Dphi_lly_jj_EWK", {0,2.96,3.2});//
+      book(_h["Dphi_lly_jj_EWK"], "Dphi_lly_jj_EWK", Dphi_lly_jj_EWK_bins);
+
+      book(_h["m_Zy"], "m_Zy", 600, 0, 10000.0);
+
+      // hists for EFT per clip
+      for (std::string &i_clip: _clips) {
+        std::string i_name = "Dphi_lly_jj_EWK_clip_" + i_clip;
+        book(_h[i_name], i_name, Dphi_lly_jj_EWK_bins);
+        //
+        i_name = "pT_y1_EWK_clip_" + i_clip;
+        book(_h[i_name], i_name, pT_y1_EWK_bins);
+        //
+        i_name = "pT_lly_EWK_clip_" + i_clip;
+        book(_h[i_name], i_name, pT_lly_EWK_bins);
+        }
 
       //counter for efficiency - in this ana not doing hists myself so can ignore clippings
       book(_c["pos_w_initial"], "pos_w_initial");
@@ -245,32 +264,67 @@ namespace Rivet {
 
 			if (mjj < 500*GeV)  vetoEvent;
 
+      double my_dphi = fabs(deltaPhi(lly, dijet));
+      double my_pty = fabs(selectedPh[0].pT() / GeV);
+      double my_ptZy = fabs(lly.pT() / GeV);
+
 			_h["pT_j1_EWK"]->fill(jetsMix[0].pT() / GeV);
-			_h["pT_y1_EWK"]->fill(selectedPh[0].pT() / GeV);
+			_h["pT_y1_EWK"]->fill(my_pty);
+			_h["pT_y1_EWK_clip_inf"]->fill(my_pty);
 			_h["pT_l1_EWK"]->fill(lep[0].pT() / GeV);
 			_h["pT_ll_EWK"]->fill((lep[0].mom() + lep[1].mom()).pT() / GeV);
-			_h["pT_lly_EWK"]->fill(lly.pT() / GeV);
+			_h["pT_lly_EWK"]->fill(my_ptZy);
+			_h["pT_lly_EWK_clip_inf"]->fill(my_ptZy);
 			_h["Centrality_EWK"]->fill(Centrality);
 			_h["Dyjj_EWK"]->fill(Dyjj);
 			_h["mlly_EWK"]->fill(mlly);
-			_h["Dphi_lly_jj_EWK"]->fill(fabs(deltaPhi(lly, dijet)));
+			_h["Dphi_lly_jj_EWK"]->fill(my_dphi);
+			_h["Dphi_lly_jj_EWK_clip_inf"]->fill(my_dphi);
 
+
+      // do clipping - sometimes there are two Z and one gamma - in this case to avoid much work take Z with highest pt and gamma
+      std::vector<FourMomentum> hs_bosons_z = {};
+      std::vector<FourMomentum> hs_bosons_y = {};
+      for(const Particle& p_rivet : event.allParticles()){
+        ConstGenParticlePtr p_hepmc = p_rivet.genParticle();
+        int status = p_hepmc->status();
+        if (abs(status)==23 or abs(status)==22){
+          int i_pid = p_hepmc->pid();
+          FourMomentum i_mom = p_hepmc->momentum();
+          if (abs(i_pid) == 23){hs_bosons_z.push_back(i_mom);}
+          else if (abs(i_pid) == 22){hs_bosons_y.push_back(i_mom);}
+        }
+      }
+      std::sort(hs_bosons_z.begin(), hs_bosons_z.end(), [](FourMomentum const &a, FourMomentum const &b) {return a.pT() > b.pT(); }); // biggest pT will be first in array
+      std::sort(hs_bosons_y.begin(), hs_bosons_y.end(), [](FourMomentum const &a, FourMomentum const &b) {return a.pT() > b.pT(); });
+      bool have_two_hs_bosons = false;
+      double hs_diboson_mass = 0.0;
+      if (hs_bosons_z.size()>0 && hs_bosons_y.size()>0){
+        hs_diboson_mass = (hs_bosons_z[0]+hs_bosons_y[0]).mass()/GeV;
+        have_two_hs_bosons = true;
+      }
+      if (!have_two_hs_bosons) vetoEvent; // just in case reject events where dont have z+y
+
+      _h["m_Zy"]->fill(hs_diboson_mass);
       if (ev_nominal_weight >= 0) { _c["pos_w_final_clip_inf"]->fill(); }
       else { _c["neg_w_final_clip_inf"]->fill(); }
-//      for (std::string &i_clip: _clips) {
-//        if (i_clip == "inf") continue; // as done above without cut
-//        int i_clip_num = std::stoi(i_clip);
-//        std::string i_pos_c_name = "pos_w_final_clip_" + i_clip;
-//        std::string i_neg_c_name = "neg_w_final_clip_" + i_clip;
-//        std::string i_hist_name_m_llll = "m_llll_clip_" + i_clip;
-//        std::string i_hist_name_m_tagjets = "m_tagjets_clip_" + i_clip;
-//        if (hs_diboson_mass < i_clip_num) {
-//          _h[i_hist_name_m_llll]->fill(m_llll);
-//          _h[i_hist_name_m_tagjets]->fill(m_tagjets);
-//          if (ev_nominal_weight >= 0) { _c[i_pos_c_name]->fill(); }
-//          else { _c[i_neg_c_name]->fill(); }
-//        }
-//      }
+      // fill clipped
+      for (std::string &i_clip: _clips) {
+        if (i_clip == "inf") continue; // as done above without cut
+        int i_clip_num = std::stoi(i_clip);
+        std::string i_pos_c_name = "pos_w_final_clip_" + i_clip;
+        std::string i_neg_c_name = "neg_w_final_clip_" + i_clip;
+        std::string i_hist_name_dphi = "Dphi_lly_jj_EWK_clip_" + i_clip;
+        std::string i_hist_name_pty = "pT_y1_EWK_clip_" + i_clip;
+        std::string i_hist_name_ptZy = "pT_lly_EWK_clip_" + i_clip;
+        if (hs_diboson_mass < i_clip_num) {
+          _h[i_hist_name_dphi]->fill(my_dphi);
+          _h[i_hist_name_pty]->fill(my_pty);
+          _h[i_hist_name_ptZy]->fill(my_ptZy);
+          if (ev_nominal_weight >= 0) { _c[i_pos_c_name]->fill(); }
+          else { _c[i_neg_c_name]->fill(); }
+        }
+      }
 
     } // end of analyze
 
@@ -278,7 +332,18 @@ namespace Rivet {
     void finalize() {
       const double sf = crossSection() / femtobarn / sumOfWeights();
       scale(_h, sf);
-    }
+
+      // normalize all to 1 since in case of mostly negative weights not clear what it will do
+      const std::vector<std::string> h_names = {"Dphi_lly_jj_EWK_clip_", "pT_y1_EWK_clip_", "pT_lly_EWK_clip_"};
+      for (auto & i_name : h_names){
+        for (std::string &i_clip: _clips) {
+        std::string  i_clip_name = i_name + i_clip;
+        std::cout << "normalizeing hist " << i_clip_name <<" to 1; " ;
+        normalize(_h[i_clip_name], 1.0);
+        }
+      }
+
+    } // end of finalize
 
   private:
 
