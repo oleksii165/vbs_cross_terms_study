@@ -1,3 +1,6 @@
 [submodule "myROOTDrawing"]
 	path = myROOTDrawing
 	url = git@github.com:oleksii165/myROOTDrawing.git
+[submodule "eft-fun"]
+	path = eft-fun
+	url = ssh://git@gitlab.cern.ch:7999/okurdysh/eft-fun.git
