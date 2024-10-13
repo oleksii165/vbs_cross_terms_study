@@ -12,6 +12,7 @@ import lib_utils as lu
 # ana_dirs = {"ZZ_llll":["ZZ_llll", "SR", "m_ZZ"]}
 ana_dirs = {"Zy_lly":["ATLAS_2023_I2663725", "SR", "m_Zy"]}
 skip_cross = True
+output_counts = False # need to multiply by 139 1/fb or not?
 
 base_dir = "/lapp_data/atlas/kurdysh/vbs_eft_files/"
 clips = ["inf", "3000", "2000", "1500", "1000", "700"]
@@ -46,20 +47,23 @@ for i_ana_dir in ana_dirs.keys():
             xsecs[i_clip] = lu.read_oneline_file(i_xsec_file)
         print(xsecs)
         # combine hist and xsec
+        lumi = 139 if output_counts else 1
+        o_file_suff = "norm_run2" if output_counts else "norm_xsec"
         clips_found = list(set(clips_hist_found).intersection(xsecs.keys()))
-        hist_path_out = hist_path_in.replace("hists.root",f"hists_{fit_var}_norm_run2.root")
+        hist_path_out = hist_path_in.replace("hists.root",f"hists_{fit_var}_{o_file_suff}.root")
         hist_root_out = ROOT.TFile(hist_path_out,"recreate")
+        lumi = 139 if output_counts else 1
         for i_clip_found in clips_found:
             i_h_name = f"{var_clip_str}{i_clip_found}"
             if i_h_name in hists_names_in:
                 i_h = hist_root_in.Get(i_h_name)
-                i_h_normed = lu.dress_hist(i_h, i_h_name, my_norm = xsecs[i_clip_found]*139,
+                i_h_normed = lu.dress_hist(i_h, i_h_name, my_norm = xsecs[i_clip_found]*1,
                                            re_bins = fit_bins,re_overflow = re_overflow,
                                            exclude_underverflow_from_norm = exclude_underverflow_from_norm)
                 i_h_normed.Write("", ROOT.TObject.kOverwrite)
         # also save m_vv
         # i_h = hist_root_in.Get(m_vv_name)
-        i_h_normed = lu.dress_hist(hist_root_in.Get(m_vv_name), m_vv_name, my_norm = xsecs["inf"]*139)
+        i_h_normed = lu.dress_hist(hist_root_in.Get(m_vv_name), m_vv_name, my_norm = xsecs["inf"]*1)
         i_h_normed.Write("", ROOT.TObject.kOverwrite)
         hist_root_out.Close()
 
