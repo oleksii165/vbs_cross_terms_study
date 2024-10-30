@@ -41,9 +41,9 @@ def get_fitted_plot(routine, cut):
         bins = array('d', [30,43,60,85,130,550])
         overflow_bin, exclude_underverflow_from_norm = 0, 1
     elif routine in ["ATLAS_2023_I2663725"]:
-        # mystr, bins = "Dphi_lly_jj_EWK", array('d', [0, 2.96, 3.2])
+        mystr, bins = "Dphi_lly_jj_EWK", array('d', [0, 2.96, 3.2])
         # mystr, bins = "pT_y1_EWK", array('d', [25,40,100,500])
-        mystr, bins = "pT_lly_EWK", array('d', [0,100,700])
+        # mystr, bins = "pT_lly_EWK", array('d', [0,100,700])
         overflow_bin, exclude_underverflow_from_norm = 1, 0
     # elif routine in ["ZZ_llll"]:
     #     mystr="m_llll" # take only 1 instead of (mjj,m4l pair because lazy
