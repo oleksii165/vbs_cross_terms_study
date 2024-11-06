@@ -5,6 +5,7 @@ import ROOT
 import lib_utils as lu
 import yoda
 import numpy as np
+from array import array
 
 def get_hist_yodaname(varname, clip, uncert=""):
     yodaname = f"/ATLAS_2023_I2663725:cut=SR/{varname}_clip_{clip}[_{uncert}_]"
@@ -168,7 +169,12 @@ def get_efficiency(yoda_f, fit_var, i_clip_found, unc):
     neg_in = yoda_f[ref_histname.replace(fit_var,"neg_w_initial").replace(f"_clip_{i_clip_found}","")].sumW()
     pos_out = yoda_f[ref_histname.replace(fit_var,"pos_w_final")].sumW()
     neg_out = yoda_f[ref_histname.replace(fit_var,"neg_w_final")].sumW()
-    eff = (pos_in+neg_in) / (pos_out+neg_out)
+
+    sum_start, sum_finish = pos_in+neg_in, pos_out+neg_out
+    if sum_start!=0:
+        eff = sum_finish / sum_start
+    else:
+        eff = 0
     return eff
 def get_envelope_hist(ref_hist, var_hists, unc_name, clip):
     max_env_per_bin = [0.0] * ref_hist.GetNbinsX()
@@ -181,6 +187,7 @@ def get_envelope_hist(ref_hist, var_hists, unc_name, clip):
                 max_env_per_bin[ibin-1] = env
         # print("after ", ivar_hist.GetName(), "now env will be", max_env_per_bin)
     o_h_name = f"{unc_name}_envelope_on_top_of_nom_clip_{clip}"
+    # notice this will not give the same bin edges, but order and number of bins is convserved which is what matters
     env_on_top_of_nom_hist = ROOT.TH1F(o_h_name, o_h_name,
                                        ref_hist.GetNbinsX(),
                                        ref_hist.GetXaxis().GetXmin(), ref_hist.GetXaxis().GetXmax())
@@ -196,6 +203,7 @@ def get_envelope_hist(ref_hist, var_hists, unc_name, clip):
 # ana_dirs = {"ZZ_llll":["ZZ_llll", "SR", "m_ZZ"]}
 ana_dirs = {"Zy_lly":["ATLAS_2023_I2663725", "SR", "m_Zy"]}
 skip_cross = False
+skip_quad_int = True
 output_counts = True # need to multiply by 139 1/fb or not?
 
 base_dir = "/lapp_data/atlas/kurdysh/vbs_eft_files/"
@@ -208,6 +216,9 @@ for i_ana_dir in ana_dirs.keys():
     for i_op_dir in op_dirs:
         print("working on ", i_op_dir)
         hist_xsec_dir = f"{full_ana_dir}/{i_op_dir}/routine_{routine}_cut_{cut}/"
+        if skip_quad_int:
+            if "QUAD" in i_op_dir: continue
+            if "INT" in i_op_dir: continue
         if skip_cross:
             if "CROSS" in i_op_dir: continue
         # find hist file and if relevant hists are there
