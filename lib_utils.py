@@ -239,12 +239,15 @@ def get_hists_bounds_cuts(prod_dec):
     return params[prod_dec]
 
 
-def find_prod_dec_and_dir(conf):
+def find_prod_dec_and_dir(conf, ext_files_top_dir=""):
     prod_temp = conf[conf.find(".MadGraph_")+len(".MadGraph_") : ]
     print("start from string", prod_temp)
     prod_dec = prod_temp[:prod_temp.find("_F")]
     print("from conf found production dec", prod_dec)
-    conf_dir = f"/lapp_data/atlas/kurdysh/vbs_eft_files/{prod_dec}/"
+    if len(ext_files_top_dir)==0:
+        conf_dir = f"/lapp_data/atlas/kurdysh/vbs_eft_files/{prod_dec}/"
+    else:
+        conf_dir = f"/lapp_data/atlas/kurdysh/vbs_eft_files/{ext_files_top_dir}/"
     print("dir would be", conf_dir)
     return prod_dec, conf_dir
 
@@ -255,6 +258,8 @@ def find_evnt_dir_and_file(search_com):
     if conf_dir == -1: raise ValueError("did not find folder for this config ", search_com)
 
     evnt_file_candidates = glob.glob(conf_dir + "/*EVNT.root")
+    if len(evnt_file_candidates)==0:
+        evnt_file_candidates = glob.glob(f"{conf_dir}/EVNT*pool.root.1")
     if len(evnt_file_candidates)==0: evnt_file_candidates=-1
 
     return conf_dir, evnt_file_candidates

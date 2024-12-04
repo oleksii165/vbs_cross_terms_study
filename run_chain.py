@@ -84,6 +84,15 @@ def save_job_infos(mydir, xsec_no_cuts_fb, runLocally):
         h_root = lu.yoda_to_root_1d(h_yoda, i_hist.split("/")[-1])
         h_root.Write("", ROOT.TObject.kOverwrite)
     root_file.Close()
+    # same but norm to xsec
+    root_file_xsec = ROOT.TFile(mydir + "/hists_norm_xsec.root","UPDATE")
+    for i_hist in hists_1h_in_yoda:
+        h_yoda =  yoda_f[i_hist]
+        h_root = lu.yoda_to_root_1d(h_yoda, i_hist.split("/")[-1])
+        if h_root.Integral()!=0:
+            h_root.Scale(xsec_no_cuts_fb/h_root.Integral())
+        h_root.Write("", ROOT.TObject.kOverwrite)
+    root_file_xsec.Close()
 
     lu.write_to_f(mydir + "xsec_fb.txt", xsec_no_cuts_fb) # before cuts
     rivet_internal_conf_name = f"/{opts.routine}:cut={opts.cut}/"
@@ -128,13 +137,14 @@ def get_ext_in_files(routine):
 
 def main():
     parser = OptionParser()
-    parser.add_option("--cut", default = "SR")
     parser.add_option("--genJobName", default = "")
     parser.add_option("--evtMax", default = 100000000)
     parser.add_option("--runRivet", default = 0, type='int')
     parser.add_option("--routine", default = "ssWW_lvlv")
+    parser.add_option("--cut", default = "SR")
     parser.add_option("--genDoDownload", default = 0, type='int')
     parser.add_option("--runLocally", default = 0, type='int')
+    parser.add_option("--extFilesDir", default = "")
     parser.add_option("--saveInfoAfterRivet", default = 0, type='int')
     parser.add_option("--doMakeHtml", default = 0, type='int')
     parser.add_option("--rivetXsecSet1", default = 1, type='int')
@@ -150,7 +160,8 @@ def main():
         return
 
     print("##################### \n ############# will work on gen job", opts.genJobName)
-    prod_dec, base_dir = lu.find_prod_dec_and_dir(opts.genJobName) # dir where all files are stored
+    prod_dec, base_dir = lu.find_prod_dec_and_dir(opts.genJobName, opts.extFilesDir) # dir where all files are stored
+
     if opts.genDoDownload:
         prepare_grid_files(opts.genJobName)
         evnt_file, log_file = lu.get_evnt_log_files(base_dir,opts.genJobName)
@@ -175,7 +186,7 @@ def main():
 
     rivet_job_name = lu.get_rivet_job_name(opts.genJobName,opts.routine,opts.cut)
     if opts.runRivet:
-        str_for_athenaJO = f'''-c 'runLocally=1;conf="{opts.genJobName}";routine="{opts.routine}";cut="{opts.cut}";rivetXsecSet1="{opts.rivetXsecSet1}"' ''' 
+        str_for_athenaJO = f'''-c 'runLocally=1;conf="{opts.genJobName}";routine="{opts.routine}";cut="{opts.cut}";rivetXsecSet1="{opts.rivetXsecSet1}";ext_files_top_dir="{opts.extFilesDir}"' '''
         if opts.runLocally:
             run_com = f'athena rivet_job.py ' 
             run_com += str_for_athenaJO

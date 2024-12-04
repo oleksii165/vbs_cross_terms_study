@@ -49,10 +49,15 @@
 #python run_chain.py --genJobName "user.okurdysh.MadGraph_Zy_lly_${i_op}_CROSS" --evtMax 100000 --runRivet 1 --routine "ATLAS_2023_I2663725" --runLocally 1 --saveInfoAfterRivet 1 &
 #  done
 
-  for i_op in "FT2vsFT9" "FT2vsFT8" "FM1vsFM3" "FM2vsFM5" "FT5vsFT8" "FT8vsFT9" "FM4vsFM5" "FM4vsFM7" "FT0vsFT5" "FM1vsFM7" "FM2vsFM7" "FT2vsFT6" "FT6vsFT7" "FT6vsFT8" "FT0vsFT1" "FM3vsFM4" "FT1vsFT6" "FT6vsFT9" "FM2vsFM3" "FT0vsFT9"
-  do
-python run_chain.py --genJobName "user.okurdysh.MadGraph_Zy_lly_${i_op}_CROSS" --evtMax 100000 --runRivet 1 --routine "ATLAS_2023_I2663725" --runLocally 1 --saveInfoAfterRivet 1 &
-  done
+#  for i_op in "FT2vsFT9" "FT2vsFT8" "FM1vsFM3" "FM2vsFM5" "FT5vsFT8" "FT8vsFT9" "FM4vsFM5" "FM4vsFM7" "FT0vsFT5" "FM1vsFM7" "FM2vsFM7" "FT2vsFT6" "FT6vsFT7" "FT6vsFT8" "FT0vsFT1" "FM3vsFM4" "FT1vsFT6" "FT6vsFT9" "FM2vsFM3" "FT0vsFT9"
+#  do
+#python run_chain.py --genJobName "user.okurdysh.MadGraph_Zy_lly_${i_op}_CROSS" --evtMax 100000 --runRivet 1 --routine "ATLAS_2023_I2663725" --runLocally 1 --saveInfoAfterRivet 1 &
+#  done
 
 
 #python run_chain.py --genJobName "user.okurdysh.MadGraph_Zy_lly_FM3vsFM5_CROSS_try3" --evtMax 100000 --runRivet 1 --routine "ATLAS_2023_I2663725" --runLocally 1 --saveInfoAfterRivet 1 &
+
+
+# zz llvv theirs and mine
+#python run_chain.py --genJobName "user.okurdysh.MadGraph_ZZ_llvv_FT2_QUAD" --evtMax 2000 --runRivet 1 --routine "ZZ_llvv" --cut "NO" --genDoDownload 0 --runLocally 1 --extFilesDir "ZZ_llvv_original" --saveInfoAfterRivet 1
+python run_chain.py --genJobName "user.okurdysh.MadGraph_ZZ_llvv_FT2_QUAD" --evtMax 2000 --runRivet 0 --routine "ZZ_llvv" --cut "NO" --genDoDownload 0 --runLocally 1 --extFilesDir "ZZ_llvv_original" --saveInfoAfterRivet 1

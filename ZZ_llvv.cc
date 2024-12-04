@@ -30,18 +30,9 @@ namespace Rivet {
 
     /// Book histograms and initialise projections before the run
     void init() {
-        std::string txt_dir = "/exp/atlas/kurdysh/vbs_cross_terms_study/plotting/";
-
-        std::string out_dir = getOption("OUTDIR");
+        _cut_mode = getOption("cut");
         
-        _docut = 0; // most cuts on number of particles are always applied to avoid segfault
-        if (out_dir.find("DOCUT_YES") != string::npos) _docut = 1;
-        std::cout << "++++++received outidir" << out_dir << "meaning _docut is " << _docut << "\n";
-
-        std::string jsonfilestr =  txt_dir + "ZZ_llvv_cuts.json"; 
-        std::cout << "++++++assume .json for this ZZ_llvv" << "is " << jsonfilestr << "\n";
-        std::ifstream json_file(jsonfilestr);
-        
+        std::ifstream json_file("ZZ_llvv_cuts.json");
         _jcuts = json::parse(json_file);
         std::cout << "++++++ to check json 1 var got photon MET_by_HT" << _jcuts["MET_by_HT"] << "\n";
 
@@ -63,7 +54,8 @@ namespace Rivet {
         // The final-state particles declared above are clustered using FastJet with
         // the anti-kT algorithm and a jet-radius parameter 0.4
         // muons and neutrinos are excluded from the clustering, also veto electrons(+muons but this is redundant) there
-        VetoedFinalState hadrons(FinalState(Cuts::absetaIn(0.0, _jcuts["eta_jet"])));
+
+        VetoedFinalState hadrons(FinalState(Cuts::absetaIn(0.0, 10.0)));
         hadrons.addVetoOnThisFinalState(dressed_e);
         hadrons.addVetoOnThisFinalState(dressed_mu);
         declare(hadrons, "hadrons");
@@ -73,26 +65,15 @@ namespace Rivet {
         declare(MissingMomentum(), "METFinder");
 
         // plots common with others
-        std::ifstream jet_hist_file(txt_dir + "/jet_hists.json");      
-        json jet_hist = json::parse(jet_hist_file);
-        for (json::iterator it = jet_hist.begin(); it != jet_hist.end(); ++it) {
-        book(_h[it.key()], it.key(), it.value()[0], it.value()[1], it.value()[2]);
-        _hist_names.push_back(it.key());
+        std::vector<std::string> hists_files {"jet_hists.json", "lepton_hists.json", "ZZ_llvv_hists.json"};
+        for (auto & i_hists_file_name : hists_files) {
+            std::ifstream i_hist_file(i_hists_file_name);
+            json i_hist = json::parse(i_hist_file);
+            for (json::iterator it = i_hist.begin(); it != i_hist.end(); ++it) {
+                book(_h[it.key()], it.key(), it.value()[0], it.value()[1], it.value()[2]);
+                _hist_names.push_back(it.key());
+            }
         }
-        std::ifstream lep_hist_file(txt_dir + "/lepton_hists.json");      
-        json lep_hist = json::parse(lep_hist_file);
-        for (json::iterator it = lep_hist.begin(); it != lep_hist.end(); ++it) {
-        book(_h[it.key()], it.key(), it.value()[0], it.value()[1], it.value()[2]);
-        _hist_names.push_back(it.key());
-        }
-        // plots that are not in other ana
-        std::ifstream ana_hist_file(txt_dir + "/ZZ_llvv_hists.json");      
-        json ana_hist = json::parse(ana_hist_file);
-        for (json::iterator it = ana_hist.begin(); it != ana_hist.end(); ++it) {
-            book(_h[it.key()], it.key(), it.value()[0], it.value()[1], it.value()[2]);
-            _hist_names.push_back(it.key());
-        }
-
         //counter for efficiency
         book(_c["pos_w_initial"],"pos_w_initial");
         book(_c["neg_w_initial"],"neg_w_initial");
@@ -104,21 +85,8 @@ namespace Rivet {
         }
 
         // Cut-flows
-        _cutflows.addCutflow("ZZ_llvv_selections", {"two_lep", "lep_pt", 
-                            "m_ll", "dR_ll", "MET", "dphi_MET_pt_ll", "MET_by_HT", "n_jets"});
-
-        // setup for  file used for drawing images
-        if (_docut==1){
-        std::vector<std::string> pic_particles = {"tagjet1", "tagjet2", "lepton1", "lepton2", "MET"};
-        std::ofstream pic_csv (out_dir + "/info_for_image.csv", std::ofstream::out);
-        for (auto & i_p : pic_particles){ 
-            pic_csv << "eta_" + i_p +";";
-            pic_csv << "phi_" + i_p +";";
-            pic_csv << "pt_" + i_p +";";
-        }
-        pic_csv << "\n";
-        pic_csv.close();
-        }
+        _cutflows.addCutflow("ZZ_llvv_selections", {"two_lep", "lep_pt",
+                                                    "m_ll", "dR_ll", "MET", "dphi_MET_pt_ll", "MET_by_HT", "n_jets"});
 
     }
 
@@ -135,7 +103,7 @@ namespace Rivet {
         // Retrieve dressed leptons, sorted by pT
         Particles e_stable;
         Particles mu_stable;
-        if (_docut==1){
+        if (_cut_mode=="SR"){
             e_stable = apply<FinalState>(event, "e_stable").particlesByPt(Cuts::absetaIn(0.0, _jcuts["eta_lepton"]));
             mu_stable = apply<FinalState>(event, "mu_stable").particlesByPt(Cuts::absetaIn(0.0, _jcuts["eta_lepton"]));
         }
@@ -149,43 +117,45 @@ namespace Rivet {
             return a.pT() > b.pT(); // biggest pT will be first in array
             });
 
-        idiscardIfAnyDeltaRLess(e_stable, mu_stable, 0.4);
+        if (_cut_mode=="SR"){
+            idiscardIfAnyDeltaRLess(e_stable, mu_stable, 0.4);
+        }
 
         int nlep = leptons.size();
         if (nlep!=_jcuts["n_lepton_stable"])  vetoEvent; 
         _cutflows.fillnext();
 
-        if (_docut==1 && (leptons[0].pT()<_jcuts["pt_lepton1"] || leptons[1].pT()<_jcuts["pt_lepton2"])) vetoEvent;
+        if (_cut_mode=="SR" && (leptons[0].pT()<_jcuts["pt_lepton1"] || leptons[1].pT()<_jcuts["pt_lepton2"])) vetoEvent;
         _cutflows.fillnext();
         
         const FourMomentum fourvec_ll = leptons[0].mom() + leptons[1].mom();
         double m_ll = fourvec_ll.mass()/GeV;
-        if (_docut==1 && (m_ll<_jcuts["m_ll"][0] || m_ll>_jcuts["m_ll"][1])) vetoEvent; 
+        if (_cut_mode=="SR" && (m_ll<_jcuts["m_ll"][0] || m_ll>_jcuts["m_ll"][1])) vetoEvent;
         _cutflows.fillnext();
 
         double dR_ll = deltaR(leptons[0].rap(),leptons[0].phi(), leptons[1].rap(),leptons[1].phi());
-        if (_docut==1 && dR_ll>_jcuts["dR_ll"]) vetoEvent; 
+        if (_cut_mode=="SR" && dR_ll>_jcuts["dR_ll"]) vetoEvent;
         _cutflows.fillnext();
 
         const MissingMomentum& METfinder = apply<MissingMomentum>(event, "METFinder");
         const double MET = METfinder.missingPt()/GeV;
-        if (_docut==1 && MET<_jcuts["pt_MET"]) vetoEvent;
+        if (_cut_mode=="SR" && MET<_jcuts["pt_MET"]) vetoEvent;
         _cutflows.fillnext();
 
         const FourMomentum fourvec_MET = METfinder.missingMomentum();
         double dphi_MET_pt_ll = deltaPhi(fourvec_MET,fourvec_ll);
-        if (_docut==1 && dphi_MET_pt_ll<_jcuts["dphi_MET_pt_ll"]) vetoEvent;
+        if (_cut_mode=="SR" && dphi_MET_pt_ll<_jcuts["dphi_MET_pt_ll"]) vetoEvent;
         _cutflows.fillnext();
 
         double HT = METfinder.scalarEt();
         double MET_by_HT = MET / HT;
-        if (_docut==1 && MET_by_HT<_jcuts["MET_by_HT"]) vetoEvent;
+        if (_cut_mode=="SR" && MET_by_HT<_jcuts["MET_by_HT"]) vetoEvent;
         _cutflows.fillnext();
 
         // // Retrieve clustered jets, sorted by pT, with a minimum pT cut
         Jets jets;
-        if (_docut==1){
-            jets = apply<FastJets>(event, "jets").jetsByPt(Cuts::pT > dbl(_jcuts["pt_jet"])*GeV);
+        if (_cut_mode=="SR"){
+            jets = apply<FastJets>(event, "jets").jetsByPt(Cuts::pT > dbl(_jcuts["pt_jet"])*GeV && Cuts::absetaIn(0.0, _jcuts["eta_jet"]));
         }
         else {
             jets = apply<FastJets>(event, "jets").jetsByPt();
@@ -198,7 +168,7 @@ namespace Rivet {
         const FourMomentum tag1_jet = jets[0].mom();
         const FourMomentum tag2_jet = jets[1].mom();
         const double m_tagjets = (tag1_jet + tag2_jet).mass()/GeV;
-        const double dy_tagjets =  fabs(deltaRap(tag1_jet, tag2_jet)); // they dont do the cut
+        const double dy_tagjets =  deltaRap(tag1_jet, tag2_jet); // they dont do the cut
 
         // do clipping - in case with 2 + z to avoid much work take two Z with highest pt
         std::vector<FourMomentum> hs_bosons_Z = {};
@@ -240,6 +210,8 @@ namespace Rivet {
         _h["m_ZZ"]->fill(hs_diboson_mass);
         _h["m_ll"]->fill(m_ll);
         _h["dR_ll"]->fill(dR_ll);
+        _h["dy_ll"]->fill(deltaRap(leptons[0].mom(), leptons[1].mom()));
+        _h["dphi_ll"]->fill(deltaPhi(leptons[0].mom(),leptons[1].mom()));
         _h["MET_by_HT"]->fill(MET_by_HT);
         _h["pt_MET"]->fill(MET);
         _h["dphi_MET_pt_ll"]->fill(dphi_MET_pt_ll);
@@ -259,40 +231,7 @@ namespace Rivet {
                 else {_c[i_neg_c_name]->fill();}
                 }
             }
-    
-        // file used for drawing images
-        if (_docut==1){
-            int ind_bigger_eta_tagjet = (tag1_jet.eta() >  tag2_jet.eta()) ? 0 : 1;
-            int ind_smaller_eta_tagjet = static_cast<int>(!static_cast<bool>(ind_bigger_eta_tagjet));
-            //
-            int ind_bigger_eta_lep = (tag1_jet.eta() >  tag2_jet.eta()) ? 0 : 1;
-            int ind_smaller_eta_lep = static_cast<int>(!static_cast<bool>(ind_bigger_eta_lep));
-            // pulling file into common with init() _fout didn't work so re-open
-            std::ofstream pic_csv (getOption("OUTDIR") + "/info_for_image.csv", std::ofstream::app); 
-            // tagjet1
-            pic_csv << jets[ind_bigger_eta_tagjet].eta() << ";";
-            pic_csv << jets[ind_bigger_eta_tagjet].phi() << ";";
-            pic_csv << jets[ind_bigger_eta_tagjet].pt() << ";";
-            //tagjet2
-            pic_csv << jets[ind_smaller_eta_tagjet].eta() << ";";
-            pic_csv << jets[ind_smaller_eta_tagjet].phi() << ";";
-            pic_csv << jets[ind_smaller_eta_tagjet].pt() << ";";
-            //
-            //lepton 1        
-            pic_csv << leptons[ind_bigger_eta_lep].eta() << ";";
-            pic_csv << leptons[ind_bigger_eta_lep].phi() << ";";
-            pic_csv << leptons[ind_bigger_eta_lep].pt() << ";";
-            //lepton 2        
-            pic_csv << leptons[ind_smaller_eta_lep].eta() << ";";
-            pic_csv << leptons[ind_smaller_eta_lep].phi() << ";";
-            pic_csv << leptons[ind_smaller_eta_lep].pt() << ";";
-            // MET
-            pic_csv << fourvec_MET.eta() << ";";
-            pic_csv << fourvec_MET.phi() << ";";
-            pic_csv << fourvec_MET.pt() << ";";
-            // terminate line
-            pic_csv << "\n";
-        }
+
     }
 
     /// Normalise histograms etc., after the run
@@ -324,13 +263,14 @@ namespace Rivet {
     /// @{
     map<string, Histo1DPtr> _h;
     map<string, Histo2DPtr> _h2;
-    // map<string, Profile1DPtr> _p;
     map<string, CounterPtr> _c;
     int _docut;
     json _jcuts;
     Cutflows _cutflows;
     std::vector<std::string> _hist_names;
     std::vector<std::string> _clips {"inf", "3000", "2000", "1500", "1000", "700"};
+    Cut _eta_jet_cut;
+    std::string _cut_mode;
     /// @}
 
     };
