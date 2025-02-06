@@ -53,11 +53,13 @@ for i_order in ["QUAD","INT"]:
 # get FT5 for comparisons
 suffixes = [
             # "rep_cuts",
-            "rep_cuts_coupling",
-            "rep_cuts_coupling_pdf",
-            "rep_cuts_coupling_pdf_dynscale",
-            "rep_cuts_coupling_pdf_dynscale_qed6",
-            "rep_cuts_coupling_pdf_dynscale_qed6_autoptjmjj_cutdecays"
+            # "rep_cuts_coupling",
+            # "rep_cuts_coupling_pdf",
+            # "rep_cuts_coupling_pdf_dynscale",
+            # "rep_cuts_coupling_pdf_dynscale_qed6",
+            # "rep_cuts_coupling_pdf_dynscale_qed6_autoptjmjj_cutdecays"
+            "rep_cuts_coupling1_pdf_dynscale_qed6_autoptjmjj_cutdecays_sde_hardstrat",
+            "rep_cuts_coupling1_pdf_dynscale_qed6_autoptjmjj_cutdecays_sde_hardstrat_r21"
             ]
 for i_hist_name in dp.keys():
     for i_cut in ["SR","NO"]:
@@ -104,7 +106,8 @@ for i_op in ["FT5"]:
     for i_order in ["QUAD"]:
         for i_hist_name in dp.keys():
             x_min, x_max = dp[i_hist_name][1], dp[i_hist_name][2]
-            for i_cut in ["SR","NO"]:
+            # for i_cut in ["SR","NO"]:
+            for i_cut in ["NO"]:
                 h_original_counts, h_original_err, h_x = mho.hist_to_arr(hists[(i_order,i_op,i_hist_name,i_cut,"ZZ_llvv_original","")])
                 arr_counts_per_setting = {}
                 arr_err_per_setting = {}
@@ -133,7 +136,7 @@ for i_op in ["FT5"]:
                     ax[1].plot(h_x,arr_ratio_to_original_per_setting[i_setting],'o',label=i_setting,color=colors[num_color])
                 ax[1].set_ylabel("new/original")
                 if x_min!=-999: ax[1].set_xlim([x_min, x_max])
-                ax[1].set_ylim([0, 1])
+                # ax[1].set_ylim([0, 1])
                 oname = odir + f"{i_order}_cut_{i_cut}_{i_hist_name}.png"
                 print("saving", oname)
                 plt.savefig(oname, bbox_inches='tight')
