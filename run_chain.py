@@ -1,6 +1,5 @@
 # combine panda downloading, running rivet, making plots for many combinations
-from pandaclient import panda_api
-c = panda_api.get_api()
+
 import subprocess
 import ROOT
 ROOT.gStyle.SetOptStat(0)
@@ -154,6 +153,7 @@ def main():
 
     global base_dir
 
+
     if len(opts.genJobName)==0: return
     if "EXT0" in opts.genJobName or ".log" in opts.genJobName:
         print("provide job name without any EXT or .log")
@@ -168,21 +168,24 @@ def main():
         if (evnt_file==-1 or log_file==-1) and opts.runLocally: return
         if log_file==-1 and not opts.runLocally: return
 
-    tasks = c.get_tasks(limit=10000000, days=13000, username="Oleksii Kurdysh")
-    def check_job(job_name):
-        matched_tasks=[] # for same taskname but with try2, try3 last try should be first
-        for i_task in tasks:
-            i_name = i_task['taskname']
-            if job_name in i_name: matched_tasks.append(i_task)
-        print("found tasks with this name pattern", job_name, "are")
-        for i_task in matched_tasks:
-            print(i_task['status'], " ", i_task['taskname'].replace("/",""))
+    if not opts.runLocally:
+        from pandaclient import panda_api
+        c = panda_api.get_api()
+        tasks = c.get_tasks(limit=10000000, days=13000, username="Oleksii Kurdysh")
+        def check_job(job_name):
+            matched_tasks=[] # for same taskname but with try2, try3 last try should be first
+            for i_task in tasks:
+                i_name = i_task['taskname']
+                if job_name in i_name: matched_tasks.append(i_task)
+            print("found tasks with this name pattern", job_name, "are")
+            for i_task in matched_tasks:
+                print(i_task['status'], " ", i_task['taskname'].replace("/",""))
 
-        if len(matched_tasks)>0:
-            last_task = matched_tasks[0]
-            return last_task['status'], last_task['taskname'].replace("/",""), last_task['jeditaskid']
-        else:
-            return -1,-1,-1
+            if len(matched_tasks)>0:
+                last_task = matched_tasks[0]
+                return last_task['status'], last_task['taskname'].replace("/",""), last_task['jeditaskid']
+            else:
+                return -1,-1,-1
 
     rivet_job_name = lu.get_rivet_job_name(opts.genJobName,opts.routine,opts.cut)
     if opts.runRivet:

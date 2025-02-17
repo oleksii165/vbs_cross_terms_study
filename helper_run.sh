@@ -79,8 +79,38 @@
 #done
 
 #for i_job in  "user.okurdysh.MadGraph_rep_cuts_coupling_pdf_dynscale_qed6_autoptjmjj_cutdecays_ZZ_llvv_FT5_QUAD" "user.okurdysh.MadGraph_rep_cuts_coupling_pdf_dynscale_qed6_ZZ_llvv_FT5_QUAD" "user.okurdysh.MadGraph_rep_cuts_coupling_pdf_dynscale_ZZ_llvv_FT5_QUAD" "user.okurdysh.MadGraph_rep_cuts_coupling_pdf_ZZ_llvv_FT5_QUAD" "user.okurdysh.MadGraph_rep_cuts_coupling_ZZ_llvv_FT5_QUAD" "user.okurdysh.MadGraph_rep_cuts_ZZ_llvv_FT5_QUAD"
-for i_job in  "user.okurdysh.MadGraph_rep_cuts_coupling1_pdf_dynscale_qed6_autoptjmjj_cutdecays_sde_hardstrat_ZZ_llvv_FT5_QUAD" "user.okurdysh.MadGraph_rep_cuts_coupling1_pdf_dynscale_qed6_autoptjmjj_cutdecays_sde_hardstrat_r21_ZZ_llvv_FT5_QUAD"
-do
+#for i_job in  "user.okurdysh.MadGraph_rep_cuts_coupling1_pdf_dynscale_qed6_autoptjmjj_cutdecays_sde_hardstrat_ZZ_llvv_FT5_QUAD" "user.okurdysh.MadGraph_rep_cuts_coupling1_pdf_dynscale_qed6_autoptjmjj_cutdecays_sde_hardstrat_r21_ZZ_llvv_FT5_QUAD"
+#do
 #python run_chain.py --genJobName "${i_job}" --evtMax 15000 --runRivet 1 --routine "ZZ_llvv" --cut "SR" --genDoDownload 1 --runLocally 1 --extFilesDir "ZZ_llvv_comparisons" --saveInfoAfterRivet 1 &
-python run_chain.py --genJobName "${i_job}" --evtMax 15000 --runRivet 1 --routine "ZZ_llvv" --cut "NO" --genDoDownload 1 --runLocally 1 --extFilesDir "ZZ_llvv_comparisons" --saveInfoAfterRivet 1 &
-done
+#python run_chain.py --genJobName "${i_job}" --evtMax 15000 --runRivet 1 --routine "ZZ_llvv" --cut "NO" --genDoDownload 1 --runLocally 1 --extFilesDir "ZZ_llvv_comparisons" --saveInfoAfterRivet 1 &
+#done
+
+##########
+# jobs for ZZllv request
+###########
+
+
+#for i_job in  "MadGraph_100500_pdf" "MadGraph_100501_pdf_dynscale" "MadGraph_100502_pdf_dynscale_qed6" "MadGraph_100503_pdf_dynscale_qed6_cutdecaysautoptjmjj" "MadGraph_100504_pdf_dynscale_qed6_cutdecaysautoptjmjj_cuts" "MadGraph_legacyJO" "MadGraph_requestJO"
+#do
+#python run_chain.py --genJobName "user.okurdysh.${i_job}_ZZ_llvv_FT5_QUAD" --evtMax 10000 --runRivet 1 --routine "ZZ_llvv" --cut "NO" --genDoDownload 0 --runLocally 1 --extFilesDir "ZZ_llvv_request_comparisons" --saveInfoAfterRivet 1 &
+#done
+
+#for i_order in "INT" "QUAD"
+#do
+#  wait
+#  for i_op in "FS02" "FM0" "FM1" "FM2" "FM3" "FM4" "FM5" "FM7" "FT1" "FT2" "FT5" "FT6" "FT7" "FT8"
+#  do
+#    python run_chain.py --genJobName "user.okurdysh.MadGraph_ZZ_llvv_${i_op}_${i_order}_1" --evtMax 10000 --runRivet 1 --routine "ZZ_llvv" --cut "NO" --genDoDownload 0 --runLocally 1 --extFilesDir "ZZ_llvv_request" --saveInfoAfterRivet 1 &
+#  done
+#done
+
+#for i_job in "user.okurdysh.MadGraph_ZZ_llvv_FT0_INT_05" "user.okurdysh.MadGraph_ZZ_llvv_FT0_QUAD_05" "user.okurdysh.MadGraph_ZZ_llvv_FT9_INT_2" "user.okurdysh.MadGraph_ZZ_llvv_FT9_QUAD_2"
+#do
+#python run_chain.py --genJobName "${i_job}" --evtMax 10000 --runRivet 1 --routine "ZZ_llvv" --cut "NO" --genDoDownload 0 --runLocally 1 --extFilesDir "ZZ_llvv_request" --saveInfoAfterRivet 1 &
+#done
+
+python run_chain.py --genJobName "user.okurdysh.MadGraph_ZZ_llvv_FS1_INT_1"  --evtMax 10000 --runRivet 1 --routine "ZZ_llvv" --cut "NO" --genDoDownload 0 --runLocally 1 --extFilesDir "ZZ_llvv_request" --saveInfoAfterRivet 1
+
+#??? where is FS1
+#FT0
+#FT9

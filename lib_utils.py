@@ -169,6 +169,8 @@ def get_evnt_log_files(base_dir,i_job_name):
     if os.path.exists(evnt_dir):
         print("directories for evnt  exist")
         evnt_candidates = glob.glob(evnt_dir + "/*EVNT.root")
+        if len(evnt_candidates)==0: # there are different naming conventions
+            evnt_candidates = glob.glob(evnt_dir + "/EVNT*pool.root.*")
         print("evnt candidates of len",len(evnt_candidates), evnt_candidates)
         if len(evnt_candidates)>0:
             evnt_candidates_out = evnt_candidates
@@ -183,6 +185,10 @@ def get_evnt_log_files(base_dir,i_job_name):
             log_file =  log_candidates[0]
     else:
         print("directories for log  DOESN:T exist")
+
+    if log_file==-1:
+        print("trying to find log of EVNT dir")
+        log_file = evnt_dir + "/log.generate"
 
     print("returning evnt files", evnt_candidates_out)
     print("returning log file", log_file)
