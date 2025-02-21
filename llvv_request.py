@@ -29,7 +29,7 @@ dp["pt_tagjet2"] = [1, 0, 500, 0]
 
 ops_arr = ["FM0","FM1","FM2","FM3","FM4","FM5","FM7",
            "FS02",
-           # "FS1",
+           "FS1",
            "FT0","FT1","FT2","FT5","FT6","FT7","FT8","FT9"]
 cuts_arr = ["NO"]
 orders_arr = ["QUAD","INT"]
